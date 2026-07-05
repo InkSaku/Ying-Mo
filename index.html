@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>映墨 · 生活照片分享</title>
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/brand/favicon-16x16.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/brand/favicon-32x32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/brand/apple-touch-icon.png">
+    <link rel="shortcut icon" href="assets/brand/favicon.ico">
+    <meta name="theme-color" content="#2f8373">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-web/style.css">
+    
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body id="top">
+    <header class="site-header">
+      <div class="site-header__inner">
+        <a class="brand" href="#top" aria-label="回到首页">
+          <span class="brand__mark" aria-hidden="true">
+            <img class="brand__logo" src="assets/brand/logo.png" alt="">
+          </span>
+          <span class="brand__copy">
+            <span class="brand__text">映墨</span>
+            <span class="brand__tagline">把日常映成墨色</span>
+          </span>
+        </a>
+        <nav class="site-nav" aria-label="站点导航">
+          <a class="site-nav__link is-active" href="#top">首页</a>
+          <a class="site-nav__link" href="#discover">发现</a>
+          <a class="site-nav__link" href="#upload">上传</a>
+          <a class="site-nav__link" href="#gallery">照片墙</a>
+          <a class="site-nav__link" href="#about">关于映墨</a>
+        </nav>
+        <a class="external-button" href="#upload">记录今天</a>
+      </div>
+    </header>
+
+    <main>
+      <section class="home-hero">
+        <div class="home-hero__inner">
+          <div class="hero-copy">
+            <p class="eyebrow">朋友之间的生活照片小院子</p>
+            <h1>把日常映成墨色</h1>
+            <p>上传一张照片，留下一句生活。这里收藏普通日子里的光、风、饭香、路口和心情。</p>
+            <div class="hero-actions">
+              <a class="button button-primary" href="#upload">记录今天</a>
+              <a class="button button-outline" href="#discover">看看大家的日常</a>
+            </div>
+            <div class="hero-stats" aria-label="映墨当前状态">
+              <span class="stat-pill">7 张生活片段</span>
+              <span class="stat-pill">4 位朋友</span>
+              <span class="stat-pill">轻轻分享，慢慢保存</span>
+            </div>
+          </div>
+
+          <div class="hero-visual" aria-label="映墨照片分享预览" role="img">
+            <div class="snapshot-card">
+              <img src="assets/gallery/photo-01.jpg" alt="一张生活照片预览">
+              <div class="snapshot-card__body">
+                <strong>今日照片预览</strong>
+                <span>一张照片，一点心情。</span>
+              </div>
+            </div>
+            <div class="comment-bubble">普通日子也值得被保存。朋友来过，也留下了一句话。</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="content-section upload-entry" id="upload">
+        <div class="container">
+          <div class="upload-entry__card">
+            <div>
+              <p class="eyebrow">Upload</p>
+              <h2>记录今天</h2>
+              <p>现在先把上传入口留在这里。等后续接入后端，就可以选择照片、写一句日常、加上地点和心情，让它出现在朋友们的照片墙里。</p>
+              <a class="button button-primary" href="#upload">上传照片</a>
+            </div>
+            <div class="upload-form-preview" aria-label="静态上传表单预览">
+              <div class="upload-preview-box">选择一张照片<br>写下一句生活</div>
+              <div class="form-row">
+                <label>照片标题</label>
+                <div class="form-field">傍晚的路口</div>
+              </div>
+              <div class="form-row">
+                <label>一句描述</label>
+                <div class="form-field">今天风很轻，云也很慢。</div>
+              </div>
+              <div class="form-row">
+                <label>心情与可见范围</label>
+                <div class="form-field">安静 · 好友可见</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="content-section photo-feed" id="discover">
+        <div class="container">
+          <div class="section-heading">
+            <p class="eyebrow">最近更新</p>
+            <h2>看看朋友们刚留下的生活片段</h2>
+            <p>没有热榜，也不催促发布。只是把近来的小瞬间放在这里，等你慢慢看。</p>
+          </div>
+          <div class="photo-feed__grid" id="photoFeed" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="content-section photo-gallery" id="gallery">
+        <div class="container">
+          <div class="section-heading">
+            <p class="eyebrow">Photo Wall</p>
+            <h2>照片墙</h2>
+            <p>一张照片，一点心情。把朋友们的普通日子轻轻排在一起。</p>
+          </div>
+          <div class="photo-grid" id="photoGrid" aria-live="polite"></div>
+          <div class="photo-empty" id="photoEmpty">还没有照片。把图片放入 assets/gallery/，并在 galleryItems 中添加对应数据。</div>
+        </div>
+      </section>
+
+      <section class="content-section comment-preview" aria-labelledby="commentPreviewTitle">
+        <div class="container">
+          <div class="section-heading">
+            <p class="eyebrow">Comments</p>
+            <h2 id="commentPreviewTitle">轻轻留一句话</h2>
+            <p>评论不需要很长。朋友之间的一句“我也喜欢这个傍晚”，就够让照片变得有回声。</p>
+          </div>
+          <div class="comment-preview__grid">
+            <article class="comment-preview__item">
+              <span class="profile-chip"><span class="profile-chip__avatar">林</span><span class="profile-chip__name">小林</span></span>
+              <p>这张好有夏天的感觉，像晚饭前吹过来的风。</p>
+            </article>
+            <article class="comment-preview__item">
+              <span class="profile-chip"><span class="profile-chip__avatar">南</span><span class="profile-chip__name">阿南</span></span>
+              <p>普通日子也很可爱，被你拍得很安静。</p>
+            </article>
+            <article class="comment-preview__item">
+              <span class="profile-chip"><span class="profile-chip__avatar">墨</span><span class="profile-chip__name">小墨</span></span>
+              <p>这个色调很映墨，适合慢慢存起来。</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="content-section about-yingmo" id="about">
+        <div class="container">
+          <div class="about-yingmo__card">
+            <div class="about-yingmo__mark" aria-hidden="true">
+              <img src="assets/brand/logo.png" alt="">
+            </div>
+            <div>
+              <p class="eyebrow">About Yingmo</p>
+              <h2>给身边朋友一起用的小网站</h2>
+              <p>映墨不追求流量，也不做强社交。它更像一个朋友之间的生活小院子：有人放下一张照片，有人留下一句评论，普通日子就被轻轻保存下来。</p>
+              <ul class="about-points">
+                <li>记录真实生活，不要求每张照片都精致。</li>
+                <li>浏览朋友近况，不做陌生人强推荐。</li>
+                <li>保留轻量评论，让回忆有一点声音。</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-main">
+        <a class="brand" href="#top" aria-label="回到首页">
+          <span class="brand__mark" aria-hidden="true">
+            <img class="brand__logo" src="assets/brand/logo.png" alt="">
+          </span>
+          <span class="brand__copy">
+            <span class="brand__text">映墨</span>
+            <span class="brand__tagline">把普通日子轻轻收藏</span>
+          </span>
+        </a>
+        <nav class="footer-nav" aria-label="页脚导航">
+          <a href="#discover">发现</a>
+          <a href="#upload">上传</a>
+          <a href="#gallery">照片墙</a>
+          <a href="#about">关于映墨</a>
+        </nav>
+      </div>
+      <div class="footer-bottom">
+        <p>© 映墨 · 把普通日子轻轻收藏</p>
+        <p>给朋友们一起使用的生活照片小站</p>
+      </div>
+    </footer>
+
+    <a class="back-to-top" href="#top" aria-label="返回顶部">↑</a>
+
+    <div class="photo-lightbox" id="photoLightbox" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="photoLightboxTitle">
+      <div class="photo-lightbox__dialog" role="document">
+        <button class="photo-lightbox__close" id="photoLightboxClose" type="button" aria-label="关闭照片详情">×</button>
+        <div class="photo-lightbox__image-wrap">
+          <img class="photo-lightbox__image" id="photoLightboxImage" src="" alt="">
+        </div>
+        <div class="photo-lightbox__content">
+          <span id="photoLightboxAuthor"></span>
+          <h2 class="photo-lightbox__title" id="photoLightboxTitle">照片详情</h2>
+          <p class="photo-lightbox__desc" id="photoLightboxDesc"></p>
+          <div class="lightbox-meta" id="photoLightboxMeta"></div>
+          <div class="lightbox-tags" id="photoLightboxTags"></div>
+          <div class="comment-list" id="photoLightboxComments"></div>
+        </div>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+    
+  </body>
+</html>

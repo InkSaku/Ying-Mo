@@ -9,6 +9,19 @@
     <link rel="apple-touch-icon" sizes="180x180" href="assets/brand/apple-touch-icon.png">
     <link rel="shortcut icon" href="assets/brand/favicon.ico">
     <meta name="theme-color" content="#2f8373">
+    <script>
+      (() => {
+        const storageKey = "yingmo-theme";
+        const root = document.documentElement;
+        const savedTheme = localStorage.getItem(storageKey);
+        const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        const theme = savedTheme || (systemPrefersDark ? "dark" : "light");
+
+        root.dataset.theme = theme;
+        root.classList.toggle("dark", theme === "dark");
+        root.style.colorScheme = theme;
+      })();
+    </script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-web/style.css">
     
     <link rel="stylesheet" href="style.css">
@@ -32,7 +45,13 @@
           <a class="site-nav__link" href="#gallery">照片墙</a>
           <a class="site-nav__link" href="#about">关于映墨</a>
         </nav>
-        <a class="external-button" href="#upload">记录今天</a>
+        <div class="site-actions">
+          <button class="theme-toggle" id="themeToggle" type="button" aria-label="切换到深色主题" aria-pressed="false">
+            <span class="theme-toggle__icon" aria-hidden="true">月</span>
+            <span class="theme-toggle__text">深色</span>
+          </button>
+          <a class="external-button" href="#upload">记录今天</a>
+        </div>
       </div>
     </header>
 

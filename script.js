@@ -1,4 +1,68 @@
 (() => {
+const THEME_STORAGE_KEY = "yingmo-theme";
+const DARK_THEME_COLOR = "#171c18";
+const LIGHT_THEME_COLOR = "#2f8373";
+const root = document.documentElement;
+const themeToggle = document.querySelector("#themeToggle");
+const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+const systemThemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+function getSavedTheme() {
+    const value = localStorage.getItem(THEME_STORAGE_KEY);
+    return value === "light" || value === "dark" ? value : null;
+}
+
+function getPreferredTheme() {
+    return getSavedTheme() || (systemThemeQuery.matches ? "dark" : "light");
+}
+
+function updateThemeButton(theme) {
+    if (!themeToggle) return;
+
+    const isDark = theme === "dark";
+    const icon = themeToggle.querySelector(".theme-toggle__icon");
+    const text = themeToggle.querySelector(".theme-toggle__text");
+
+    themeToggle.setAttribute("aria-pressed", String(isDark));
+    themeToggle.setAttribute("aria-label", isDark ? "切换到浅色主题" : "切换到深色主题");
+    themeToggle.title = isDark ? "切换到浅色主题" : "切换到深色主题";
+
+    if (icon) icon.textContent = isDark ? "日" : "月";
+    if (text) text.textContent = isDark ? "浅色" : "深色";
+}
+
+function applyTheme(theme, shouldPersist = false) {
+    const normalizedTheme = theme === "dark" ? "dark" : "light";
+
+    root.dataset.theme = normalizedTheme;
+    root.classList.toggle("dark", normalizedTheme === "dark");
+    root.style.colorScheme = normalizedTheme;
+
+    if (themeColorMeta) {
+    themeColorMeta.setAttribute("content", normalizedTheme === "dark" ? DARK_THEME_COLOR : LIGHT_THEME_COLOR);
+    }
+
+    if (shouldPersist) {
+    localStorage.setItem(THEME_STORAGE_KEY, normalizedTheme);
+    }
+
+    updateThemeButton(normalizedTheme);
+}
+
+applyTheme(getPreferredTheme());
+
+if (themeToggle) {
+    themeToggle.addEventListener("click", () => {
+    const nextTheme = root.dataset.theme === "dark" ? "light" : "dark";
+    applyTheme(nextTheme, true);
+    });
+}
+
+systemThemeQuery.addEventListener("change", (event) => {
+    if (getSavedTheme()) return;
+    applyTheme(event.matches ? "dark" : "light");
+});
+
 const galleryItems = [
     {
     id: "photo-001",

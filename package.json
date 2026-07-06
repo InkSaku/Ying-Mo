@@ -1,0 +1,30 @@
+{
+  "name": "yingmo",
+  "version": "1.0.0",
+  "description": "",
+  "main": "script.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/InkSaku/Ying-Mo.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/InkSaku/Ying-Mo/issues"
+  },
+  "homepage": "https://github.com/InkSaku/Ying-Mo#readme",
+  "devDependencies": {
+    "vite": "^8.1.3"
+  }
+}

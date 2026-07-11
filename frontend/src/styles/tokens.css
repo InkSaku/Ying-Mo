@@ -1,0 +1,51 @@
+:root {
+  --font-main: "LXGW WenKai Screen", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+  --color-bg: #f5f4ec;
+  --color-surface: #fffefa;
+  --color-surface-soft: #faf9f2;
+  --color-surface-muted: #f0efe7;
+  --color-surface-glass: rgba(255, 254, 250, 0.94);
+  --color-primary: #2f8373;
+  --color-primary-strong: #22675a;
+  --color-primary-soft: #d8eee8;
+  --color-primary-veil: rgba(47, 131, 115, 0.12);
+  --color-game: #50638d;
+  --color-game-soft: #e7ebf5;
+  --color-text: #20231f;
+  --color-text-muted: #69736d;
+  --color-text-subtle: #8a948d;
+  --color-border: #e2e0d5;
+  --color-border-strong: #d3d0c2;
+  --color-overlay: rgba(24, 29, 25, 0.64);
+  --space-1: 0.5rem;
+  --space-2: 1rem;
+  --space-3: 1.5rem;
+  --space-4: 2.5rem;
+  --radius: 0.75rem;
+  --radius-lg: 1.125rem;
+  --page-width: 72rem;
+  --shadow-card: 0 14px 32px rgba(32, 35, 31, 0.06);
+  --shadow-hover: 0 20px 44px rgba(32, 35, 31, 0.12);
+}
+
+:root[data-theme="dark"] {
+  --color-bg: #171c18;
+  --color-surface: #222a24;
+  --color-surface-soft: #1d241f;
+  --color-surface-muted: #29322b;
+  --color-surface-glass: rgba(31, 39, 33, 0.96);
+  --color-primary: #86d1c0;
+  --color-primary-strong: #a4e0d3;
+  --color-primary-soft: rgba(134, 209, 192, 0.22);
+  --color-primary-veil: rgba(134, 209, 192, 0.14);
+  --color-game: #b8c7f0;
+  --color-game-soft: rgba(120, 143, 203, 0.18);
+  --color-text: #eef2ea;
+  --color-text-muted: #c2cbc1;
+  --color-text-subtle: #98a596;
+  --color-border: #354136;
+  --color-border-strong: #4a5a4c;
+  --color-overlay: rgba(7, 10, 8, 0.82);
+  --shadow-card: 0 16px 36px rgba(3, 8, 5, 0.3);
+  --shadow-hover: 0 22px 50px rgba(3, 8, 5, 0.42);
+}

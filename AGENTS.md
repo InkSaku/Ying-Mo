@@ -1,0 +1,28 @@
+# 映墨 V2 协作规则
+
+## 权威与边界
+
+- 产品需求以 `docs/yingmo-prd-v2.md` 为唯一需求基线；`docs/archive/yingmo-prd-v1-legacy.md` 仅用于理解静态原型的历史意图，不能覆盖或缩减 V2。
+- 架构、数据和 API 的唯一技术基线分别是 `docs/architecture.md`、`docs/database-design.md`、`docs/api-conventions.md`。
+- 当前 `index.html`、`style.css`、`script.js` 和 `assets/` 是 V1 静态视觉参考。在 React 迁移任务明确完成前，不删除、不改写、不把它们当作 V2 已实现功能。
+- 每次只完成一个能独立验收的小任务；不在同一任务中混入无关重构、依赖升级或部署变更。
+
+## 实现约定
+
+- 前端使用 React + Vite，后端使用 Flask App Factory、Blueprint、SQLAlchemy 和 Flask-Migrate；接口固定使用 `/api/v1`。
+- 所有后端路由必须在对应 Blueprint 内，使用统一响应、错误码、鉴权、参数校验和 UTC ISO 8601 时间格式，详见 `docs/api-conventions.md`。
+- 数据库变更必须同时提供 Alembic/Flask-Migrate 迁移、模型测试和 API/服务层测试；不得直接以生产数据库手工建表替代迁移。
+- 图片文件存储在存储服务中，数据库只保存元数据和派生 URL/键；上传必须校验实际内容、大小、归属和访问权限。
+- 任何可见性、作者归属、管理员权限、重复检查都必须由后端最终裁决；前端校验只改善体验。
+- 不使用静态假数据冒充已接通业务。迁移期 mock 数据集中放在 `frontend/src/mocks/`，并标注仅供演示。
+
+## 质量与提交
+
+- 业务功能至少有：成功路径、参数错误、未登录/越权和关键边界条件的测试。
+- 前端任务至少运行与本次变更相关的 `lint`、组件/页面测试和 `build`；后端任务至少运行 `pytest` 与迁移检查。未运行的命令必须如实报告。
+- 提交前检查变更范围；不要提交 `.env`、密钥、上传文件、构建产物、`node_modules/`、本地数据库或日志。
+- 分支和提交保持单一目的，例如 `feat/auth-backend`、`feat/life-posts`、`docs/v2-baseline`。一个 PR 可独立回滚。
+
+## 完成汇报模板
+
+每项任务结束时必须说明：完成内容、实际修改文件、迁移情况、API 变化、实际执行命令及结果、手动验收步骤、未完成项/风险、下一项建议任务；未实际运行测试不得声称通过。

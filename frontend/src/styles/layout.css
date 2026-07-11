@@ -76,6 +76,10 @@
   display: none;
 }
 
+.header-user { color: var(--color-text-muted); font-size: 0.9rem; white-space: nowrap; }
+.header-auth-link { padding: 0.55rem 0.7rem; color: var(--color-text-muted); }
+.header-auth-link:hover, .header-auth-link:focus-visible { color: var(--color-primary-strong); }
+
 .login-placeholder:disabled {
   cursor: not-allowed;
   opacity: 0.58;

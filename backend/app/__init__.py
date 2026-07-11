@@ -7,8 +7,9 @@ from flask import Flask, g, request
 
 from .blueprints import register_blueprints
 from .common.errors import register_error_handlers
-from .config import INSTANCE_PATH, get_config
+from .config import get_config
 from .extensions import init_extensions
+from . import models  # noqa: F401
 
 
 def create_app(config_name=None, config_overrides=None):
@@ -19,12 +20,12 @@ def create_app(config_name=None, config_overrides=None):
     if environment == "production":
         config_class.validate()
 
-    app = Flask(__name__, instance_path=str(INSTANCE_PATH), instance_relative_config=True)
+    app = Flask(__name__)
     app.config.from_object(config_class)
     if config_overrides:
         app.config.update(config_overrides)
+    app.config["SQLALCHEMY_DATABASE_URI"] = config_class.database_uri()
 
-    os.makedirs(app.instance_path, exist_ok=True)
     _configure_logging(app)
     _register_request_id(app)
     init_extensions(app)

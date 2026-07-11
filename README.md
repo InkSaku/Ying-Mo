@@ -4,7 +4,7 @@
 
 ## 后端环境
 
-后端使用 Python 3.12+、Flask、SQLAlchemy 和 Flask-Migrate。开发与测试默认使用 SQLite；联调和生产使用 MySQL 8.0+。
+后端使用 Python 3.12+、Flask、SQLAlchemy 和 Flask-Migrate。开发、测试、联调和生产统一使用 MySQL 8.0+；请在 `backend/.env` 设置带有 `charset=utf8mb4` 的 `DATABASE_URL`。测试可额外设置独立的 `TEST_DATABASE_URL`，未设置时会使用 `DATABASE_URL`，不会回退到本地文件数据库。
 
 ```bash
 cd backend
@@ -32,7 +32,7 @@ source .venv/bin/activate
 pytest
 ```
 
-`CORS_ORIGINS` 以逗号分隔允许的前端来源；开发默认示例同时包含 `http://localhost:5173` 和 `http://127.0.0.1:5173`。不要提交 `backend/.env`、虚拟环境、SQLite 数据库或上传文件。
+`CORS_ORIGINS` 以逗号分隔允许的前端来源；开发默认示例同时包含 `http://localhost:5173` 和 `http://127.0.0.1:5173`。不要提交 `backend/.env`、虚拟环境、本地数据库文件或上传文件。
 
 ## 前端
 

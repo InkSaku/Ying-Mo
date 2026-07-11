@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import ThemeToggle from '../common/ThemeToggle'
 import PageContainer from './PageContainer'
+import { Link } from 'react-router-dom'
+import { useAuth } from '../../auth/useAuth.js'
 
 const navigation = [
   { to: '/', label: '首页', end: true },
@@ -13,7 +15,14 @@ const navigation = [
 ]
 
 export default function SiteHeader({ theme, onThemeToggle }) {
+  const { isAuthenticated, user, logout } = useAuth()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+
+  async function handleLogout() {
+    setIsLoggingOut(true)
+    try { await logout() } finally { setIsLoggingOut(false); setIsMenuOpen(false) }
+  }
 
   return (
     <header className="site-header">
@@ -50,9 +59,7 @@ export default function SiteHeader({ theme, onThemeToggle }) {
           </nav>
           <div className="site-actions">
             <ThemeToggle theme={theme} onToggle={onThemeToggle} />
-            <button className="login-placeholder" type="button" disabled title="登录功能将在认证阶段开放">
-              登录
-            </button>
+            {isAuthenticated ? <><span className="header-user">{user.nickname || user.username}</span><button type="button" onClick={handleLogout} disabled={isLoggingOut}>{isLoggingOut ? '退出中…' : '退出'}</button></> : <><Link className="header-auth-link" to="/login" onClick={() => setIsMenuOpen(false)}>登录</Link><Link className="button button--primary" to="/register" onClick={() => setIsMenuOpen(false)}>注册</Link></>}
           </div>
         </div>
       </PageContainer>

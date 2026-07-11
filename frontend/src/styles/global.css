@@ -3,6 +3,7 @@
 @import url("./layout.css");
 @import url("./home.css");
 @import url("./lightbox.css");
+@import url("./auth.css");
 
 html {
   scroll-behavior: smooth;

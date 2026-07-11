@@ -6,6 +6,7 @@
 @import url("./auth.css");
 @import url("./profile.css");
 @import url("./upload.css");
+@import url("./life.css");
 
 html {
   scroll-behavior: smooth;

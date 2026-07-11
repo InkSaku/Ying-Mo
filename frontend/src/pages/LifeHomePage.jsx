@@ -1,0 +1,7 @@
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { getLifePosts } from '../api/life.js'
+import LifePostCard from '../components/life/LifePostCard.jsx'
+import { useAuth } from '../auth/useAuth.js'
+export default function LifeHomePage() { const { isAuthenticated } = useAuth(); return <LifePostLoader key={isAuthenticated ? 'user' : 'guest'} mine={false} /> }
+function LifePostLoader() { const { isAuthenticated } = useAuth(); const [mine,setMine]=useState(false); const [state,setState]=useState({loading:true,posts:[],error:null}); useEffect(()=>{ let stop=false; getLifePosts({scope:mine?'mine':'latest',page_size:20}).then((result)=>!stop&&setState({loading:false,posts:result.data,error:null})).catch((error)=>!stop&&setState({loading:false,posts:[],error})); return()=>{stop=true} },[mine]); return <section className="life-page page-container"><p className="eyebrow">日常生活</p><h1>把今天留下来</h1><p>照片、心情和一段普通的话，都可以慢慢收在这里。</p><div className="life-toolbar"><Link className="button button--primary" to="/life/create">发布日常</Link><Link className="button" to="/life/chapters">浏览章节</Link>{isAuthenticated&&<button type="button" onClick={()=>setMine(!mine)}>{mine?'查看最新':'我的日常'}</button>}</div>{state.loading?<p className="state-message">正在加载…</p>:null}{state.error?<p className="state-message state-message--error">{state.error.message}</p>:null}<div className="card-grid card-grid--three">{state.posts.map((post)=><LifePostCard key={post.id} post={post}/>)}</div></section> }

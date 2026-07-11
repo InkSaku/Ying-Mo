@@ -55,7 +55,12 @@ def _send_media(public_id, thumbnail=False):
         return error_response("RESOURCE_NOT_FOUND", "请求的资源不存在。", 404)
     if media.bound_type != "user_avatar":
         user = _current_user() if get_jwt_identity() else None
-        if user is None or media.owner_id != user.id:
+        if media.bound_type in {"life_chapter_cover", "life_post"}:
+            from app.life.routes import can_read_media
+            permitted = can_read_media(media, user)
+        else:
+            permitted = user is not None and media.owner_id == user.id
+        if not permitted:
             return error_response("RESOURCE_NOT_FOUND", "请求的资源不存在。", 404)
     key = media.thumbnail_key if thumbnail else media.storage_key
     if not file_exists(key):

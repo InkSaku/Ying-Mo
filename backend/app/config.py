@@ -38,7 +38,12 @@ class BaseConfig:
         "pool_pre_ping": True,
         "pool_recycle": 280,
     }
-    MAX_CONTENT_LENGTH = int(os.getenv("MAX_CONTENT_LENGTH", 15 * 1024 * 1024))
+    # multipart 需要为边界信息预留一点空间，图片本身仍由上传服务限制为 15 MB。
+    MAX_CONTENT_LENGTH = int(os.getenv("MAX_CONTENT_LENGTH", 16 * 1024 * 1024))
+    UPLOAD_ROOT = Path(os.getenv("UPLOAD_ROOT", BACKEND_ROOT / "uploads")).expanduser()
+    IMAGE_MAX_BYTES = int(os.getenv("IMAGE_MAX_BYTES", 15 * 1024 * 1024))
+    IMAGE_MAX_PIXELS = int(os.getenv("IMAGE_MAX_PIXELS", 40_000_000))
+    IMAGE_THUMBNAIL_MAX_SIDE = int(os.getenv("IMAGE_THUMBNAIL_MAX_SIDE", 640))
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=int(os.getenv("JWT_ACCESS_TOKEN_EXPIRES_MINUTES", "15")))
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=int(os.getenv("JWT_REFRESH_TOKEN_EXPIRES_DAYS", "30")))

@@ -9,5 +9,5 @@ __pycache__/
 htmlcov/
 instance/
 *.db
-uploads/
+/uploads/
 logs/

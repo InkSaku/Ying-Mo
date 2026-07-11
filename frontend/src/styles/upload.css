@@ -1,0 +1,9 @@
+.image-upload-field { display: grid; gap: 0.75rem; }
+.image-upload-field__dropzone { display: grid; min-height: 13rem; place-items: center; align-content: center; gap: 0.35rem; border: 1px dashed var(--color-border-strong); border-radius: var(--radius-lg); background: var(--color-bg-soft); color: var(--color-text-muted); cursor: pointer; padding: var(--space-2); text-align: center; transition: border-color var(--motion-fast), background var(--motion-fast); }
+.image-upload-field__dropzone:hover, .image-upload-field__dropzone:focus-visible { border-color: var(--color-primary); background: var(--color-primary-veil); outline: none; }
+.image-upload-field__dropzone.is-disabled { cursor: not-allowed; opacity: 0.65; }
+.image-upload-field__dropzone img { width: 7.5rem; height: 7.5rem; border-radius: 50%; object-fit: cover; box-shadow: var(--shadow-card); }
+.image-upload-field__placeholder { display: grid; width: 7.5rem; height: 7.5rem; place-items: center; border-radius: 50%; background: var(--color-primary-soft); color: var(--color-primary-strong); }
+.image-upload-field__dropzone small { color: var(--color-text-subtle); }
+.image-upload-field__actions { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.button--quiet { border-color: transparent; background: transparent; color: var(--color-text-muted); }

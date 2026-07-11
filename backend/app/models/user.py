@@ -10,6 +10,14 @@ def utcnow():
     return datetime.now(timezone.utc)
 
 
+def serialize_datetime(value):
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
 class UserRole(StrEnum):
     USER = "user"
     CONTENT_ADMIN = "content_admin"
@@ -59,6 +67,7 @@ class User(db.Model):
         return {
             "id": self.id,
             "username": self.username,
+            "email": self.email,
             "nickname": self.nickname,
             "avatar_url": self.avatar_url,
             "bio": self.bio,
@@ -67,7 +76,7 @@ class User(db.Model):
             "status": self.status,
             "can_publish": self.can_publish,
             "can_comment": self.can_comment,
-            "created_at": self.created_at.isoformat().replace("+00:00", "Z"),
-            "updated_at": self.updated_at.isoformat().replace("+00:00", "Z"),
-            "last_login_at": self.last_login_at.isoformat().replace("+00:00", "Z") if self.last_login_at else None,
+            "created_at": serialize_datetime(self.created_at),
+            "updated_at": serialize_datetime(self.updated_at),
+            "last_login_at": serialize_datetime(self.last_login_at),
         }

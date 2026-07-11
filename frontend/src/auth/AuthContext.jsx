@@ -37,6 +37,11 @@ export function AuthProvider({ children }) {
     setStatus('authenticated')
   }, [])
 
+  const updateAuthenticatedUser = useCallback((nextUser) => {
+    setUser(nextUser)
+    setStatus('authenticated')
+  }, [])
+
   /**
    * 刷新登录状态。
    *
@@ -132,6 +137,7 @@ export function AuthProvider({ children }) {
     register,
     logout,
     refreshSession,
+    updateAuthenticatedUser,
   }
 
   return (

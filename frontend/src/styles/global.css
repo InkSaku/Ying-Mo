@@ -6,15 +6,51 @@
 
 html {
   scroll-behavior: smooth;
+  font-family: var(--font-main);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 body {
   min-height: 100vh;
   overflow-x: hidden;
-  background: var(--color-bg);
+  background:
+    radial-gradient(circle at 10% 8%, rgba(216, 238, 232, 0.46), transparent 30%),
+    linear-gradient(180deg, var(--color-bg-soft) 0%, var(--color-bg) 22.5rem);
   color: var(--color-text);
   font-family: var(--font-main);
-  line-height: 1.65;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.82;
+}
+
+button,
+input,
+textarea,
+select,
+option {
+  font-family: var(--font-main);
+}
+
+code,
+pre,
+kbd,
+samp {
+  font-family: var(--font-mono);
+}
+
+p,
+li {
+  line-height: 1.8;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  color: var(--color-text);
+  font-family: var(--font-main);
+  font-weight: 400;
 }
 
 button,
@@ -29,7 +65,7 @@ button,
   align-items: center;
   justify-content: center;
   border: 1px solid var(--color-border);
-  border-radius: 0.55rem;
+  border-radius: var(--radius);
   background: var(--color-surface);
   cursor: pointer;
   padding: 0.55rem 0.9rem;
@@ -52,14 +88,14 @@ a:focus-visible {
 .button--primary {
   border-color: var(--color-primary);
   background: var(--color-primary);
-  color: var(--color-bg);
+  color: #fffefa;
 }
 
 .button--primary:hover,
 .button--primary:focus-visible {
   border-color: var(--color-primary-strong);
   background: var(--color-primary-strong);
-  color: var(--color-bg);
+  color: #fffefa;
 }
 
 .button--outline {
@@ -84,10 +120,9 @@ a:focus-visible {
 
 .eyebrow {
   color: var(--color-primary-strong);
-  font-size: 0.78rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-size: 0.82rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
 }
 
 .state-message,
@@ -105,7 +140,18 @@ a:focus-visible {
 }
 
 .backend-status--success {
-  border-color: var(--color-primary);
+  border-color: var(--color-primary-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 .backend-status__label {

@@ -9,7 +9,8 @@ export default function ThemeToggle({ theme, onToggle }) {
       aria-pressed={theme === 'dark'}
       onClick={onToggle}
     >
-      {theme === 'dark' ? '浅色' : '深色'}
+      <span aria-hidden="true">{theme === 'dark' ? '日' : '月'}</span>
+      <span>{theme === 'dark' ? '浅色' : '深色'}</span>
     </button>
   )
 }

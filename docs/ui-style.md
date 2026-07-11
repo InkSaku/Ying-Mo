@@ -1,6 +1,6 @@
 # 温暖克制中文友好 UI 设计范式 Skill v2.0
 
-> 说明：本文件由原 `lijin-ui-style-skills(2).md` 升级完善而来，可直接放入项目 `docs/` 目录作为 Codex / Cursor / Claude Code 的 UI 设计 Skill。  
+> 说明：本文件是映墨项目的前端 UI 设计规范，可供 Codex、Cursor、Claude Code 等开发工具读取。  
 > 用途：将本文件作为 Codex / Cursor / Claude Code / ChatGPT Agent 的前端 UI 设计技能文档。  
 > 版本：v2.0，增强“只学方法、不复制结构”的边界约束，并补充多业务适配、照片生活类页面适配、字体兜底、深色模式兼容、可访问性动效规则和 Codex 汇报规范。  
 > 目标：让 AI 在修改 HTML、CSS、React、Vue、Next.js、Vite 等项目前端页面时，稳定产出一种**温暖、克制、清爽、中文阅读友好、有个人站气质**的视觉风格。  

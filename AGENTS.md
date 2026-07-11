@@ -2,15 +2,15 @@
 
 ## 权威与边界
 
-- 产品需求以 `docs/yingmo-prd-v2.md` 为唯一需求基线；`docs/archive/yingmo-prd-v1-legacy.md` 仅用于理解静态原型的历史意图，不能覆盖或缩减 V2。
-- 架构、数据和 API 的唯一技术基线分别是 `docs/architecture.md`、`docs/database-design.md`、`docs/api-conventions.md`。
+- 产品需求以 `docs/product.md` 为唯一需求基线。
+- 技术栈与开发约束以本文件为准；前端视觉与交互风格以 `docs/ui-style.md` 为准。
 - 当前 `index.html`、`style.css`、`script.js` 和 `assets/` 是 V1 静态视觉参考。在 React 迁移任务明确完成前，不删除、不改写、不把它们当作 V2 已实现功能。
 - 每次只完成一个能独立验收的小任务；不在同一任务中混入无关重构、依赖升级或部署变更。
 
 ## 实现约定
 
 - 前端使用 React + Vite，后端使用 Flask App Factory、Blueprint、SQLAlchemy 和 Flask-Migrate；接口固定使用 `/api/v1`。
-- 所有后端路由必须在对应 Blueprint 内，使用统一响应、错误码、鉴权、参数校验和 UTC ISO 8601 时间格式，详见 `docs/api-conventions.md`。
+- 所有后端路由必须位于对应 Blueprint 内，并统一处理响应、错误码、鉴权、参数校验和 UTC ISO 8601 时间格式；具体接口契约以实际路由和测试为准。
 - 数据库变更必须同时提供 Alembic/Flask-Migrate 迁移、模型测试和 API/服务层测试；不得直接以生产数据库手工建表替代迁移。
 - 图片文件存储在存储服务中，数据库只保存元数据和派生 URL/键；上传必须校验实际内容、大小、归属和访问权限。
 - 任何可见性、作者归属、管理员权限、重复检查都必须由后端最终裁决；前端校验只改善体验。

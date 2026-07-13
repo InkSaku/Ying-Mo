@@ -17,13 +17,17 @@ export default class ErrorBoundary extends Component {
     this.setState({ hasError: false })
   }
 
+  goHome = () => {
+    window.location.assign('/')
+  }
+
   render() {
     if (this.state.hasError) {
       return (
         <main className="error-boundary" role="alert">
           <h1>页面暂时无法显示</h1>
-          <p>请刷新页面后重试。</p>
-          <button type="button" onClick={this.handleReset}>重新尝试</button>
+          <p>请重新尝试；若问题仍然存在，可以返回首页继续浏览。</p>
+          <div className="admin-actions"><button type="button" onClick={this.handleReset}>重新尝试</button><button type="button" className="button--primary" onClick={this.goHome}>返回首页</button></div>
         </main>
       )
     }

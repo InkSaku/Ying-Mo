@@ -10,7 +10,7 @@ function isHealthPayload(data) {
 }
 
 export async function getHealthStatus(config = {}) {
-  const response = await apiClient.get('/health', {
+  const response = await apiClient.get('/health/ready', {
     ...config,
     params: {
       ...config.params,

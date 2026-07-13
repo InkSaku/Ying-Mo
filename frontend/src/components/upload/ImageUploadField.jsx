@@ -10,6 +10,7 @@ export default function ImageUploadField({
   onUploaded,
   onRemove,
   disabled = false,
+  label = '头像',
 }) {
   const inputRef = useRef(null)
   const previewUrlRef = useRef(null)
@@ -79,7 +80,7 @@ export default function ImageUploadField({
         className={`image-upload-field__dropzone ${disabled ? 'is-disabled' : ''}`}
         role="button"
         tabIndex={disabled ? -1 : 0}
-        aria-label="选择头像图片"
+        aria-label={`选择${label}图片`}
         onClick={() => !disabled && inputRef.current?.click()}
         onKeyDown={(event) => {
           if (!disabled && (event.key === 'Enter' || event.key === ' ')) {
@@ -93,7 +94,7 @@ export default function ImageUploadField({
           void selectFile(event.dataTransfer.files?.[0])
         }}
       >
-        {imageUrl ? <img src={imageUrl} alt="头像预览" /> : <span className="image-upload-field__placeholder">选择一张头像图片</span>}
+        {imageUrl ? <img src={imageUrl} alt={`${label}预览`} /> : <span className="image-upload-field__placeholder">选择一张{label}图片</span>}
         <span>{uploading ? '正在上传…' : '点击或拖放图片到这里'}</span>
         <small>JPEG、PNG 或 WebP，最大 15 MB</small>
       </div>
@@ -107,9 +108,9 @@ export default function ImageUploadField({
       />
       <div className="image-upload-field__actions">
         <button type="button" onClick={() => inputRef.current?.click()} disabled={disabled || uploading}>
-          {currentImageUrl ? '更换头像' : '上传头像'}
+          {currentImageUrl ? `更换${label}` : `上传${label}`}
         </button>
-        {(currentImageUrl || previewUrl) && <button type="button" className="button--quiet" onClick={() => void remove()} disabled={disabled || uploading}>{currentImageUrl ? '删除头像' : '清空选择'}</button>}
+        {(currentImageUrl || previewUrl) && <button type="button" className="button--quiet" onClick={() => void remove()} disabled={disabled || uploading}>{currentImageUrl ? `删除${label}` : '清空选择'}</button>}
       </div>
       {error && <p className="form-feedback form-feedback--error" role="alert">{error}</p>}
     </div>

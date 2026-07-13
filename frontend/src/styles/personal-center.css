@@ -1,0 +1,16 @@
+.personal-center { padding-block: 3rem 5rem; }
+.personal-center__body { display: grid; grid-template-columns: 12rem minmax(0, 1fr); gap: 2rem; }
+.personal-center__nav { display: grid; align-content: start; gap: .35rem; position: sticky; top: 1rem; }
+.personal-center__nav a { padding: .55rem .75rem; border-radius: var(--radius); color: var(--color-text-muted); }
+.personal-center__nav a.active { background: var(--color-primary-soft); color: var(--color-primary-strong); }
+.dashboard { display: grid; gap: 2rem; }
+.dashboard__stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; }
+.dashboard__stats a, .profile-stats > div { display: grid; gap: .2rem; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); padding: 1rem; }
+.dashboard__stats strong, .profile-stats strong { font-size: 1.45rem; color: var(--color-primary-strong); }
+.dashboard__stats span, .profile-stats span { color: var(--color-text-muted); }
+.dashboard__actions { display: flex; flex-wrap: wrap; gap: .75rem; }
+.dashboard__list, .draft-list { display: grid; gap: .75rem; padding: 0; list-style: none; }
+.dashboard__list li, .draft-list article { border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); padding: 1rem; }
+.draft-list article > div, .personal-content-card > div { display: flex; flex-wrap: wrap; gap: .65rem; margin-top: .75rem; }
+.profile-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; margin-block: 1rem 2rem; }
+@media (max-width: 760px) { .personal-center__body { grid-template-columns: 1fr; } .personal-center__nav { position: static; display: flex; overflow-x: auto; padding-bottom: .25rem; } .personal-center__nav a { white-space: nowrap; } .dashboard__stats { grid-template-columns: repeat(2, 1fr); } }

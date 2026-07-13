@@ -1,14 +1,17 @@
 import logging
 import os
 import uuid
+from time import perf_counter
 
 from dotenv import load_dotenv
 from flask import Flask, g, request
+from flask_jwt_extended import get_jwt_identity
 
 from .blueprints import register_blueprints
 from .common.errors import register_error_handlers
 from .config import get_config
 from .extensions import init_extensions
+from .maintenance import register_commands
 from . import models  # noqa: F401
 
 
@@ -29,6 +32,7 @@ def create_app(config_name=None, config_overrides=None):
     _configure_logging(app)
     _register_request_id(app)
     init_extensions(app)
+    register_commands(app)
     register_blueprints(app)
     register_error_handlers(app)
     app.logger.info("Yingmo backend initialized in %s environment", app.config["APP_ENV"])
@@ -41,10 +45,23 @@ def _register_request_id(app):
     def assign_request_id():
         provided_id = request.headers.get("X-Request-ID", "")
         g.request_id = provided_id[:128] if provided_id.isascii() and provided_id else uuid.uuid4().hex
+        g.request_started_at = perf_counter()
 
     @app.after_request
     def attach_request_id(response):
         response.headers["X-Request-ID"] = g.request_id
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        if app.config["APP_ENV"] == "production" and request.is_secure:
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        duration_ms = round((perf_counter() - g.request_started_at) * 1000, 2)
+        try:
+            user_id = get_jwt_identity()
+        except RuntimeError:
+            user_id = None
+        app.logger.info("request_id=%s method=%s path=%s status=%s duration_ms=%s user_id=%s", g.request_id, request.method, request.path, response.status_code, duration_ms, user_id or "-")
         return response
 
 

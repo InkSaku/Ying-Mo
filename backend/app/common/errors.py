@@ -4,10 +4,10 @@ from .responses import error_response
 
 
 HTTP_ERROR_CODES = {
-    400: ("BAD_REQUEST", "请求无法处理。"),
+    400: ("INVALID_REQUEST", "请求无法处理。"),
     404: ("RESOURCE_NOT_FOUND", "请求的资源不存在。"),
     405: ("METHOD_NOT_ALLOWED", "请求方法不被允许。"),
-    413: ("FILE_TOO_LARGE", "图片文件超过允许大小。"),
+    413: ("PAYLOAD_TOO_LARGE", "图片文件超过允许大小。"),
     415: ("UNSUPPORTED_MEDIA_TYPE", "不支持的媒体类型。"),
 }
 

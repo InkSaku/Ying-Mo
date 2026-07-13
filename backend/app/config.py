@@ -2,6 +2,7 @@ import os
 import secrets
 from datetime import timedelta
 from pathlib import Path
+from urllib.parse import unquote, urlsplit
 
 from dotenv import load_dotenv
 
@@ -32,6 +33,19 @@ def _cors_origins(default):
     return tuple(origin.strip() for origin in value.split(",") if origin.strip())
 
 
+def _validated_test_database_url():
+    """Require an explicitly isolated MySQL database for test execution."""
+    test_url = _required_database_url("TEST_DATABASE_URL")
+    database_url = os.getenv("DATABASE_URL", "").strip()
+    if database_url and test_url == database_url:
+        raise RuntimeError("TEST_DATABASE_URL must differ from DATABASE_URL.")
+
+    database_name = unquote(urlsplit(test_url).path.rsplit("/", 1)[-1]).lower()
+    if "test" not in database_name and "qa" not in database_name:
+        raise RuntimeError("TEST_DATABASE_URL must name a database containing test or qa.")
+    return test_url
+
+
 class BaseConfig:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
@@ -56,6 +70,7 @@ class BaseConfig:
     JWT_REFRESH_CSRF_COOKIE_NAME = "yingmo_refresh_csrf"
     JWT_REFRESH_CSRF_COOKIE_PATH = "/"
     JWT_COOKIE_CSRF_PROTECT = True
+    REPORT_DAILY_LIMIT = int(os.getenv("REPORT_DAILY_LIMIT", "20"))
 
 
 class DevelopmentConfig(BaseConfig):
@@ -79,7 +94,7 @@ class TestingConfig(BaseConfig):
 
     @classmethod
     def database_uri(cls):
-        return _required_database_url("TEST_DATABASE_URL", "DATABASE_URL")
+        return _validated_test_database_url()
 
 
 class ProductionConfig(BaseConfig):
@@ -103,9 +118,14 @@ class ProductionConfig(BaseConfig):
                 "JWT_SECRET_KEY": cls.JWT_SECRET_KEY,
                 "DATABASE_URL": database_uri,
                 "CORS_ORIGINS": cls.CORS_ORIGINS,
+                "UPLOAD_ROOT": os.getenv("UPLOAD_ROOT"),
             }.items()
             if not value
         ]
+        if cls.SECRET_KEY in {"development-secret", "changeme"} or cls.JWT_SECRET_KEY in {"development-secret", "changeme"}:
+            missing.append("secure production secrets")
+        if "*" in cls.CORS_ORIGINS:
+            missing.append("CORS_ORIGINS (must not contain *)")
         if missing:
             raise RuntimeError(f"Missing required production configuration: {', '.join(missing)}")
 

@@ -9,7 +9,8 @@ export default function LoginPage() {
   const [form, setForm] = useState({ identifier: '', password: '' })
   const [error, setError] = useState(null)
   const [pending, setPending] = useState(false)
-  const destination = location.state?.from?.pathname || '/'
+  const requested = new URLSearchParams(location.search).get('next')
+  const destination = requested && requested.startsWith('/') && !requested.startsWith('//') && !requested.includes('://') ? requested : (location.state?.from?.pathname || '/')
 
   async function submit(event) {
     event.preventDefault()

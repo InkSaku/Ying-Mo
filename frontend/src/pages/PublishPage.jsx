@@ -1,0 +1,2 @@
+import { Link } from 'react-router-dom'
+export default function PublishPage() { return <section className="life-page page-container"><p className="eyebrow">发布</p><h1>今天想留下什么？</h1><div className="catalog-grid"><Link className="game-card" to="/life/create"><div className="game-card__media"><span>日</span></div><div><h2>发布日常</h2><p>记录照片、心情和普通日子。</p></div></Link><Link className="game-card" to="/guide/create"><div className="game-card__media"><span>技</span></div><div><h2>发布游戏教材</h2><p>用多张步骤图把实战经验讲清楚。</p></div></Link></div></section> }

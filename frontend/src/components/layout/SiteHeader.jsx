@@ -3,6 +3,8 @@ import { Link, NavLink } from 'react-router-dom'
 import ThemeToggle from '../common/ThemeToggle'
 import PageContainer from './PageContainer'
 import { useAuth } from '../../auth/useAuth.js'
+import NotificationBell from '../notifications/NotificationBell.jsx'
+import GlobalSearch from '../search/GlobalSearch.jsx'
 
 const navigation = [
   { to: '/', label: '首页', end: true },
@@ -57,8 +59,10 @@ export default function SiteHeader({ theme, onThemeToggle }) {
             ))}
           </nav>
           <div className="site-actions">
+            <GlobalSearch />
             <ThemeToggle theme={theme} onToggle={onThemeToggle} />
-            {isAuthenticated ? <><Link className="header-profile" to={`/user/${encodeURIComponent(user.username)}`} onClick={() => setIsMenuOpen(false)}>{user.avatar_url ? <img src={user.avatar_url} alt="" /> : <span aria-hidden="true">{(user.nickname || user.username).slice(0, 1)}</span>}<span>{user.nickname || user.username}</span></Link><Link className="header-settings-link" to="/me/settings" onClick={() => setIsMenuOpen(false)}>设置</Link><button type="button" onClick={handleLogout} disabled={isLoggingOut}>{isLoggingOut ? '退出中…' : '退出'}</button></> : <><Link className="header-auth-link" to="/login" onClick={() => setIsMenuOpen(false)}>登录</Link><Link className="button button--primary" to="/register" onClick={() => setIsMenuOpen(false)}>注册</Link></>}
+            {isAuthenticated && <NotificationBell />}
+            {isAuthenticated ? <><Link className="header-profile" to={`/user/${encodeURIComponent(user.username)}`} onClick={() => setIsMenuOpen(false)}>{user.avatar_url ? <img className="header-profile__avatar" src={user.avatar_url} alt="" /> : <span className="header-profile__avatar" aria-hidden="true">{(user.nickname || user.username).slice(0, 1)}</span>}<span className="header-profile__name">{user.nickname || user.username}</span></Link><Link className="header-settings-link" to="/me" onClick={() => setIsMenuOpen(false)}>个人中心</Link><button className="header-logout" type="button" onClick={handleLogout} disabled={isLoggingOut}>{isLoggingOut ? '退出中…' : '退出'}</button></> : <><Link className="header-auth-link" to="/login" onClick={() => setIsMenuOpen(false)}>登录</Link><Link className="button button--primary" to="/register" onClick={() => setIsMenuOpen(false)}>注册</Link></>}
           </div>
         </div>
       </PageContainer>

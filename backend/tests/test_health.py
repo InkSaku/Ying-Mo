@@ -4,18 +4,13 @@ import pytest
 from app.blueprints.health import routes as health_routes
 
 
-def test_health_check_reports_live_database(client):
+def test_health_check_is_a_database_independent_liveness_probe(client):
     response = client.get("/api/v1/health")
 
     assert response.status_code == 200
     assert response.headers["X-Request-ID"]
     assert response.headers["Cache-Control"] == "no-store"
-    assert response.json["data"] == {
-        "status": "ok",
-        "service": "yingmo-backend",
-        "environment": "testing",
-        "database": "connected",
-    }
+    assert response.json["data"] == {"status": "ok", "service": "yingmo-backend"}
     assert response.json["meta"]["request_id"] == response.headers["X-Request-ID"]
 
 
@@ -37,13 +32,13 @@ def test_method_not_allowed_uses_json_error_contract(client):
     assert response.json["error"]["code"] == "METHOD_NOT_ALLOWED"
 
 
-def test_health_check_does_not_report_connected_when_database_fails(client, monkeypatch):
+def test_readiness_check_does_not_report_connected_when_database_fails(client, monkeypatch):
     def raise_database_error(*_args, **_kwargs):
         raise SQLAlchemyError("database unavailable")
 
     monkeypatch.setattr(health_routes.db.session, "execute", raise_database_error)
 
-    response = client.get("/api/v1/health")
+    response = client.get("/api/v1/health/ready")
 
     assert response.status_code == 503
     assert response.headers["Cache-Control"] == "no-store"

@@ -1,0 +1,5 @@
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { getMyChapterSubmissions } from '../api/users.js'
+
+export default function ReviewingPage(){const [state,setState]=useState({loading:true,data:[],error:null});useEffect(()=>{getMyChapterSubmissions({page_size:50}).then((result)=>setState({loading:false,data:result.data,error:null})).catch((error)=>setState({loading:false,data:[],error}))},[]);return <section><h2>审核中</h2>{state.loading?<p className="state-message">正在加载申请…</p>:state.error?<p className="state-message state-message--error">{state.error.message}</p>:state.data.length?<div className="admin-list">{state.data.map((item)=><article key={item.id}><strong>{item.name}</strong><span>{item.review_status}</span><small>{item.review_note || '尚未有审核意见'}</small>{['pending','rejected'].includes(item.review_status)&&<Link className="text-link" to={`/life/chapters/create?resubmit=${item.id}`}>继续修改</Link>}</article>)}</div>:<p className="life-empty">目前没有章节审核记录。</p>}</section>}

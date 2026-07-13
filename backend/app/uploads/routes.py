@@ -58,6 +58,17 @@ def _send_media(public_id, thumbnail=False):
         if media.bound_type in {"life_chapter_cover", "life_post"}:
             from app.life.routes import can_read_media
             permitted = can_read_media(media, user)
+        elif media.bound_type in {"game_icon", "game_cover", "game_hero_avatar", "game_map_cover"}:
+            from app.games.service import public_media_allowed
+            permitted = public_media_allowed(media, user)
+        elif media.bound_type == "game_guide_step":
+            from app.models import GameGuideStep
+            step = db.session.scalar(db.select(GameGuideStep).where(GameGuideStep.media_id == media.id))
+            permitted = bool(step and (step.guide.status == "published" or (user and (step.guide.author_id == user.id or user.role in {"content_admin", "system_admin"}))))
+        elif media.bound_type == "content_draft":
+            from app.models import ContentDraft
+            draft = db.session.get(ContentDraft, media.bound_id)
+            permitted = bool(draft and user and (draft.owner_id == user.id or user.role in {"content_admin", "system_admin"}))
         else:
             permitted = user is not None and media.owner_id == user.id
         if not permitted:

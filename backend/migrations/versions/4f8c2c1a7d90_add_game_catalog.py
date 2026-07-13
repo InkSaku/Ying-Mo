@@ -1,0 +1,27 @@
+"""add game catalog
+
+Revision ID: 4f8c2c1a7d90
+Revises: 13c74db12af0
+"""
+from alembic import op
+import sqlalchemy as sa
+
+revision = "4f8c2c1a7d90"
+down_revision = "13c74db12af0"
+branch_labels = None
+depends_on = None
+
+
+def upgrade():
+    op.create_table("games", sa.Column("id", sa.Integer(), primary_key=True), sa.Column("name_zh", sa.String(100), nullable=False), sa.Column("name_en", sa.String(120)), sa.Column("normalized_name", sa.String(180), nullable=False), sa.Column("search_text", sa.String(800), nullable=False), sa.Column("slug", sa.String(140), nullable=False), sa.Column("aliases", sa.JSON(), nullable=False), sa.Column("icon_media_id", sa.Integer()), sa.Column("cover_media_id", sa.Integer()), sa.Column("description", sa.String(2000)), sa.Column("current_version", sa.String(50)), sa.Column("status", sa.String(20), nullable=False, server_default="active"), sa.Column("created_by_id", sa.Integer(), nullable=False), sa.Column("created_at", sa.DateTime(timezone=True), nullable=False), sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False), sa.ForeignKeyConstraint(["icon_media_id"], ["media.id"], ondelete="SET NULL"), sa.ForeignKeyConstraint(["cover_media_id"], ["media.id"], ondelete="SET NULL"), sa.ForeignKeyConstraint(["created_by_id"], ["users.id"], ondelete="RESTRICT"), sa.UniqueConstraint("normalized_name", name="uq_games_normalized_name"), sa.UniqueConstraint("slug", name="uq_games_slug"), sa.CheckConstraint("status IN ('active', 'inactive')", name="ck_games_status"))
+    op.create_index("ix_games_normalized_name", "games", ["normalized_name"]); op.create_index("ix_games_slug", "games", ["slug"]); op.create_index("ix_games_status", "games", ["status"]); op.create_index("ix_games_created_at", "games", ["created_at"])
+    op.create_table("game_heroes", sa.Column("id", sa.Integer(), primary_key=True), sa.Column("game_id", sa.Integer(), nullable=False), sa.Column("name_zh", sa.String(100), nullable=False), sa.Column("name_en", sa.String(120)), sa.Column("normalized_name", sa.String(180), nullable=False), sa.Column("search_text", sa.String(800), nullable=False), sa.Column("slug", sa.String(140), nullable=False), sa.Column("aliases", sa.JSON(), nullable=False), sa.Column("avatar_media_id", sa.Integer()), sa.Column("role", sa.String(80)), sa.Column("description", sa.String(2000)), sa.Column("status", sa.String(20), nullable=False, server_default="active"), sa.Column("review_status", sa.String(20), nullable=False, server_default="approved"), sa.Column("created_by_id", sa.Integer(), nullable=False), sa.Column("created_at", sa.DateTime(timezone=True), nullable=False), sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False), sa.ForeignKeyConstraint(["game_id"], ["games.id"], ondelete="RESTRICT"), sa.ForeignKeyConstraint(["avatar_media_id"], ["media.id"], ondelete="SET NULL"), sa.ForeignKeyConstraint(["created_by_id"], ["users.id"], ondelete="RESTRICT"), sa.UniqueConstraint("game_id", "normalized_name", name="uq_game_heroes_game_normalized_name"), sa.UniqueConstraint("game_id", "slug", name="uq_game_heroes_game_slug"), sa.CheckConstraint("status IN ('active', 'inactive')", name="ck_game_heroes_status"), sa.CheckConstraint("review_status IN ('approved', 'pending', 'rejected')", name="ck_game_heroes_review_status"))
+    op.create_index("ix_game_heroes_game_id", "game_heroes", ["game_id"]); op.create_index("ix_game_heroes_normalized_name", "game_heroes", ["normalized_name"]); op.create_index("ix_game_heroes_created_at", "game_heroes", ["created_at"])
+    op.create_table("game_maps", sa.Column("id", sa.Integer(), primary_key=True), sa.Column("game_id", sa.Integer(), nullable=False), sa.Column("name_zh", sa.String(100), nullable=False), sa.Column("name_en", sa.String(120)), sa.Column("normalized_name", sa.String(180), nullable=False), sa.Column("search_text", sa.String(800), nullable=False), sa.Column("slug", sa.String(140), nullable=False), sa.Column("aliases", sa.JSON(), nullable=False), sa.Column("map_type", sa.String(80)), sa.Column("cover_media_id", sa.Integer()), sa.Column("description", sa.String(2000)), sa.Column("current_status", sa.String(20), nullable=False, server_default="active"), sa.Column("review_status", sa.String(20), nullable=False, server_default="approved"), sa.Column("created_by_id", sa.Integer(), nullable=False), sa.Column("created_at", sa.DateTime(timezone=True), nullable=False), sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False), sa.ForeignKeyConstraint(["game_id"], ["games.id"], ondelete="RESTRICT"), sa.ForeignKeyConstraint(["cover_media_id"], ["media.id"], ondelete="SET NULL"), sa.ForeignKeyConstraint(["created_by_id"], ["users.id"], ondelete="RESTRICT"), sa.UniqueConstraint("game_id", "normalized_name", name="uq_game_maps_game_normalized_name"), sa.UniqueConstraint("game_id", "slug", name="uq_game_maps_game_slug"), sa.CheckConstraint("current_status IN ('active', 'rotated_out', 'retired')", name="ck_game_maps_current_status"), sa.CheckConstraint("review_status IN ('approved', 'pending', 'rejected')", name="ck_game_maps_review_status"))
+    op.create_index("ix_game_maps_game_id", "game_maps", ["game_id"]); op.create_index("ix_game_maps_normalized_name", "game_maps", ["normalized_name"]); op.create_index("ix_game_maps_created_at", "game_maps", ["created_at"])
+
+
+def downgrade():
+    op.drop_table("game_maps")
+    op.drop_table("game_heroes")
+    op.drop_table("games")

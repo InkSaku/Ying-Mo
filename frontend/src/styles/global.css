@@ -7,6 +7,12 @@
 @import url("./profile.css");
 @import url("./upload.css");
 @import url("./life.css");
+@import url("./games.css");
+@import url("./guides.css");
+@import url("./interactions.css");
+@import url("./discover.css");
+@import url("./personal-center.css");
+@import url("./admin.css");
 
 html {
   scroll-behavior: smooth;

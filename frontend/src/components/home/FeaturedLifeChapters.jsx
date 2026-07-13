@@ -26,6 +26,7 @@ export default function FeaturedLifeChapters({ chapters, loading, error }) {
         <SectionHeading eyebrow="Travel Chapters" titleId="featured-chapters-title" title="热门旅行章节" description="沿着城市和主题，把来自不同朋友的生活片段聚在一起。" />
         {loading ? <p className="state-message">正在加载章节…</p> : null}
         {error ? <p className="state-message state-message--error">{error}</p> : null}
+        {!loading && !error && !chapters.length ? <p className="state-message">这里还没有可展示的生活章节。</p> : null}
         <div className="card-grid card-grid--four">
           {chapters.map((chapter) => <ChapterCard key={chapter.id} chapter={chapter} />)}
         </div>

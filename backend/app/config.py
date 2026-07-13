@@ -57,7 +57,21 @@ class BaseConfig:
     UPLOAD_ROOT = Path(os.getenv("UPLOAD_ROOT", BACKEND_ROOT / "uploads")).expanduser()
     IMAGE_MAX_BYTES = int(os.getenv("IMAGE_MAX_BYTES", 15 * 1024 * 1024))
     IMAGE_MAX_PIXELS = int(os.getenv("IMAGE_MAX_PIXELS", 40_000_000))
+    IMAGE_MAX_WIDTH = int(os.getenv("IMAGE_MAX_WIDTH", 12000))
+    IMAGE_MAX_HEIGHT = int(os.getenv("IMAGE_MAX_HEIGHT", 12000))
+    IMAGE_MAX_ASPECT_RATIO = float(os.getenv("IMAGE_MAX_ASPECT_RATIO", 20))
     IMAGE_THUMBNAIL_MAX_SIDE = int(os.getenv("IMAGE_THUMBNAIL_MAX_SIDE", 640))
+    UPLOAD_UNBOUND_LIMIT = int(os.getenv("UPLOAD_UNBOUND_LIMIT", 30))
+    UPLOAD_USER_TOTAL_BYTES = int(os.getenv("UPLOAD_USER_TOTAL_BYTES", 2 * 1024 * 1024 * 1024))
+    UPLOAD_USER_DAILY_BYTES = int(os.getenv("UPLOAD_USER_DAILY_BYTES", 200 * 1024 * 1024))
+    RATELIMIT_STORAGE_URI = os.getenv("RATELIMIT_STORAGE_URI", "memory://")
+    RATELIMIT_HEADERS_ENABLED = True
+    RATE_LIMIT_REGISTER = os.getenv("RATE_LIMIT_REGISTER", "5 per hour")
+    RATE_LIMIT_LOGIN = os.getenv("RATE_LIMIT_LOGIN", "10 per minute")
+    RATE_LIMIT_REFRESH = os.getenv("RATE_LIMIT_REFRESH", "30 per minute")
+    RATE_LIMIT_UPLOAD = os.getenv("RATE_LIMIT_UPLOAD", "20 per hour")
+    RATE_LIMIT_SEARCH = os.getenv("RATE_LIMIT_SEARCH", "60 per minute")
+    RATE_LIMIT_SEARCH_SUGGESTIONS = os.getenv("RATE_LIMIT_SEARCH_SUGGESTIONS", "120 per minute")
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=int(os.getenv("JWT_ACCESS_TOKEN_EXPIRES_MINUTES", "15")))
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=int(os.getenv("JWT_REFRESH_TOKEN_EXPIRES_DAYS", "30")))
@@ -108,26 +122,45 @@ class ProductionConfig(BaseConfig):
     def database_uri(cls):
         return _required_database_url()
 
-    @classmethod
-    def validate(cls):
-        database_uri = cls.database_uri()
-        missing = [
-            name
-            for name, value in {
-                "SECRET_KEY": cls.SECRET_KEY,
-                "JWT_SECRET_KEY": cls.JWT_SECRET_KEY,
-                "DATABASE_URL": database_uri,
-                "CORS_ORIGINS": cls.CORS_ORIGINS,
-                "UPLOAD_ROOT": os.getenv("UPLOAD_ROOT"),
-            }.items()
-            if not value
-        ]
-        if cls.SECRET_KEY in {"development-secret", "changeme"} or cls.JWT_SECRET_KEY in {"development-secret", "changeme"}:
-            missing.append("secure production secrets")
-        if "*" in cls.CORS_ORIGINS:
-            missing.append("CORS_ORIGINS (must not contain *)")
-        if missing:
-            raise RuntimeError(f"Missing required production configuration: {', '.join(missing)}")
+    @staticmethod
+    def validate(config):
+        problems = []
+        for name in ("SECRET_KEY", "JWT_SECRET_KEY"):
+            try:
+                _validate_secret(name, config.get(name))
+            except RuntimeError as error:
+                problems.append(str(error))
+        if config.get("SECRET_KEY") == config.get("JWT_SECRET_KEY"):
+            problems.append("SECRET_KEY and JWT_SECRET_KEY must be different")
+        if config.get("DEBUG"):
+            problems.append("DEBUG must be disabled in production")
+        if not config.get("CORS_ORIGINS"):
+            problems.append("CORS_ORIGINS is required")
+        if "*" in config.get("CORS_ORIGINS", ()):
+            problems.append("CORS_ORIGINS must not contain *")
+        if not os.getenv("UPLOAD_ROOT") and not config.get("UPLOAD_ROOT"):
+            problems.append("UPLOAD_ROOT is required")
+        if str(config.get("RATELIMIT_STORAGE_URI", "")).startswith("memory://"):
+            problems.append("RATELIMIT_STORAGE_URI must use shared storage in production")
+        if problems:
+            raise RuntimeError("Invalid production configuration: " + "; ".join(problems))
+
+
+_WEAK_SECRETS = {
+    "changeme", "change-me", "development-secret", "secret", "secret-key",
+    "password", "123456", "replace-with-a-strong-secret",
+    "replace-with-a-different-strong-secret", "your-secret-key", "your-jwt-secret",
+}
+
+
+def _validate_secret(name, value):
+    if not isinstance(value, str) or not value.strip():
+        raise RuntimeError(f"{name} is required")
+    normalized = value.strip().casefold()
+    if normalized in _WEAK_SECRETS or normalized.startswith(("replace-with-", "example-", "sample-")):
+        raise RuntimeError(f"{name} must not use a placeholder or common weak value")
+    if len(value.encode("utf-8")) < 32:
+        raise RuntimeError(f"{name} must be at least 32 bytes")
 
 
 CONFIGS = {

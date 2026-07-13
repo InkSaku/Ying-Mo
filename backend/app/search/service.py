@@ -5,7 +5,7 @@ from app.extensions import db
 from app.games.routes import game_dict, hero_dict, map_dict
 from app.guides.serializers import guide_dict
 from app.guides.routes import GUIDE_OPTIONS
-from app.life.routes import CHAPTER_OPTIONS, POST_OPTIONS, chapter_dict, chapter_stats, post_dict, visible_post_filters
+from app.life.routes import CHAPTER_OPTIONS, POST_OPTIONS, chapter_dict, chapter_stats, post_dict, public_chapter_filters, visible_post_filters
 from app.models import Game, GameGuide, GameHero, GameMap, LifeChapter, LifePost, User, UserStatus
 from app.users.service import public_user_dict
 
@@ -51,7 +51,7 @@ def _content(type_name, item, viewer, chapter_stats_map=None):
 def _stmt(scope, query, viewer):
     pattern = _pattern(query)
     if scope == "life_chapter":
-        stmt = db.select(LifeChapter).where(LifeChapter.status == "active", or_(LifeChapter.name.ilike(pattern, escape="\\"), LifeChapter.normalized_name.ilike(pattern, escape="\\"), LifeChapter.description.ilike(pattern, escape="\\"), LifeChapter.country.ilike(pattern, escape="\\"), LifeChapter.province.ilike(pattern, escape="\\"), LifeChapter.city.ilike(pattern, escape="\\")))
+        stmt = db.select(LifeChapter).where(*public_chapter_filters(), or_(LifeChapter.name.ilike(pattern, escape="\\"), LifeChapter.normalized_name.ilike(pattern, escape="\\"), LifeChapter.description.ilike(pattern, escape="\\"), LifeChapter.country.ilike(pattern, escape="\\"), LifeChapter.province.ilike(pattern, escape="\\"), LifeChapter.city.ilike(pattern, escape="\\")))
         return stmt.order_by(case((LifeChapter.normalized_name == query, 0), (LifeChapter.name.ilike(f"{escape_like(query)}%", escape="\\"), 1), else_=2), LifeChapter.updated_at.desc(), LifeChapter.id.desc()), CHAPTER_OPTIONS
     if scope == "life_post":
         stmt = db.select(LifePost).where(*visible_post_filters(viewer), or_(LifePost.title.ilike(pattern, escape="\\"), LifePost.body.ilike(pattern, escape="\\"), LifePost.location.ilike(pattern, escape="\\"), LifePost.mood.ilike(pattern, escape="\\")))
@@ -63,7 +63,7 @@ def _stmt(scope, query, viewer):
         stmt = db.select(GameHero).join(GameHero.game).where(Game.status == "active", GameHero.status == "active", GameHero.review_status == "approved", GameHero.search_text.ilike(pattern, escape="\\"))
         return stmt.order_by(_name_rank(GameHero, query), GameHero.updated_at.desc(), GameHero.id.desc()), (joinedload(GameHero.game), joinedload(GameHero.avatar_media))
     if scope == "game_map":
-        stmt = db.select(GameMap).join(GameMap.game).where(Game.status == "active", GameMap.review_status == "approved", GameMap.search_text.ilike(pattern, escape="\\"))
+        stmt = db.select(GameMap).join(GameMap.game).where(Game.status == "active", GameMap.review_status == "approved", GameMap.current_status != "retired", GameMap.search_text.ilike(pattern, escape="\\"))
         return stmt.order_by(_name_rank(GameMap, query), GameMap.updated_at.desc(), GameMap.id.desc()), (joinedload(GameMap.game), joinedload(GameMap.cover_media))
     if scope == "game_guide":
         stmt = db.select(GameGuide).where(GameGuide.status == "published", or_(GameGuide.title.ilike(pattern, escape="\\"), GameGuide.instructions.ilike(pattern, escape="\\"), GameGuide.search_text.ilike(pattern, escape="\\")))
@@ -72,9 +72,9 @@ def _stmt(scope, query, viewer):
     return stmt.order_by(case((User.username_normalized == query, 0), (User.username.ilike(f"{escape_like(query)}%", escape="\\"), 1), else_=2), User.updated_at.desc(), User.id.desc()), ()
 
 
-def search_scope(scope, query, viewer, page=1, page_size=20):
+def search_scope(scope, query, viewer, page=1, page_size=20, include_total=True):
     stmt, options = _stmt(scope, query, viewer)
-    total = db.session.scalar(db.select(func.count()).select_from(stmt.order_by(None).subquery()))
+    total = db.session.scalar(db.select(func.count()).select_from(stmt.order_by(None).subquery())) if include_total else None
     items = db.session.scalars(stmt.options(*options).offset((page - 1) * page_size).limit(page_size)).unique().all()
     stats = chapter_stats([item.id for item in items], viewer) if scope == "life_chapter" else None
     return total, [_content(scope, item, viewer, stats) for item in items]
@@ -83,7 +83,7 @@ def search_scope(scope, query, viewer, page=1, page_size=20):
 def suggestions(query, viewer, limit):
     results = []
     for scope in SCOPES:
-        _, items = search_scope(scope, query, viewer, page_size=limit)
+        _, items = search_scope(scope, query, viewer, page_size=limit, include_total=False)
         for item in items:
             content = item["content"]
             if scope == "life_chapter": label, subtitle = content["name"], "生活章节"

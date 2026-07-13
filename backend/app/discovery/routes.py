@@ -9,7 +9,7 @@ from app.extensions import db
 from app.games.routes import game_counts, game_dict
 from app.guides.routes import GUIDE_OPTIONS
 from app.guides.serializers import guide_dict
-from app.life.routes import CHAPTER_OPTIONS, POST_OPTIONS, chapter_dict, chapter_stats, post_dict, visible_post_filters
+from app.life.routes import CHAPTER_OPTIONS, POST_OPTIONS, chapter_dict, chapter_stats, post_dict, public_chapter_filters, visible_post_filters
 from app.models import ContentLike, FeaturedContent, Game, GameGuide, LifeChapter, LifePost, User, UserStatus
 from app.users.service import public_user_dict
 
@@ -41,7 +41,7 @@ def discover():
     )
     chapters = db.session.scalars(
         db.select(LifeChapter)
-        .where(LifeChapter.status == "active", LifeChapter.review_status == "approved")
+        .where(*public_chapter_filters())
         .outerjoin(chapter_stats_query, chapter_stats_query.c.chapter_id == LifeChapter.id)
         .options(*CHAPTER_OPTIONS)
         .order_by(func.coalesce(chapter_stats_query.c.content_count, 0).desc(), func.coalesce(chapter_stats_query.c.contributor_count, 0).desc(), LifeChapter.updated_at.desc(), LifeChapter.id.desc())

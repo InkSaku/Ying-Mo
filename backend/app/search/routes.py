@@ -6,6 +6,8 @@ from app.common.responses import error_response, success_response
 
 from .normalization import normalize_search_query
 from .service import SCOPES, search_scope, suggestions
+from app.common.rate_limits import client_ip, limiter
+from flask import current_app
 
 
 search_bp = Blueprint("search", __name__)
@@ -24,6 +26,7 @@ def _pagination(page, page_size, total):
 
 
 @search_bp.get("")
+@limiter.limit(lambda: current_app.config["RATE_LIMIT_SEARCH"], key_func=client_ip)
 @jwt_required(optional=True, locations=["headers"])
 def search():
     try:
@@ -41,14 +44,15 @@ def search():
     if scope == "all":
         groups = {}
         for kind in SCOPES:
-            total, items = search_scope(kind, query, viewer, page_size=limit)
-            groups[kind] = {"total": total, "items": items}
+            _, items = search_scope(kind, query, viewer, page_size=limit, include_total=False)
+            groups[kind] = {"total": len(items), "items": items, "total_is_limited": True}
         return success_response({"query": query, "groups": groups})
     total, items = search_scope(scope, query, viewer, page, page_size)
     return success_response(items, meta=_pagination(page, page_size, total))
 
 
 @search_bp.get("/suggestions")
+@limiter.limit(lambda: current_app.config["RATE_LIMIT_SEARCH_SUGGESTIONS"], key_func=client_ip)
 @jwt_required(optional=True, locations=["headers"])
 def search_suggestions():
     try:

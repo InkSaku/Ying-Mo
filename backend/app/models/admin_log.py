@@ -8,6 +8,7 @@ class AdminLog(db.Model):
         db.Index("ix_admin_logs_admin_created", "admin_id", "created_at"),
         db.Index("ix_admin_logs_target", "target_type", "target_id"),
         db.Index("ix_admin_logs_action_created", "action", "created_at"),
+        db.UniqueConstraint("idempotency_key", name="uq_admin_logs_idempotency_key"),
     )
 
     id = db.Column(db.Integer, primary_key=True)
@@ -22,6 +23,7 @@ class AdminLog(db.Model):
     metadata_json = db.Column("metadata", db.JSON)
     ip_address = db.Column(db.String(64))
     user_agent = db.Column(db.String(512))
+    idempotency_key = db.Column(db.String(36))
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
 
     admin = db.relationship("User", foreign_keys=[admin_id])

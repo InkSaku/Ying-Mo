@@ -4,6 +4,7 @@ function params(config) { return { params: Object.fromEntries(Object.entries(con
 export async function getLifeChapters(query) { const { data } = await apiClient.get('/life/chapters', params(query)); return data }
 export async function checkLifeChapterName(query) { const { data } = await apiClient.get('/life/chapters/check-name', params(query)); return data.data }
 export async function createLifeChapter(payload) { const { data } = await apiClient.post('/life/chapters', payload); return data.data }
+export async function resubmitLifeChapter(id, payload) { const { data } = await apiClient.patch(`/life/chapters/${id}/application`, payload); return data.data }
 export async function getLifeChapter(slug) { const { data } = await apiClient.get(`/life/chapters/${encodeURIComponent(slug)}`); return data.data }
 export async function getLifePosts(query) { const { data } = await apiClient.get('/life/posts', params(query)); return data }
 export async function getLifePost(id) { const { data } = await apiClient.get(`/life/posts/${id}`); return data.data }

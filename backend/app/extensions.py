@@ -2,30 +2,43 @@ from flask_cors import CORS
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 
 db = SQLAlchemy()
 migrate = Migrate()
 cors = CORS()
 jwt = JWTManager()
+limiter = Limiter(key_func=get_remote_address)
 
 
 def init_extensions(app):
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
+    limiter.init_app(app)
     cors.init_app(
         app,
         resources={
             r"/api/*": {
                 "origins": list(app.config["CORS_ORIGINS"]),
-                "allow_headers": ["Content-Type", "Authorization", "X-Request-ID", "X-CSRF-TOKEN"],
+                "allow_headers": ["Content-Type", "Authorization", "X-Request-ID", "X-CSRF-TOKEN", "Idempotency-Key"],
                 "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
             }
         },
         supports_credentials=True,
     )
     _register_jwt_error_handlers(jwt)
+
+    from flask_limiter.errors import RateLimitExceeded
+    from .common.responses import error_response
+
+    @app.errorhandler(RateLimitExceeded)
+    def rate_limited(error):
+        response, status = error_response("RATE_LIMITED", "请求过于频繁，请稍后再试。", 429)
+        response.headers["Retry-After"] = str(max(1, int(getattr(error, "retry_after", 1) or 1)))
+        return response, status
 
 
 def _register_jwt_error_handlers(jwt_manager):

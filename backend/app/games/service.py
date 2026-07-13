@@ -64,7 +64,10 @@ def entity_has_conflict(model, tokens, game_id=None, exclude_id=None):
         stmt = stmt.where(model.game_id == game_id)
     if exclude_id is not None:
         stmt = stmt.where(model.id != exclude_id)
-    for entity in db.session.scalars(stmt).all():
+    patterns = [model.search_text.ilike(f"%{token.replace('%', '\\%').replace('_', '\\_')}%", escape="\\") for token in tokens]
+    if patterns:
+        stmt = stmt.where(or_(*patterns))
+    for entity in db.session.scalars(stmt.limit(20)).all():
         if tokens & name_tokens(entity.name_zh, entity.name_en, entity.aliases or []):
             return entity
     return None
@@ -105,5 +108,5 @@ def public_media_allowed(media, user):
         return bool(hero and hero.game.status == "active" and hero.status == "active" and hero.review_status == "approved")
     if media.bound_type == "game_map_cover":
         game_map = db.session.get(GameMap, media.bound_id)
-        return bool(game_map and game_map.game.status == "active" and game_map.review_status == "approved")
+        return bool(game_map and game_map.game.status == "active" and game_map.review_status == "approved" and game_map.current_status != "retired")
     return False

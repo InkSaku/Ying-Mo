@@ -7,6 +7,7 @@ from sqlalchemy.orm import joinedload, selectinload
 from app.auth.routes import _current_user
 from app.auth.service import utcnow
 from app.common.responses import error_response, success_response
+from app.common.search import escape_like, normalize_search_query
 from app.extensions import db
 from app.models import Game, GameHero, GameMap
 from app.models.user import serialize_datetime
@@ -18,6 +19,9 @@ games_bp = Blueprint("games", __name__)
 GAME_STATUS = {"active", "inactive"}
 REVIEW_STATUS = {"approved", "pending", "rejected"}
 MAP_STATUS = {"active", "rotated_out", "retired"}
+
+
+def _escape_like(value): return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
 def field_error(field, code, message): return {"field": field, "code": code, "message": message}
@@ -36,9 +40,10 @@ def game_or_404(slug, public=True):
     if public: stmt = stmt.where(Game.status == "active")
     return db.session.scalar(stmt.options(joinedload(Game.icon_media), joinedload(Game.cover_media)))
 def game_ref(game): return {"id": game.id, "name_zh": game.name_zh, "name_en": game.name_en, "slug": game.slug}
+def entity_ref(item): return {"id": item.id, "game": game_ref(item.game), "name_zh": item.name_zh, "name_en": item.name_en, "slug": item.slug, "aliases": item.aliases or []}
 def game_counts(game_ids):
     heroes = dict(db.session.execute(db.select(GameHero.game_id, func.count(GameHero.id)).where(GameHero.game_id.in_(game_ids), GameHero.status == "active", GameHero.review_status == "approved").group_by(GameHero.game_id)).all()) if game_ids else {}
-    maps = dict(db.session.execute(db.select(GameMap.game_id, func.count(GameMap.id)).where(GameMap.game_id.in_(game_ids), GameMap.review_status == "approved").group_by(GameMap.game_id)).all()) if game_ids else {}
+    maps = dict(db.session.execute(db.select(GameMap.game_id, func.count(GameMap.id)).where(GameMap.game_id.in_(game_ids), GameMap.review_status == "approved", GameMap.current_status != "retired").group_by(GameMap.game_id)).all()) if game_ids else {}
     return heroes, maps
 def game_dict(game, counts=(None, None), detail=False):
     heroes, maps = counts
@@ -82,7 +87,10 @@ def list_games():
     if error: return error
     stmt = db.select(Game).where(Game.status == "active")
     query = request.args.get("query", "").strip()
-    if query: stmt = stmt.where(Game.search_text.ilike(f"%{query}%"))
+    if query:
+        try: query = normalize_search_query(query)
+        except ValueError as error: return validation_error([field_error("query", "invalid_length", str(error))])
+        stmt = stmt.where(Game.search_text.ilike(f"%{escape_like(query)}%", escape="\\"))
     sort = request.args.get("sort", "name")
     if sort not in {"name", "latest"}: return validation_error([field_error("sort", "invalid_choice", "排序方式不支持。")])
     total = db.session.scalar(db.select(func.count()).select_from(stmt.subquery()))
@@ -95,8 +103,9 @@ def check_game_name():
     name = request.args.get("name", "")
     token = normalize_name(name)
     if not token: return validation_error([field_error("name", "required", "请输入名称。")])
-    games = db.session.scalars(db.select(Game).where(Game.status == "active")).all()
-    candidates = [game for game in games if token in name_tokens(game.name_zh, game.name_en, game.aliases or []) or token in normalize_name(game.search_text)][:8]
+    pattern = f"%{_escape_like(token)}%"
+    games = db.session.scalars(db.select(Game).where(Game.status == "active", Game.search_text.ilike(pattern, escape="\\")).order_by(Game.id.desc()).limit(8)).all()
+    candidates = [game for game in games if token in name_tokens(game.name_zh, game.name_en, game.aliases or []) or token in normalize_name(game.search_text)]
     exact = next((game for game in games if token in name_tokens(game.name_zh, game.name_en, game.aliases or [])), None)
     return success_response({"exact_match": game_ref(exact) if exact else None, "candidates": [game_ref(game) for game in candidates]})
 
@@ -106,7 +115,7 @@ def get_game(game_slug):
     if not game: return error_response("RESOURCE_NOT_FOUND", "请求的资源不存在。", 404)
     counts = game_counts([game.id]); data = game_dict(game, counts, True)
     heroes = db.session.scalars(db.select(GameHero).where(GameHero.game_id == game.id, GameHero.status == "active", GameHero.review_status == "approved").options(joinedload(GameHero.game), joinedload(GameHero.avatar_media)).order_by(GameHero.created_at.desc(), GameHero.id.desc()).limit(6)).all()
-    maps = db.session.scalars(db.select(GameMap).where(GameMap.game_id == game.id, GameMap.review_status == "approved").options(joinedload(GameMap.game), joinedload(GameMap.cover_media)).order_by(GameMap.created_at.desc(), GameMap.id.desc()).limit(6)).all()
+    maps = db.session.scalars(db.select(GameMap).where(GameMap.game_id == game.id, GameMap.review_status == "approved", GameMap.current_status != "retired").options(joinedload(GameMap.game), joinedload(GameMap.cover_media)).order_by(GameMap.created_at.desc(), GameMap.id.desc()).limit(6)).all()
     data.update({"featured_heroes": [hero_dict(item) for item in heroes], "featured_maps": [map_dict(item) for item in maps]})
     return success_response(data)
 
@@ -117,9 +126,12 @@ def list_entities(game_slug, model, kind):
     if not game: return error_response("RESOURCE_NOT_FOUND", "请求的资源不存在。", 404)
     stmt = db.select(model).where(model.game_id == game.id)
     if kind == "hero": stmt = stmt.where(model.status == "active", model.review_status == "approved")
-    else: stmt = stmt.where(model.review_status == "approved")
+    else: stmt = stmt.where(model.review_status == "approved", model.current_status != "retired")
     query = request.args.get("query", "").strip()
-    if query: stmt = stmt.where(model.search_text.ilike(f"%{query}%"))
+    if query:
+        try: query = normalize_search_query(query)
+        except ValueError as error: return validation_error([field_error("query", "invalid_length", str(error))])
+        stmt = stmt.where(model.search_text.ilike(f"%{escape_like(query)}%", escape="\\"))
     for field in (("role",) if kind == "hero" else ("map_type", "current_status")):
         value = request.args.get(field[0])
         if value: stmt = stmt.where(getattr(model, field[0]) == value)
@@ -148,17 +160,20 @@ def check_entity_name(game_slug, model, kind):
     game = game_or_404(game_slug); token = normalize_name(request.args.get("name", ""))
     if not game: return error_response("RESOURCE_NOT_FOUND", "请求的资源不存在。", 404)
     if not token: return validation_error([field_error("name", "required", "请输入名称。")])
-    candidates = [item for item in db.session.scalars(db.select(model).where(model.game_id == game.id)).all() if token in name_tokens(item.name_zh, item.name_en, item.aliases or [])][:8]
-    exact = candidates[0] if candidates else None
-    data = hero_dict(exact) if kind == "hero" and exact else map_dict(exact) if exact else None
-    return success_response({"exact_match": data, "candidates": [hero_dict(item) if kind == "hero" else map_dict(item) for item in candidates]})
+    pattern = f"%{_escape_like(token)}%"
+    stmt = db.select(model).where(model.game_id == game.id, model.search_text.ilike(pattern, escape="\\"))
+    if kind == "hero": stmt = stmt.where(model.status == "active", model.review_status == "approved")
+    else: stmt = stmt.where(model.review_status == "approved", model.current_status != "retired")
+    candidates = db.session.scalars(stmt.options(joinedload(model.game), joinedload(model.avatar_media if kind == "hero" else model.cover_media)).order_by(model.id.desc()).limit(8)).all()
+    exact = next((item for item in candidates if token in name_tokens(item.name_zh, item.name_en, item.aliases or [])), None)
+    return success_response({"exact_match": entity_ref(exact) if exact else None, "candidates": [entity_ref(item) for item in candidates]})
 
 def get_entity(game_slug, model, entity_slug, kind):
     game = game_or_404(game_slug)
     if not game: return error_response("RESOURCE_NOT_FOUND", "请求的资源不存在。", 404)
     stmt = db.select(model).where(model.game_id == game.id, model.slug == entity_slug)
     if kind == "hero": stmt = stmt.where(model.status == "active", model.review_status == "approved"); options = (joinedload(model.game), joinedload(model.avatar_media))
-    else: stmt = stmt.where(model.review_status == "approved"); options = (joinedload(model.game), joinedload(model.cover_media))
+    else: stmt = stmt.where(model.review_status == "approved", model.current_status != "retired"); options = (joinedload(model.game), joinedload(model.cover_media))
     item = db.session.scalar(stmt.options(*options))
     return success_response(hero_dict(item) if kind == "hero" else map_dict(item)) if item else error_response("RESOURCE_NOT_FOUND", "请求的资源不存在。", 404)
 

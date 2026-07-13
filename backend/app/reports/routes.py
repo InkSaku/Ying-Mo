@@ -32,4 +32,6 @@ def create():
     report, state = create_report(user, target_type, target, reason, description)
     if state == "limit":
         return error_response("RATE_LIMITED", "今日举报次数已达上限。", 429)
-    return success_response(report_dict(report), 200 if state == "duplicate" else 201)
+    data = report_dict(report)
+    data["already_exists"] = state == "duplicate"
+    return success_response(data, 200 if state == "duplicate" else 201)

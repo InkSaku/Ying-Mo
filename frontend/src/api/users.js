@@ -35,6 +35,11 @@ export async function getMyChapterSubmissions(params = {}) {
   return { data: data.data, meta: data.meta }
 }
 
+export async function getMyChapterSubmission(id) {
+  const { data } = await apiClient.get(`/users/me/chapter-submissions/${id}`)
+  return data.data
+}
+
 export async function updateCurrentUser(payload) {
   const { data } = await apiClient.patch('/users/me', payload)
   return data.data

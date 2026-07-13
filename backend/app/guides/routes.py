@@ -6,6 +6,7 @@ from sqlalchemy.orm import joinedload, selectinload
 from app.auth.routes import _current_user
 from app.auth.service import utcnow
 from app.common.responses import error_response, success_response
+from app.common.search import escape_like, normalize_search_query
 from app.extensions import db
 from app.models import Game, GameGuide, GameGuideStep, GameHero, GameMap
 from .serializers import guide_dict
@@ -23,8 +24,9 @@ def meta(page, size, total): return {"pagination": {"page": page, "page_size": s
 def optional_user(): return _current_user() if get_jwt_identity() else None
 
 def guide_payload(payload, existing=None, creating=False):
-    fields = {"game_id", "hero_id", "map_id", "guide_scope", "title", "category", "instructions", "map_area", "side", "skill", "aim_reference", "timing", "difficulty", "game_version", "tags", "notes", "video_url", "validity_status", "tested_at", "validity_note", "steps"}
+    fields = {"game_id", "hero_id", "map_id", "guide_scope", "title", "category", "instructions", "map_area", "side", "skill", "aim_reference", "timing", "difficulty", "game_version", "tags", "notes", "video_url", "tested_at", "validity_note", "steps"}
     if not isinstance(payload, dict): return None, validation([field_error("body", "invalid_format", "请求体必须是 JSON 对象。")])
+    if "validity_status" in payload: return None, error_response("PERMISSION_DENIED", "教材有效状态只能由管理员修改。", 403)
     unknown = set(payload) - fields
     if unknown: return None, validation([field_error(sorted(unknown)[0], "unknown_field", "不支持该字段。")])
     required = {"game_id", "guide_scope", "title", "category", "instructions", "tags", "steps"}
@@ -38,7 +40,7 @@ def guide_payload(payload, existing=None, creating=False):
         if "video_url" in payload: updates["video_url"] = clean_video(payload["video_url"])
         if "tested_at" in payload: updates["tested_at"] = clean_date(payload["tested_at"])
     except ValueError: errors.append(field_error("body", "invalid_format", "字段格式或长度不合法。"))
-    for field, choices in (("category", CATEGORIES), ("side", SIDES), ("difficulty", DIFFICULTIES), ("validity_status", VALIDITIES)):
+    for field, choices in (("category", CATEGORIES), ("side", SIDES), ("difficulty", DIFFICULTIES)):
         if field in payload:
             if payload[field] not in choices and not (field in {"side", "difficulty"} and payload[field] is None): errors.append(field_error(field, "invalid_choice", "枚举值不合法。"))
             else: updates[field] = payload[field]
@@ -95,7 +97,10 @@ def list_guides():
     if error: return error
     stmt = db.select(GameGuide).where(GameGuide.status == "published")
     query = request.args.get("query", "").strip()
-    if query: stmt = stmt.where(GameGuide.search_text.ilike(f"%{query.lower()}%"))
+    if query:
+        try: query = normalize_search_query(query)
+        except ValueError as error: return validation([field_error("query", "invalid_length", str(error))])
+        stmt = stmt.where(GameGuide.search_text.ilike(f"%{escape_like(query)}%", escape="\\"))
     game_slug = request.args.get("game_slug"); hero_slug = request.args.get("hero_slug"); map_slug = request.args.get("map_slug")
     if game_slug:
         game = db.session.scalar(db.select(Game).where(Game.slug == game_slug, Game.status == "active"))

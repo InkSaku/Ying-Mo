@@ -323,3 +323,15 @@ def my_chapter_submissions():
     total = db.session.scalar(db.select(func.count()).select_from(stmt.subquery()))
     items = db.session.scalars(stmt.options(*CHAPTER_OPTIONS).order_by(LifeChapter.updated_at.desc(), LifeChapter.id.desc()).offset((page-1)*page_size).limit(page_size)).unique().all()
     return success_response([chapter_dict(item, user) | {"review_status": item.review_status, "review_note": item.review_note, "reviewed_at": item.reviewed_at.isoformat().replace("+00:00", "Z") if item.reviewed_at else None} for item in items], meta=_pagination(page,page_size,total))
+
+
+@users_bp.get("/me/chapter-submissions/<int:chapter_id>")
+@jwt_required(locations=["headers"])
+def my_chapter_submission(chapter_id):
+    user = _current_user()
+    from app.models import LifeChapter
+    from app.life.routes import CHAPTER_OPTIONS, chapter_dict
+    item = db.session.scalar(db.select(LifeChapter).where(LifeChapter.id == chapter_id, LifeChapter.creator_id == user.id).options(*CHAPTER_OPTIONS))
+    if not item: return error_response("RESOURCE_NOT_FOUND", "请求的章节申请不存在。", 404)
+    if item.review_status not in {"pending", "rejected"}: return error_response("RESOURCE_CONFLICT", "该章节申请不能重新提交。", 409)
+    return success_response(chapter_dict(item, user) | {"review_status": item.review_status, "review_note": item.review_note})

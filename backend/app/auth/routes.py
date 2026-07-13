@@ -1,6 +1,6 @@
 import re
 
-from flask import Blueprint, make_response, request
+from flask import Blueprint, current_app, make_response, request
 from flask_jwt_extended import (
     get_jwt,
     get_jwt_identity,
@@ -13,6 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from app.auth.service import find_user, issue_session, revoke_session, rotate_session, utcnow
 from app.common.responses import error_response, success_response
 from app.extensions import db, jwt
+from app.common.rate_limits import client_ip, limiter, login_key, refresh_key
 from app.models import User, UserStatus
 
 
@@ -59,6 +60,7 @@ def session_response(user, access_token, refresh_token, status_code=200):
 
 
 @auth_bp.post("/register")
+@limiter.limit(lambda: current_app.config["RATE_LIMIT_REGISTER"], key_func=client_ip, methods=["POST"])
 def register():
     payload = request.get_json(silent=True)
     if not isinstance(payload, dict):
@@ -68,9 +70,9 @@ def register():
         return validation_error(errors)
     username_normalized = normalized_username(username)
     if db.session.scalar(db.select(User.id).where(User.username_normalized == username_normalized)):
-        return error_response("DUPLICATE_RESOURCE", "用户名已被使用。", 409)
+        return error_response("DUPLICATE_RESOURCE", "用户名或邮箱不可用。", 409)
     if db.session.scalar(db.select(User.id).where(User.email_normalized == email)):
-        return error_response("DUPLICATE_RESOURCE", "邮箱已被使用。", 409)
+        return error_response("DUPLICATE_RESOURCE", "用户名或邮箱不可用。", 409)
     user = User(username=username, username_normalized=username_normalized, email=email, email_normalized=email, nickname=username)
     user.set_password(payload["password"])
     try:
@@ -80,11 +82,12 @@ def register():
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
-        return error_response("DUPLICATE_RESOURCE", "用户名或邮箱已被使用。", 409)
+        return error_response("DUPLICATE_RESOURCE", "用户名或邮箱不可用。", 409)
     return session_response(user, access_token, refresh_token, 201)
 
 
 @auth_bp.post("/login")
+@limiter.limit(lambda: current_app.config["RATE_LIMIT_LOGIN"], key_func=login_key, methods=["POST"])
 def login():
     payload = request.get_json(silent=True)
     if not isinstance(payload, dict) or not isinstance(payload.get("identifier"), str) or not isinstance(payload.get("password"), str):
@@ -102,6 +105,7 @@ def login():
 
 @auth_bp.post("/refresh")
 @jwt_required(refresh=True, locations=["cookies"])
+@limiter.limit(lambda: current_app.config["RATE_LIMIT_REFRESH"], key_func=refresh_key, methods=["POST"])
 def refresh():
     user = _current_user()
     if user is None:

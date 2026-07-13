@@ -1,5 +1,5 @@
 import json
-from flask import request
+from flask import g, request
 
 from app.extensions import db
 from app.models import AdminLog
@@ -16,7 +16,12 @@ def sanitize_audit_data(value, depth=0):
 
 
 def create_admin_log(admin, action, target_type, target_id=None, target_label=None, before=None, after=None, metadata=None):
+    metadata = {**(metadata if isinstance(metadata, dict) else {}), "request_id": getattr(g, "request_id", None)}
     payload = {"before": sanitize_audit_data(before), "after": sanitize_audit_data(after), "metadata": sanitize_audit_data(metadata)}
     if len(json.dumps(payload, ensure_ascii=False, default=str)) > 16000:
         payload = {key: "[truncated]" if value else value for key, value in payload.items()}
-    db.session.add(AdminLog(admin_id=admin.id, admin_role=admin.role, action=action, target_type=target_type, target_id=target_id, target_label=(target_label or "")[:255] or None, before_data=payload["before"], after_data=payload["after"], metadata_json=payload["metadata"], ip_address=(request.remote_addr or "")[:64] or None, user_agent=(request.user_agent.string or "")[:512] or None))
+    idempotency_key = None
+    if not getattr(g, "audit_idempotency_used", False):
+        idempotency_key = getattr(g, "admin_idempotency_key", None)
+        g.audit_idempotency_used = bool(idempotency_key)
+    db.session.add(AdminLog(admin_id=admin.id, admin_role=admin.role, action=action, target_type=target_type, target_id=target_id, target_label=(target_label or "")[:255] or None, before_data=payload["before"], after_data=payload["after"], metadata_json=payload["metadata"], ip_address=(request.remote_addr or "")[:64] or None, user_agent=(request.user_agent.string or "")[:512] or None, idempotency_key=idempotency_key))

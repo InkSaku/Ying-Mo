@@ -37,9 +37,10 @@ def validate_scope(data, existing=None, creating=False):
     need_hero, need_map = {"game": (False, False), "hero": (True, False), "map": (False, True), "hero_map": (True, True)}[scope]
     if bool(hero_id) != need_hero or bool(map_id) != need_map: raise ValueError("scope")
     game = db.session.get(Game, game_id); hero = db.session.get(GameHero, hero_id) if hero_id else None; game_map = db.session.get(GameMap, map_id) if map_id else None
-    if not game or (creating and game.status != "active"): raise LookupError("game")
-    if hero and (hero.game_id != game.id or (creating and (hero.status != "active" or hero.review_status != "approved"))): raise LookupError("hero")
-    if game_map and (game_map.game_id != game.id or (creating and (game_map.review_status != "approved" or game_map.current_status == "retired"))): raise LookupError("map")
+    scope_changed = creating or any(field in data for field in ("game_id", "hero_id", "map_id", "guide_scope"))
+    if not game or (scope_changed and game.status != "active"): raise LookupError("game")
+    if hero and (hero.game_id != game.id or (scope_changed and (hero.status != "active" or hero.review_status != "approved"))): raise LookupError("hero")
+    if game_map and (game_map.game_id != game.id or (scope_changed and (game_map.review_status != "approved" or game_map.current_status == "retired"))): raise LookupError("map")
     return game, hero, game_map
 def validate_steps(user, steps, existing_steps=(), draft_media_ids=()):
     if not isinstance(steps, list) or not 1 <= len(steps) <= 20: raise ValueError("steps")

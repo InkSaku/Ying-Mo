@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from flask_jwt_extended import create_access_token, create_refresh_token, decode_token
-from sqlalchemy import or_
+from sqlalchemy import or_, update
 
 from app.extensions import db
 from app.models import RefreshSession, User
@@ -21,10 +21,19 @@ def issue_session(user):
 
 
 def rotate_session(user, jti):
-    session = db.session.scalar(db.select(RefreshSession).where(RefreshSession.jti == jti))
-    if session is None or session.user_id != user.id or not session.is_active:
+    now = utcnow()
+    result = db.session.execute(
+        update(RefreshSession)
+        .where(
+            RefreshSession.jti == jti,
+            RefreshSession.user_id == user.id,
+            RefreshSession.revoked_at.is_(None),
+            RefreshSession.expires_at > now,
+        )
+        .values(revoked_at=now)
+    )
+    if result.rowcount != 1:
         return None
-    session.revoke()
     return issue_session(user)
 
 

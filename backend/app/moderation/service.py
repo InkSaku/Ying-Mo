@@ -4,8 +4,8 @@ from app.models import Notification, Report
 
 
 def report_result_notification(report, message=None):
-    payload = {"report_id": report.id, "target_type": report.target_type, "target_id": report.target_id, "result": report.status, "message": message or report.resolution_message or "举报已处理。"}
-    db.session.add(Notification(recipient_id=report.reporter_id, notification_type="report_result", payload=payload, dedupe_key=f"report-result:{report.id}:{report.status}"))
+    payload = {"report_id": report.id, "review_round": report.review_round, "target_type": report.target_type, "target_id": report.target_id, "result": report.status, "message": message or report.resolution_message or "举报已处理。"}
+    db.session.add(Notification(recipient_id=report.reporter_id, notification_type="report_result", payload=payload, dedupe_key=f"report-result:{report.id}:{report.review_round}:{report.status}"))
 
 
 def close_open_reports_for_target(target_type, target_id, message="相关内容已不可用，举报已结束。"):

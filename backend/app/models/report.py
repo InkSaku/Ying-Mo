@@ -22,6 +22,7 @@ class Report(db.Model):
     reason = db.Column(db.String(40), nullable=False)
     description = db.Column(db.String(1000))
     status = db.Column(db.String(20), nullable=False, default="pending", server_default="pending")
+    review_round = db.Column(db.Integer, nullable=False, default=1, server_default="1")
     active_key = db.Column(db.String(255), unique=True)
     assigned_to_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))
     handled_by_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"))

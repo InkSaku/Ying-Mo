@@ -1,3 +1,6 @@
+from datetime import timedelta
+from types import SimpleNamespace
+
 from flask import Blueprint, current_app, request, send_file
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
@@ -5,6 +8,8 @@ from app.auth.routes import _current_user
 from app.common.responses import error_response, success_response
 from app.extensions import db
 from app.models import Media, MediaPurpose
+from app.auth.service import utcnow
+from app.common.rate_limits import limiter, user_key
 
 from .service import ImageUploadError, process_and_store_image
 from .storage import file_exists, path_for_key, remove_media_files
@@ -22,6 +27,7 @@ def _media_or_not_found(public_id):
 
 @uploads_bp.post("/images")
 @jwt_required(locations=["headers"])
+@limiter.limit(lambda: current_app.config["RATE_LIMIT_UPLOAD"], key_func=user_key, methods=["POST"])
 def upload_image():
     user = _current_user()
     if user is None:
@@ -33,10 +39,22 @@ def upload_image():
     purpose = request.form.get("purpose", MediaPurpose.CONTENT)
     if purpose not in MediaPurpose.ALL:
         return error_response("VALIDATION_ERROR", "图片用途不合法。", 422, [{"field": "purpose", "code": "invalid_choice", "message": "图片用途仅支持 avatar 或 content。"}])
+    unbound = db.session.scalar(db.select(db.func.count(Media.id)).where(Media.owner_id == user.id, Media.bound_type.is_(None))) or 0
+    if unbound >= current_app.config["UPLOAD_UNBOUND_LIMIT"]:
+        return error_response("UPLOAD_QUOTA_EXCEEDED", "未使用图片数量已达上限，请先清理。", 429)
+    total_bytes = db.session.scalar(db.select(db.func.coalesce(db.func.sum(Media.size_bytes), 0)).where(Media.owner_id == user.id)) or 0
+    if total_bytes >= current_app.config["UPLOAD_USER_TOTAL_BYTES"]:
+        return error_response("UPLOAD_QUOTA_EXCEEDED", "图片存储空间已达上限。", 413)
+    daily_bytes = db.session.scalar(db.select(db.func.coalesce(db.func.sum(Media.size_bytes), 0)).where(Media.owner_id == user.id, Media.created_at >= utcnow() - timedelta(days=1))) or 0
+    if daily_bytes >= current_app.config["UPLOAD_USER_DAILY_BYTES"]:
+        return error_response("UPLOAD_QUOTA_EXCEEDED", "近 24 小时上传容量已达上限。", 429)
     try:
         attributes = process_and_store_image(request.files["file"])
     except ImageUploadError as error:
         return error_response(error.code, error.message, error.status_code)
+    if total_bytes + attributes["size_bytes"] > current_app.config["UPLOAD_USER_TOTAL_BYTES"] or daily_bytes + attributes["size_bytes"] > current_app.config["UPLOAD_USER_DAILY_BYTES"]:
+        remove_media_files(SimpleNamespace(**attributes))
+        return error_response("UPLOAD_QUOTA_EXCEEDED", "图片存储配额不足。", 413)
     media = Media(owner_id=user.id, purpose=purpose, **attributes)
     try:
         db.session.add(media)

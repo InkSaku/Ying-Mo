@@ -30,10 +30,11 @@ def remove_file(storage_key):
         path = path_for_key(storage_key)
         if path.exists():
             path.unlink()
+        return True
     except (OSError, ValueError):
         current_app.logger.warning("Unable to remove media file", exc_info=True)
+        return False
 
 
 def remove_media_files(media):
-    remove_file(media.storage_key)
-    remove_file(media.thumbnail_key)
+    return remove_file(media.storage_key) and remove_file(media.thumbnail_key)

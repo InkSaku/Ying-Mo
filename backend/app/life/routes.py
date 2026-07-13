@@ -12,6 +12,7 @@ from sqlalchemy.orm import joinedload, selectinload
 from app.auth.routes import _current_user
 from app.auth.service import utcnow
 from app.common.responses import error_response, success_response
+from app.common.search import escape_like, normalize_search_query
 from app.extensions import db
 from app.models import LifeChapter, LifePost, LifePostMedia, Media, MediaPurpose, User, UserStatus
 from app.models.user import serialize_datetime
@@ -22,6 +23,14 @@ from app.users.service import public_user_dict
 life_bp = Blueprint("life", __name__)
 CHAPTER_TYPES = {"city", "scenic", "travel", "campus", "event", "custom"}
 VISIBILITIES = {"public", "login_only", "private"}
+
+
+def public_chapter_filters():
+    return (LifeChapter.status == "active", LifeChapter.review_status == "approved")
+
+
+def is_public_chapter(chapter):
+    return bool(chapter and chapter.status == "active" and chapter.review_status == "approved")
 
 
 def field_error(field, code, message):
@@ -70,7 +79,7 @@ def can_view_post(post, user):
 def can_read_media(media, user):
     if media.bound_type == "life_chapter_cover":
         chapter = db.session.get(LifeChapter, media.bound_id)
-        return bool(chapter and chapter.status == "active" and chapter.cover_media_id == media.id)
+        return bool(is_public_chapter(chapter) and chapter.cover_media_id == media.id)
     if media.bound_type == "life_post":
         link = db.session.scalar(
             db.select(LifePostMedia).options(joinedload(LifePostMedia.post)).where(LifePostMedia.media_id == media.id)
@@ -141,7 +150,7 @@ def chapter_dict(chapter, user=None, include_children=False, stats=None):
         "updated_at": serialize_datetime(chapter.updated_at),
     }
     if include_children:
-        children = [child for child in chapter.children if child.status == "active"]
+        children = [child for child in chapter.children if is_public_chapter(child)]
         data["children"] = [chapter_dict(child, user, stats=stats) for child in children]
     return data
 
@@ -284,11 +293,13 @@ def list_chapters():
     page, page_size, error = parse_page()
     if error:
         return error
-    stmt = db.select(LifeChapter).where(LifeChapter.status == "active", LifeChapter.review_status == "approved")
+    stmt = db.select(LifeChapter).where(*public_chapter_filters())
     query = request.args.get("query", "").strip()
     if query:
-        normalized_query = normalize_name(query)
-        stmt = stmt.where(or_(LifeChapter.name.ilike(f"%{query}%"), LifeChapter.normalized_name.ilike(f"%{normalized_query}%")))
+        try: query = normalize_search_query(query)
+        except ValueError as error: return validation_error([field_error("query", "invalid_length", str(error))])
+        normalized_query = normalize_name(query); pattern = f"%{escape_like(query)}%"; normalized_pattern = f"%{escape_like(normalized_query)}%"
+        stmt = stmt.where(or_(LifeChapter.name.ilike(pattern, escape="\\"), LifeChapter.normalized_name.ilike(normalized_pattern, escape="\\")))
     kind = request.args.get("chapter_type")
     if kind:
         if kind not in CHAPTER_TYPES:
@@ -351,14 +362,14 @@ def check_chapter_name():
         if parent_id <= 0:
             return validation_error([field_error("parent_id", "invalid_type", "parent_id 不合法。")])
         parent_chapter = db.session.get(LifeChapter, parent_id)
-        if not parent_chapter or parent_chapter.status != "active" or parent_chapter.parent_id is not None:
+        if not is_public_chapter(parent_chapter) or parent_chapter.parent_id is not None:
             return validation_error([field_error("parent_id", "invalid_parent", "父章节必须是可用的一级章节。")])
     key = f"root:{normalized}" if parent_id is None else f"{parent_id}:{normalized}"
     layer = LifeChapter.parent_id.is_(None) if parent_id is None else LifeChapter.parent_id == parent_id
-    exact = db.session.scalar(db.select(LifeChapter).where(LifeChapter.dedupe_key == key, LifeChapter.status == "active"))
+    exact = db.session.scalar(db.select(LifeChapter).where(LifeChapter.dedupe_key == key, *public_chapter_filters()))
     candidates = db.session.scalars(
         db.select(LifeChapter)
-        .where(layer, LifeChapter.status == "active", LifeChapter.normalized_name.contains(normalized))
+        .where(layer, *public_chapter_filters(), LifeChapter.normalized_name.contains(normalized))
         .order_by(LifeChapter.created_at.desc(), LifeChapter.id.desc())
         .limit(5)
     ).all()
@@ -452,7 +463,7 @@ def get_chapter(slug):
         return success_response({"canonical_slug": chapter.merged_into.slug}, meta={"canonical_slug": chapter.merged_into.slug})
     if chapter.status != "active" or chapter.review_status != "approved":
         return error_response("RESOURCE_NOT_FOUND", "请求的资源不存在。", 404)
-    stats = chapter_stats([chapter.id, *(child.id for child in chapter.children if child.status == "active")], user)
+    stats = chapter_stats([chapter.id, *(child.id for child in chapter.children if is_public_chapter(child))], user)
     return success_response(chapter_dict(chapter, user, True, stats))
 
 
@@ -526,7 +537,7 @@ def list_posts():
             stmt = stmt.where(LifePost.author_id == author.id)
     slug = request.args.get("chapter_slug")
     if slug:
-        chapter = db.session.scalar(db.select(LifeChapter).where(LifeChapter.slug == slug, LifeChapter.status == "active"))
+        chapter = db.session.scalar(db.select(LifeChapter).where(LifeChapter.slug == slug, *public_chapter_filters()))
         if not chapter:
             return error_response("RESOURCE_NOT_FOUND", "请求的资源不存在。", 404)
         stmt = stmt.where(LifePost.chapter_id == chapter.id)

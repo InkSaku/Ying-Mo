@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import uuid
 from time import perf_counter
 
@@ -20,14 +21,13 @@ def create_app(config_name=None, config_overrides=None):
     environment = config_name or os.getenv("APP_ENV", "development")
     config_class = get_config(environment)
 
-    if environment == "production":
-        config_class.validate()
-
     app = Flask(__name__)
     app.config.from_object(config_class)
     if config_overrides:
         app.config.update(config_overrides)
     app.config["SQLALCHEMY_DATABASE_URI"] = config_class.database_uri()
+    if environment == "production":
+        config_class.validate(app.config)
 
     _configure_logging(app)
     _register_request_id(app)
@@ -41,10 +41,12 @@ def create_app(config_name=None, config_overrides=None):
 
 
 def _register_request_id(app):
+    safe_request_id = re.compile(r"^(?:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|[0-9A-HJKMNP-TV-Z]{26})$")
+
     @app.before_request
     def assign_request_id():
         provided_id = request.headers.get("X-Request-ID", "")
-        g.request_id = provided_id[:128] if provided_id.isascii() and provided_id else uuid.uuid4().hex
+        g.request_id = provided_id if safe_request_id.fullmatch(provided_id) else str(uuid.uuid4())
         g.request_started_at = perf_counter()
 
     @app.after_request

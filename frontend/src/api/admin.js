@@ -1,7 +1,7 @@
 import { apiClient } from './client.js'
 
 async function get(path, params) { const { data } = await apiClient.get(path, { params }); return { data: data.data, meta: data.meta } }
-async function send(method, path, payload) { const { data } = await apiClient.request({ method, url: path, data: payload }); return data.data }
+async function send(method, path, payload) { const { data } = await apiClient.request({ method, url: path, data: payload, headers: method === 'get' ? undefined : { 'Idempotency-Key': crypto.randomUUID() } }); return data.data }
 export const getAdminSummary = () => send('get', '/admin/summary')
 export const getAdminReports = (params) => get('/admin/reports', params)
 export const getAdminReport = (id) => send('get', `/admin/reports/${id}`)
@@ -21,13 +21,13 @@ export const getAdminComments = (params) => get('/admin/content/comments', param
 export const getAdminFeatured = () => get('/admin/content/featured')
 export const hideContent = (type, id, payload) => send('post', `/admin/content/${type}/${id}/hide`, payload)
 export const restoreContent = (type, id) => send('post', `/admin/content/${type}/${id}/restore`)
-export const deleteAdminContent = (type, id) => send('delete', `/admin/content/${type}/${id}`)
+export const deleteAdminContent = (type, id, payload) => send('delete', `/admin/content/${type}/${id}`, payload)
 export const featureContent = (type, id, payload) => send('post', `/admin/content/${type}/${id}/feature`, payload)
 export const unfeatureContent = (type, id) => send('delete', `/admin/content/${type}/${id}/feature`)
 export const markGuideInvalid = (id) => send('post', `/admin/guides/${id}/mark-invalid`)
 export const hideComment = (id) => send('post', `/admin/comments/${id}/hide`)
 export const restoreComment = (id) => send('post', `/admin/comments/${id}/restore`)
-export const deleteAdminComment = (id) => send('delete', `/admin/comments/${id}`)
+export const deleteAdminComment = (id, payload) => send('delete', `/admin/comments/${id}`, payload)
 export const getAdminChapters = (params) => get('/admin/chapters', params)
 export const getAdminChapter = (id) => send('get', `/admin/chapters/${id}`)
 export const approveChapter = (id, payload) => send('post', `/admin/chapters/${id}/approve`, payload)

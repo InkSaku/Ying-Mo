@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
+import uuid
 
-from flask import current_app, request
+from flask import current_app, g, request
 from sqlalchemy import func, or_
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -49,6 +50,14 @@ def _commit(message="操作保存失败。"):
 def _reason(data):
     value = data.get("reason") if isinstance(data, dict) else None
     return value.strip() if isinstance(value, str) and 1 <= len(value.strip()) <= 1000 else None
+def _confirmed(data, expected): return isinstance(data, dict) and data.get("confirmation") == expected
+def _idempotency(actor):
+    value = request.headers.get("Idempotency-Key", "")
+    try: normalized = str(uuid.UUID(value))
+    except (ValueError, AttributeError): return None, None, _validation("高风险操作需要有效的 Idempotency-Key UUID。")
+    existing = db.session.scalar(db.select(AdminLog).where(AdminLog.admin_id == actor.id, AdminLog.idempotency_key == normalized))
+    g.admin_idempotency_key = normalized
+    return normalized, existing, None
 def _notify(recipient_id, kind, payload, actor=None, target_type=None, target_id=None, key=None):
     if recipient_id and (not actor or recipient_id != actor.id): db.session.add(Notification(recipient_id=recipient_id, actor_id=actor.id if actor else None, notification_type=kind, target_type=target_type, target_id=target_id, payload=payload, dedupe_key=key))
 
@@ -67,7 +76,7 @@ def _soft_delete_comment(item):
     close_open_reports_for_target("comment", item.id)
 
 
-def _delete_content(kind, item, actor, action="content_deleted"):
+def _delete_content(kind, item, actor, action="content_deleted", reason=None):
     media = [link.media for link in item.media_links] if kind == "life_post" else [step.media for step in item.steps]
     before = _content_state(item)
     _remove_feature(kind, item.id); close_open_reports_for_target(kind, item.id)
@@ -78,7 +87,7 @@ def _delete_content(kind, item, actor, action="content_deleted"):
     db.session.delete(item); db.session.flush()
     for file in media: db.session.delete(file)
     _notify(item.author_id, "content_hidden", {"action": "deleted", "target_type": kind, "target_id": item.id, "message": "你的内容已被管理员删除。"}, actor)
-    create_admin_log(actor, action, kind, item.id, _content_label(kind, item), before, {"status": "deleted"})
+    create_admin_log(actor, action, kind, item.id, _content_label(kind, item), before, {"status": "deleted"}, {"reason": reason})
     return media
 
 
@@ -154,9 +163,21 @@ def reopen(actor, report_id):
     item = _report_get(report_id)
     if not item: return _not_found()
     if item.status not in {"resolved", "rejected"}: return error_response("RESOURCE_CONFLICT", "只有已结束举报可重新打开。", 409)
-    item.status, item.active_key, item.assigned_to_id, item.handled_by_id, item.handled_at, item.updated_at = "in_progress", f"{item.reporter_id}:{item.target_type}:{item.target_id}", actor.id, None, None, utcnow()
-    create_admin_log(actor, "report_reopened", "report", item.id, f"举报 #{item.id}", None, {"status": "in_progress"})
-    error = _commit(); return error or success_response({"id": item.id, "status": item.status})
+    active_key = f"{item.reporter_id}:{item.target_type}:{item.target_id}"
+    conflict = db.session.scalar(db.select(Report.id).where(Report.active_key == active_key, Report.id != item.id).with_for_update())
+    if conflict: return error_response("RESOURCE_CONFLICT", "同一对象已有进行中的举报。", 409)
+    item.status, item.active_key, item.assigned_to_id, item.handled_by_id, item.handled_at, item.updated_at = "in_progress", active_key, actor.id, None, None, utcnow()
+    item.review_round += 1
+    create_admin_log(actor, "report_reopened", "report", item.id, f"举报 #{item.id}", None, {"status": "in_progress", "review_round": item.review_round})
+    try:
+        db.session.commit()
+    except Exception as error:
+        db.session.rollback()
+        from sqlalchemy.exc import IntegrityError
+        if isinstance(error, IntegrityError): return error_response("RESOURCE_CONFLICT", "同一对象已有进行中的举报。", 409)
+        current_app.logger.exception("举报重开失败。")
+        return error_response("INTERNAL_ERROR", "举报重开失败。", 500)
+    return success_response({"id": item.id, "status": item.status, "review_round": item.review_round})
 
 
 def _apply_report_action(actor, report, action, message):
@@ -170,7 +191,7 @@ def _apply_report_action(actor, report, action, message):
         if target.status != "published": return None, error_response("RESOURCE_CONFLICT", "内容当前不能下架。", 409)
         before = _content_state(target); target.status, target.moderation_reason, target.hidden_at, target.hidden_by_id = "hidden", message, utcnow(), actor.id; _remove_feature(report.target_type, target.id)
         _notify(target.author_id, "content_hidden", {"target_type": report.target_type, "target_id": target.id, "reason": message}, actor, report.target_type, target.id); create_admin_log(actor, "content_hidden", report.target_type, target.id, target.title, before, _content_state(target))
-    elif action == "delete_content": media = _delete_content(report.target_type, target, actor, "content_deleted")
+    elif action == "delete_content": media = _delete_content(report.target_type, target, actor, "content_deleted", message)
     elif action == "hide_comment":
         if target.status != "active": return None, error_response("RESOURCE_CONFLICT", "评论当前不能隐藏。", 409)
         before = {"status": target.status}; target.status, target.updated_at = "hidden", utcnow(); create_admin_log(actor, "comment_hidden", "comment", target.id, f"评论 #{target.id}", before, {"status": "hidden"})
@@ -189,11 +210,24 @@ def _apply_report_action(actor, report, action, message):
 def _finish_report(actor, report_id, rejected=False):
     payload = request.get_json(silent=True) or {}; item = _report_get(report_id)
     if not item: return _not_found()
+    if payload.get("action") in {"delete_content", "ban_user"}:
+        _, existing, key_error = _idempotency(actor)
+        if key_error: return key_error
+        if existing: return success_response({"id": item.id, "status": item.status, "already_processed": True})
     if item.status not in {"pending", "in_progress"}: return error_response("RESOURCE_CONFLICT", "举报已结束。", 409)
+    if item.status == "pending":
+        item.status, item.assigned_to_id = "in_progress", actor.id
+    elif item.assigned_to_id != actor.id:
+        if not is_system_admin(actor): return error_response("PERMISSION_DENIED", "只有领取该举报的管理员可以处理。", 403)
+        previous = item.assigned_to_id
+        item.assigned_to_id = actor.id
+        create_admin_log(actor, "report_force_taken", "report", item.id, f"举报 #{item.id}", {"assigned_to_id": previous}, {"assigned_to_id": actor.id})
     message = payload.get("resolution_message")
     if not isinstance(message, str) or not 1 <= len(message.strip()) <= 1000: return _validation("处理说明为必填项，且最多 1000 字。")
     action = "no_action" if rejected else payload.get("action")
     if not isinstance(action, str): return _validation("请选择处理动作。")
+    if action == "delete_content" and not _confirmed(payload, "DELETE"): return _validation("永久删除需要 confirmation=DELETE。")
+    if action == "ban_user" and not _confirmed(payload, "BAN"): return _validation("封禁账号需要 confirmation=BAN。")
     note = payload.get("internal_note")
     if note is not None and (not isinstance(note, str) or len(note) > 5000): return _validation("内部备注不合法。")
     media, error = _apply_report_action(actor, item, action, message.strip())
@@ -254,6 +288,10 @@ def _user_mutation(actor, user_id, kind):
     if not target: return _not_found()
     if not isinstance(payload, dict) or not _reason(payload): return _validation("必须填写操作原因。")
     if not can_manage_user(actor, target): return error_response("PERMISSION_DENIED", "无权管理该用户。", 403)
+    if kind == "status" and payload.get("status") == UserStatus.BANNED.value:
+        _, existing, key_error = _idempotency(actor)
+        if key_error: return key_error
+        if existing: return success_response(admin_user_dict(target))
     if kind == "restrictions":
         if not any(key in payload for key in ("can_publish", "can_comment")) or any(key in payload and not isinstance(payload[key], bool) for key in ("can_publish", "can_comment")): return _validation("限制参数不合法。")
         before = {key: getattr(target, key) for key in ("can_publish", "can_comment")}
@@ -262,6 +300,7 @@ def _user_mutation(actor, user_id, kind):
         _notify(target.id, "system", {"message": "你的账号权限已调整。", "reason": _reason(payload)}, actor)
     elif kind == "status":
         if not is_system_admin(actor) or payload.get("status") not in {UserStatus.ACTIVE.value, UserStatus.BANNED.value}: return error_response("PERMISSION_DENIED", "无权修改账号状态。", 403)
+        if payload.get("status") == UserStatus.BANNED.value and not _confirmed(payload, "BAN"): return _validation("封禁账号需要 confirmation=BAN。")
         before = {"status": target.status}; target.status = payload["status"]; db.session.execute(db.delete(RefreshSession).where(RefreshSession.user_id == target.id)); _notify(target.id, "system", {"message": "你的账号状态已调整。", "reason": _reason(payload)}, actor)
     else:
         if not is_system_admin(actor) or payload.get("role") not in {x.value for x in UserRole}: return error_response("PERMISSION_DENIED", "无权修改角色。", 403)
@@ -377,9 +416,14 @@ def restore_content(actor, target_type, target_id):
 @require_content_admin()
 def delete_content(actor, target_type, target_id):
     if target_type not in CONTENT_TARGET_TYPES: return _not_found()
+    payload = request.get_json(silent=True) or {}
+    if not _reason(payload) or not _confirmed(payload, "DELETE"): return _validation("永久删除需要操作原因和 confirmation=DELETE。")
+    _, existing, key_error = _idempotency(actor)
+    if key_error: return key_error
+    if existing: return "", 204
     item = db.session.scalar(db.select(_content_model(target_type)).where(_content_model(target_type).id == target_id).options(*_content_options(target_type)))
     if not item: return _not_found()
-    media = _delete_content(target_type, item, actor); failure = _commit("内容删除失败。")
+    media = _delete_content(target_type, item, actor, reason=_reason(payload)); failure = _commit("内容删除失败。")
     if failure: return failure
     for file in media:
         try: remove_media_files(file)
@@ -431,6 +475,21 @@ def mark_invalid(actor, guide_id):
     return failure or success_response(guide_dict(guide, actor, True))
 
 
+@admin_bp.patch("/guides/<int:guide_id>/validity")
+@require_content_admin()
+def update_guide_validity(actor, guide_id):
+    guide, data = db.session.get(GameGuide, guide_id), request.get_json(silent=True) or {}
+    if not guide: return _not_found()
+    status, reason = data.get("validity_status"), _reason(data)
+    if status not in {"unverified", "valid", "possibly_invalid", "invalid"} or not reason:
+        return _validation("有效状态和操作原因必填。")
+    before = {"validity_status": guide.validity_status}
+    guide.validity_status, guide.last_confirmed_at = status, utcnow()
+    create_admin_log(actor, "guide_validity_updated", "game_guide", guide.id, guide.title, before, {"validity_status": status}, {"reason": reason})
+    failure = _commit("教材状态保存失败。")
+    return failure or success_response(guide_dict(guide, actor, True))
+
+
 @admin_bp.post("/comments/<int:comment_id>/hide")
 @require_content_admin()
 def hide_comment(actor, comment_id):
@@ -454,10 +513,15 @@ def restore_comment(actor, comment_id):
 @admin_bp.delete("/comments/<int:comment_id>")
 @require_content_admin()
 def delete_comment(actor, comment_id):
+    payload = request.get_json(silent=True) or {}
+    if not _reason(payload) or not _confirmed(payload, "DELETE"): return _validation("永久删除需要操作原因和 confirmation=DELETE。")
+    _, existing, key_error = _idempotency(actor)
+    if key_error: return key_error
+    if existing: return "", 204
     item = db.session.get(Comment, comment_id)
     if not item: return _not_found()
     if item.status == "deleted": return error_response("RESOURCE_CONFLICT", "评论已删除。", 409)
-    _soft_delete_comment(item); create_admin_log(actor, "comment_deleted", "comment", item.id, f"评论 #{item.id}", None, {"status": "deleted"}); failure = _commit("评论删除失败。")
+    _soft_delete_comment(item); create_admin_log(actor, "comment_deleted", "comment", item.id, f"评论 #{item.id}", None, {"status": "deleted"}, {"reason": _reason(payload)}); failure = _commit("评论删除失败。")
     return failure or ("", 204)
 
 
@@ -500,6 +564,7 @@ def _chapter_payload(payload, chapter=None):
 def _validate_chapter_parent(chapter, parent_id):
     parent = db.session.get(LifeChapter, parent_id) if parent_id else None
     if parent_id and (not parent or parent.id == chapter.id or parent.status != "active" or parent.review_status != "approved" or parent.parent_id is not None): return None
+    if parent and chapter.children: return None
     if parent and chapter.parent_id == parent.id: return parent
     current = parent
     while current:
@@ -593,6 +658,8 @@ def enable_chapter(actor, chapter_id):
     chapter = db.session.get(LifeChapter, chapter_id)
     if not chapter: return _not_found()
     if chapter.status != "disabled" or chapter.review_status != "approved": return error_response("RESOURCE_CONFLICT", "章节当前不能启用。", 409)
+    if chapter.parent_id and not _validate_chapter_parent(chapter, chapter.parent_id): return error_response("RESOURCE_CONFLICT", "章节层级无效，不能启用。", 409)
+    if chapter.parent_id is None and any(child.parent_id != chapter.id for child in chapter.children): return error_response("RESOURCE_CONFLICT", "章节层级无效，不能启用。", 409)
     chapter.status="active"; create_admin_log(actor,"chapter_enabled","life_chapter",chapter.id,chapter.name,{"status":"disabled"},{"status":"active"}); failure=_commit("章节启用失败。")
     return failure or success_response({"id":chapter.id,"status":chapter.status})
 
@@ -636,17 +703,25 @@ def remove_chapter_cover(actor, chapter_id):
 def merge_chapter(actor, source_id):
     data=request.get_json(silent=True) or {}; target_id=data.get("target_chapter_id"); reason=_reason(data)
     if not isinstance(target_id,int) or target_id<=0 or not reason:return _validation("目标章节和合并原因必填。")
-    source=db.session.scalar(db.select(LifeChapter).where(LifeChapter.id==source_id).with_for_update()); target=db.session.scalar(db.select(LifeChapter).where(LifeChapter.id==target_id).with_for_update())
-    if not source or not target:return _not_found()
-    if source.id==target.id or source.status=="merged" or target.status!="active" or target.review_status!="approved": return error_response("RESOURCE_CONFLICT","章节当前不能合并。",409)
+    locked = db.session.scalars(db.select(LifeChapter).where(LifeChapter.id.in_((source_id, target_id))).order_by(LifeChapter.id).with_for_update()).all()
+    lookup = {item.id: item for item in locked}; source, target = lookup.get(source_id), lookup.get(target_id)
+    if not source or not target:
+        db.session.rollback(); return _not_found()
+    if source.id==target.id or source.status=="merged" or target.status!="active" or target.review_status!="approved":
+        db.session.rollback(); return error_response("RESOURCE_CONFLICT","章节当前不能合并。",409)
+    db.session.scalars(db.select(LifeChapter).where(LifeChapter.parent_id.in_((source.id, target.id))).with_for_update()).all()
+    if target.parent_id is not None and source.children:
+        db.session.rollback(); return error_response("RESOURCE_CONFLICT", "合并会产生第三层章节。", 409)
     # Direct parent/child merges would otherwise make a cycle.
     ancestor=target
     while ancestor:
-        if ancestor.id==source.id:return _validation("不能合并祖先和子章节。")
+        if ancestor.id==source.id:
+            db.session.rollback(); return _validation("不能合并祖先和子章节。")
         ancestor=ancestor.parent
     ancestor=source
     while ancestor:
-        if ancestor.id==target.id:return _validation("不能合并祖先和子章节。")
+        if ancestor.id==target.id:
+            db.session.rollback(); return _validation("不能合并祖先和子章节。")
         ancestor=ancestor.parent
     for post in db.session.scalars(db.select(LifePost).where(LifePost.chapter_id==source.id)).all(): post.chapter_id=target.id
     aliases=_chapter_aliases([*(target.aliases or []),source.name,*(source.aliases or [])],target.name); target.aliases=aliases

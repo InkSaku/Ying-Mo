@@ -1,6 +1,7 @@
 from flask import request
 from flask_jwt_extended import get_jwt_identity, jwt_required
-from sqlalchemy import or_
+from sqlalchemy import exists, or_
+from sqlalchemy.orm import joinedload
 
 from app.common.responses import error_response, success_response
 from app.extensions import db
@@ -101,7 +102,12 @@ def mine():
     if (kind != "all" and kind not in TARGET_TYPES) or not args: return error_response("VALIDATION_ERROR", "查询参数不合法。", 400)
     stmt = db.select(Comment).where(Comment.author_id == actor.id, Comment.status == "active")
     if kind != "all": stmt = stmt.where(Comment.target_type == kind)
-    rows = db.session.scalars(stmt.order_by(Comment.created_at.desc(), Comment.id.desc())).all()
+    visible_life = exists(db.select(LifePost.id).where(LifePost.id == Comment.target_id, LifePost.status == "published", or_(LifePost.visibility.in_(("public", "login_only")), LifePost.author_id == actor.id)))
+    visible_guide = exists(db.select(GameGuide.id).where(GameGuide.id == Comment.target_id, or_(GameGuide.status == "published", GameGuide.author_id == actor.id)))
+    stmt = stmt.where(or_(db.and_(Comment.target_type == "life_post", visible_life), db.and_(Comment.target_type == "game_guide", visible_guide)))
+    page, size = args
+    total = db.session.scalar(db.select(db.func.count()).select_from(stmt.order_by(None).subquery())) or 0
+    rows = db.session.scalars(stmt.options(joinedload(Comment.author), joinedload(Comment.reply_to_user)).order_by(Comment.created_at.desc(), Comment.id.desc()).offset((page - 1) * size).limit(size)).all()
     life_ids = {row.target_id for row in rows if row.target_type == "life_post"}
     guide_ids = {row.target_id for row in rows if row.target_type == "game_guide"}
     posts = {item.id: item for item in db.session.scalars(db.select(LifePost).where(LifePost.id.in_(life_ids))).all()} if life_ids else {}
@@ -117,5 +123,4 @@ def mine():
             visible = target and (target.status == "published" or target.author_id == actor.id)
             summary = {"target_type": "game_guide", "target_id": target.id, "title": target.title, "target_url": f"/guide/{target.id}"} if visible else None
         if summary: items.append({**comment_dict(row, actor), "target": summary})
-    page, size = args; total = len(items)
-    return success_response(items[(page - 1) * size:page * size], meta=meta(page, size, total))
+    return success_response(items, meta=meta(page, size, total))

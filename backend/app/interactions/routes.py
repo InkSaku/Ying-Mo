@@ -5,7 +5,9 @@ from app.common.responses import error_response, success_response
 from app.extensions import db
 from app.models import ContentFavorite, GameGuide, LifePost, User, UserStatus
 from app.guides.serializers import guide_dict
-from app.life.routes import post_dict
+from app.life.routes import POST_OPTIONS, post_dict
+from app.guides.routes import GUIDE_OPTIONS
+from sqlalchemy import and_, exists, or_
 from .service import counts, set_favorite, set_like
 from .targets import TARGET_TYPES, resolve_target
 from . import interactions_bp
@@ -65,15 +67,17 @@ def favorites():
     if page < 1 or not 1 <= size <= 100: return error_response("VALIDATION_ERROR", "分页参数不合法。", 400)
     stmt = db.select(ContentFavorite).where(ContentFavorite.user_id == actor.id)
     if kind != "all": stmt = stmt.where(ContentFavorite.target_type == kind)
-    rows = db.session.scalars(stmt.order_by(ContentFavorite.created_at.desc(), ContentFavorite.id.desc())).all()
+    visible_life = exists(db.select(LifePost.id).where(LifePost.id == ContentFavorite.target_id, LifePost.status == "published", or_(LifePost.visibility.in_(("public", "login_only")), LifePost.author_id == actor.id)))
+    visible_guide = exists(db.select(GameGuide.id).where(GameGuide.id == ContentFavorite.target_id, or_(GameGuide.status == "published", GameGuide.author_id == actor.id)))
+    stmt = stmt.where(or_(and_(ContentFavorite.target_type == "life_post", visible_life), and_(ContentFavorite.target_type == "game_guide", visible_guide)))
+    total = db.session.scalar(db.select(db.func.count()).select_from(stmt.order_by(None).subquery())) or 0
+    rows = db.session.scalars(stmt.order_by(ContentFavorite.created_at.desc(), ContentFavorite.id.desc()).offset((page - 1) * size).limit(size)).all()
     life_ids = [r.target_id for r in rows if r.target_type == "life_post"]
     guide_ids = [r.target_id for r in rows if r.target_type == "game_guide"]
-    life = {x.id: x for x in db.session.scalars(db.select(LifePost).where(LifePost.id.in_(life_ids))).all()} if life_ids else {}
-    guides = {x.id: x for x in db.session.scalars(db.select(GameGuide).where(GameGuide.id.in_(guide_ids))).all()} if guide_ids else {}
+    life = {x.id: x for x in db.session.scalars(db.select(LifePost).where(LifePost.id.in_(life_ids)).options(*POST_OPTIONS)).unique().all()} if life_ids else {}
+    guides = {x.id: x for x in db.session.scalars(db.select(GameGuide).where(GameGuide.id.in_(guide_ids)).options(*GUIDE_OPTIONS)).unique().all()} if guide_ids else {}
     items = []
     for row in rows:
-        info = resolve_target(row.target_type, row.target_id, actor)
         target = life.get(row.target_id) if row.target_type == "life_post" else guides.get(row.target_id)
-        if info and target: items.append({"target_type": row.target_type, "favorited_at": row.created_at.isoformat(), "content": post_dict(target, actor) if row.target_type == "life_post" else guide_dict(target, actor)})
-    total = len(items); items = items[(page - 1) * size:page * size]
+        if target: items.append({"target_type": row.target_type, "favorited_at": row.created_at.isoformat(), "content": post_dict(target, actor) if row.target_type == "life_post" else guide_dict(target, actor)})
     return success_response(items, meta={"pagination": {"page": page, "page_size": size, "total": total, "total_pages": (total + size - 1) // size, "has_next": page * size < total, "has_previous": page > 1}})

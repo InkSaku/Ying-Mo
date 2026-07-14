@@ -72,6 +72,14 @@ class BaseConfig:
     RATE_LIMIT_UPLOAD = os.getenv("RATE_LIMIT_UPLOAD", "20 per hour")
     RATE_LIMIT_SEARCH = os.getenv("RATE_LIMIT_SEARCH", "60 per minute")
     RATE_LIMIT_SEARCH_SUGGESTIONS = os.getenv("RATE_LIMIT_SEARCH_SUGGESTIONS", "120 per minute")
+    SYSTEM_ADMIN_INVITE_CODE = os.getenv(
+        "SYSTEM_ADMIN_INVITE_CODE",
+        "",
+    ).strip()
+    RATE_LIMIT_ADMIN_INVITE = os.getenv(
+        "RATE_LIMIT_ADMIN_INVITE",
+        "2400 per hour",
+    )
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=int(os.getenv("JWT_ACCESS_TOKEN_EXPIRES_MINUTES", "15")))
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=int(os.getenv("JWT_REFRESH_TOKEN_EXPIRES_DAYS", "30")))

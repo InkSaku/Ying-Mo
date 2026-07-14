@@ -1,3 +1,4 @@
+import hmac
 from flask import Blueprint, current_app, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from sqlalchemy import func
@@ -7,7 +8,9 @@ from app.auth.routes import _current_user, normalized_username
 from app.auth.service import utcnow
 from app.common.responses import error_response, success_response
 from app.extensions import db
-from app.models import ContentFavorite, ContentLike, ContentDraft, GameGuide, GameGuideStep, LifePost, LifePostMedia, Media, MediaPurpose, User, UserStatus
+from app.models import ContentFavorite, ContentLike, ContentDraft, GameGuide, GameGuideStep, LifePost, LifePostMedia, Media, MediaPurpose, User,  UserRole, UserStatus
+from app.admin.audit import create_admin_log
+from app.common.rate_limits import limiter, user_key
 from app.uploads.storage import file_exists, remove_media_files
 
 from .service import public_user_dict
@@ -121,6 +124,124 @@ def update_me():
         return error_response("INTERNAL_ERROR", "资料保存失败，请稍后重试。", 500)
     return success_response(user.to_dict())
 
+@users_bp.post("/me/redeem-system-admin-invite")
+@jwt_required(locations=["headers"])
+@limiter.limit(
+    lambda: current_app.config["RATE_LIMIT_ADMIN_INVITE"],
+    key_func=user_key,
+    methods=["POST"],
+)
+def redeem_system_admin_invite():
+    user = _current_user()
+
+    if user is None:
+        return error_response(
+            "ACCOUNT_RESTRICTED",
+            "当前账号无法继续使用。",
+            403,
+        )
+
+    payload = request.get_json(silent=True)
+
+    if not isinstance(payload, dict):
+        return _validation_error([
+            _field_error(
+                "body",
+                "invalid_format",
+                "请求体必须是 JSON 对象。",
+            )
+        ])
+
+    invite_code = payload.get("invite_code")
+
+    if not isinstance(invite_code, str):
+        return _validation_error([
+            _field_error(
+                "invite_code",
+                "invalid_type",
+                "邀请码必须是字符串。",
+            )
+        ])
+
+    invite_code = invite_code.strip()
+
+    if not 1 <= len(invite_code) <= 128:
+        return _validation_error([
+            _field_error(
+                "invite_code",
+                "invalid_length",
+                "邀请码长度不合法。",
+            )
+        ])
+
+    expected_code = current_app.config.get(
+        "SYSTEM_ADMIN_INVITE_CODE",
+        "",
+    )
+
+    if not expected_code:
+        return error_response(
+            "FEATURE_DISABLED",
+            "管理员邀请码功能尚未启用。",
+            503,
+        )
+
+    # 已经是系统管理员时直接返回，保证接口幂等
+    if user.role == UserRole.SYSTEM_ADMIN.value:
+        return success_response(user.to_dict())
+
+    # 使用恒定时间比较，避免直接使用 == 比较敏感口令
+    if not hmac.compare_digest(invite_code, expected_code):
+        return error_response(
+            "INVALID_INVITE_CODE",
+            "邀请码无效。",
+            403,
+        )
+
+    before = {
+        "role": user.role,
+        "can_publish": user.can_publish,
+        "can_comment": user.can_comment,
+    }
+
+    user.role = UserRole.SYSTEM_ADMIN.value
+
+    # 防止这个账号之前被单独关闭了发布或评论权限
+    user.can_publish = True
+    user.can_comment = True
+    user.updated_at = utcnow()
+
+    create_admin_log(
+        admin=user,
+        action="system_admin_invite_redeemed",
+        target_type="user",
+        target_id=user.id,
+        target_label=user.username,
+        before=before,
+        after={
+            "role": user.role,
+            "can_publish": user.can_publish,
+            "can_comment": user.can_comment,
+        },
+        metadata={
+            "source": "self_service_invite",
+        },
+    )
+
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception(
+            "Unable to redeem system administrator invite",
+        )
+        return error_response(
+            "INTERNAL_ERROR",
+            "权限更新失败，请稍后重试。",
+            500,
+        )
+
+    return success_response(user.to_dict())
 
 @users_bp.put("/me/avatar")
 @jwt_required(locations=["headers"])

@@ -53,3 +53,14 @@ export async function setCurrentUserAvatar(mediaId) {
 export async function removeCurrentUserAvatar() {
   await apiClient.delete('/users/me/avatar')
 }
+
+export async function redeemSystemAdminInvite(inviteCode) {
+  const { data } = await apiClient.post(
+    '/users/me/redeem-system-admin-invite',
+    {
+      invite_code: inviteCode,
+    },
+  )
+
+  return data.data
+}

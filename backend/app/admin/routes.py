@@ -740,6 +740,12 @@ def _catalog_list(model, actor):
     args=_page()
     if not args:return _validation("分页参数不合法。")
     page,size=args; stmt=db.select(model)
+    raw_game_id=request.args.get("game_id")
+    if raw_game_id:
+        try: game_id=int(raw_game_id)
+        except ValueError: return _validation("游戏 ID 不合法。")
+        if game_id<=0:return _validation("游戏 ID 不合法。")
+        stmt=stmt.where(Game.id==game_id) if model is Game else stmt.where(model.game_id==game_id)
     query=request.args.get("query","").strip()
     if query:stmt=stmt.where(model.search_text.ilike(f"%{query}%"))
     total=db.session.scalar(db.select(func.count()).select_from(stmt.subquery())); items=db.session.scalars(stmt.order_by(model.updated_at.desc(),model.id.desc()).offset((page-1)*size).limit(size)).all()

@@ -1,39 +1,59 @@
 import { Link } from 'react-router-dom'
 import PageContainer from '../layout/PageContainer'
-import SectionHeading from '../common/SectionHeading'
 
-export default function ProductSpaceSection() {
+function ModuleMedia({ source, alt, fallback }) {
   return (
-    <section className="content-section" aria-labelledby="product-spaces-title">
+    <span className="home-module-card__media">
+      {source ? <img src={source} alt={alt} loading="lazy" /> : <span aria-hidden="true">{fallback}</span>}
+    </span>
+  )
+}
+
+export default function ProductSpaceSection({ latestPost, latestGame }) {
+  const gameCover = latestGame?.cover_thumbnail_url || latestGame?.icon_thumbnail_url
+
+  return (
+    <section className="home-module-section" id="home-spaces" aria-labelledby="home-spaces-title">
       <PageContainer>
-        <SectionHeading
-          eyebrow="Two Spaces"
-          titleId="product-spaces-title"
-          title="从生活片段，到实战经验"
-          description="两个空间共享映墨的用户与互动能力，却保留各自最合适的内容结构。"
-        />
-        <div className="product-spaces">
-          <article className="space-card space-card--life">
-            <div className="space-card__visual">
-              <img src="/assets/gallery/photo-02.jpg" alt="城市旅行中的生活照片" loading="lazy" />
-            </div>
-            <div className="space-card__body">
-              <p className="eyebrow">日常生活区</p>
-              <h3>用照片记录城市和普通日子</h3>
-              <p>在青岛、北京、杭州等章节中，和朋友共同留下旅行与生活片段。</p>
-              <div className="tag-row"><span>城市</span><span>旅行</span><span>照片</span></div>
-              <Link className="text-link" to="/life">进入日常生活区</Link>
-            </div>
+        <div className="home-module-section__heading">
+          <p className="eyebrow">两个独立内容空间</p>
+          <h2 id="home-spaces-title">选择你此刻想进入的地方</h2>
+          <p>生活区关注照片、时间与情绪；游戏区关注目录、对象关系与可复用经验。两者共享用户和互动能力，但不混淆内容结构。</p>
+        </div>
+
+        <div className="home-module-grid">
+          <article className="home-module-card home-module-card--life">
+            <Link to="/life">
+              <div className="home-module-card__topline"><span>01</span><strong>生活区</strong></div>
+              <div className="home-module-card__content">
+                <div>
+                  <p className="eyebrow">Life records</p>
+                  <h3>让照片回到真实的时间和章节中</h3>
+                  <p>浏览生活动态、城市与主题章节，也可以发布自己的照片记录。</p>
+                </div>
+                <ModuleMedia source={latestPost?.cover_image} alt="最新生活记录预览" fallback="生" />
+              </div>
+              <div className="home-module-card__footer">
+                <span>生活动态</span><span>照片记录</span><span>主题章节</span><b aria-hidden="true">→</b>
+              </div>
+            </Link>
           </article>
-          <article className="space-card space-card--game">
-            <div className="game-abstract" aria-hidden="true"><span>G</span><i /><b /></div>
-            <div className="space-card__body">
-              <p className="eyebrow">游戏教材区</p>
-              <h3>按游戏、英雄和地图组织实战知识</h3>
-              <p>分享炮台点位、雷管技巧、投掷落点和更多可以反复学习的玩家经验。</p>
-              <div className="tag-row"><span>英雄</span><span>地图</span><span>点位</span></div>
-              <Link className="text-link" to="/games">进入游戏教材区</Link>
-            </div>
+
+          <article className="home-module-card home-module-card--game">
+            <Link to="/games">
+              <div className="home-module-card__topline"><span>02</span><strong>游戏区</strong></div>
+              <div className="home-module-card__content">
+                <div>
+                  <p className="eyebrow">Game knowledge</p>
+                  <h3>从游戏目录进入英雄、地图与实战教材</h3>
+                  <p>按照明确的对象关系组织经验，降低查找成本，也方便持续维护。</p>
+                </div>
+                <ModuleMedia source={gameCover} alt="最新游戏目录预览" fallback="游" />
+              </div>
+              <div className="home-module-card__footer">
+                <span>游戏目录</span><span>英雄地图</span><span>步骤教材</span><b aria-hidden="true">→</b>
+              </div>
+            </Link>
           </article>
         </div>
       </PageContainer>

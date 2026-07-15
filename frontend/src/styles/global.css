@@ -13,6 +13,7 @@
 @import url("./discover.css");
 @import url("./personal-center.css");
 @import url("./admin.css");
+@import url("./home-redesign.css");
 
 html {
   scroll-behavior: smooth;

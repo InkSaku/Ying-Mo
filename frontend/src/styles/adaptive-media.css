@@ -1,0 +1,215 @@
+/* Unified media presentation: keep the full image visible without breaking card rhythm. */
+.adaptive-media {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--color-surface-muted);
+}
+
+.adaptive-media::after {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(32, 35, 31, 0.06));
+  content: "";
+  pointer-events: none;
+}
+
+.adaptive-media > .adaptive-media__backdrop {
+  position: absolute;
+  z-index: 0;
+  inset: -12%;
+  width: 124%;
+  height: 124%;
+  min-width: 0;
+  min-height: 0;
+  max-width: none;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+  aspect-ratio: auto;
+  object-fit: cover;
+  opacity: 0.36;
+  filter: blur(20px) saturate(0.82);
+  transform: scale(1.08);
+}
+
+.adaptive-media > .adaptive-media__image {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-width: 100%;
+  max-height: 100%;
+  border: 0;
+  border-radius: 0;
+  aspect-ratio: auto;
+  object-fit: contain;
+  box-shadow: none;
+  transform: none;
+}
+
+.adaptive-media--cover > .adaptive-media__image {
+  object-fit: cover;
+}
+
+.life-card__media,
+.chapter-card__media,
+.home-live-card__media,
+.home-module-card__media,
+.home-chapter-item__cover,
+.chapter-list__cover,
+.chapter-hero__media,
+.life-images__preview,
+.image-upload-field__preview-frame {
+  position: relative;
+  overflow: hidden;
+}
+
+.life-card:hover .adaptive-media > .adaptive-media__image,
+.chapter-card:hover .adaptive-media > .adaptive-media__image,
+.home-live-card:hover .adaptive-media > .adaptive-media__image {
+  transform: none;
+}
+
+.life-card:hover .adaptive-media > .adaptive-media__backdrop,
+.chapter-card:hover .adaptive-media > .adaptive-media__backdrop,
+.home-live-card:hover .adaptive-media > .adaptive-media__backdrop {
+  transform: scale(1.08);
+}
+
+.chapter-list__cover {
+  display: block;
+  width: 6rem;
+  height: 6rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--color-surface-muted);
+}
+
+.chapter-hero__media {
+  width: 100%;
+  min-height: 18rem;
+  aspect-ratio: 16 / 10;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-muted);
+}
+
+.life-images__preview {
+  width: 100%;
+  aspect-ratio: 1;
+  border: 1px solid var(--color-border);
+  border-radius: 0.65rem;
+  background: var(--color-surface-muted);
+}
+
+.life-images__preview .image-placeholder {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  border-radius: 0;
+}
+
+.life-images__item > .life-images__preview .adaptive-media > img {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  aspect-ratio: auto;
+}
+
+.life-images__caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.life-images__caption small {
+  color: var(--color-text-subtle);
+}
+
+
+.image-upload-field__preview-frame {
+  width: 7.5rem;
+  height: 7.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-surface-muted);
+  box-shadow: var(--shadow-card);
+}
+
+.image-upload-field--cover .image-upload-field__dropzone {
+  min-height: 20rem;
+  align-content: start;
+}
+
+.image-upload-field--cover .image-upload-field__preview-frame {
+  width: min(100%, 36rem);
+  height: auto;
+  aspect-ratio: 16 / 10;
+  border-radius: var(--radius-lg);
+}
+
+.image-upload-field__dropzone .adaptive-media > img {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.image-upload-field__preview-frame > .image-upload-field__placeholder {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.image-upload-field__preview-status {
+  position: absolute;
+  z-index: 2;
+  right: 0.65rem;
+  bottom: 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 28%, var(--color-border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+  color: var(--color-primary-strong);
+  font-size: 0.76rem;
+  padding: 0.2rem 0.55rem;
+  box-shadow: var(--shadow-card);
+}
+
+.image-upload-field__preview-error {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  color: var(--color-text-muted);
+  padding: 1rem;
+  text-align: center;
+}
+
+@media (max-width: 700px) {
+  .chapter-hero__media {
+    min-height: 13rem;
+  }
+}
+
+@media (max-width: 460px) {
+  .chapter-list__cover {
+    width: 5rem;
+    height: 5rem;
+  }
+
+  .image-upload-field--cover .image-upload-field__dropzone {
+    min-height: 16rem;
+  }
+}
+
+:root[data-theme="dark"] .adaptive-media::after {
+  background: linear-gradient(180deg, rgba(238, 242, 234, 0.02), rgba(3, 8, 5, 0.16));
+}

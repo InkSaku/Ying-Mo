@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import AdaptiveMedia from '../common/AdaptiveMedia.jsx'
 import PageContainer from '../layout/PageContainer'
 import SectionHeading from '../common/SectionHeading'
 
@@ -6,7 +7,7 @@ function ChapterCard({ chapter }) {
   return (
     <article className="chapter-card">
       <div className="chapter-card__media">
-        {chapter.cover_thumbnail_url ? <img src={chapter.cover_thumbnail_url} alt={`${chapter.name}章节封面`} loading="lazy" /> : <span className="image-placeholder">等待一张封面照片</span>}
+        {chapter.cover_thumbnail_url ? <AdaptiveMedia src={chapter.cover_thumbnail_url} alt={`${chapter.name}章节封面`} /> : <span className="image-placeholder">等待一张封面照片</span>}
       </div>
       <div className="chapter-card__body">
         <p className="eyebrow">{chapter.chapter_type}</p>

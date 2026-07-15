@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom'
+import AdaptiveMedia from '../common/AdaptiveMedia.jsx'
 import PageContainer from '../layout/PageContainer'
 
 function ModuleMedia({ source, alt, fallback }) {
   return (
     <span className="home-module-card__media">
-      {source ? <img src={source} alt={alt} loading="lazy" /> : <span aria-hidden="true">{fallback}</span>}
+      {source ? <AdaptiveMedia src={source} alt={alt} /> : <span aria-hidden="true">{fallback}</span>}
     </span>
   )
 }

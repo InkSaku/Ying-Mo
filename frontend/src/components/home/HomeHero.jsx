@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import AdaptiveMedia from '../common/AdaptiveMedia.jsx'
 import PageContainer from '../layout/PageContainer'
 
 function formatDate(value) {
@@ -22,7 +23,7 @@ function PostPreview({ post }) {
     <Link className="home-live-card" to={`/life/post/${post.id}`}>
       <span className="home-live-card__media">
         {post.cover_image
-          ? <img src={post.cover_image} alt={`最新生活记录：${post.title}`} />
+          ? <AdaptiveMedia src={post.cover_image} alt={`最新生活记录：${post.title}`} loading="eager" />
           : <span className="home-live-card__placeholder" aria-hidden="true">生</span>}
       </span>
       <span className="home-live-card__copy">

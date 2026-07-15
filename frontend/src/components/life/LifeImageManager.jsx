@@ -1,8 +1,22 @@
 import { useEffect, useRef, useState } from 'react'
 import { deleteUnboundImage, uploadImage } from '../../api/uploads.js'
+import useAuthenticatedImageUrl from '../../hooks/useAuthenticatedImageUrl.js'
+import AdaptiveMedia from '../common/AdaptiveMedia.jsx'
 
 const VALID_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 const MAX_BYTES = 15 * 1024 * 1024
+
+function LifeImagePreview({ item, index }) {
+  const source = item.preview || item.thumbnail_url || item.url || null
+  const { url, loading, error } = useAuthenticatedImageUrl(source)
+
+  return (
+    <div className="life-images__preview" aria-busy={loading || item.uploading}>
+      {url && <AdaptiveMedia src={url} alt={`第 ${index + 1} 张图片预览`} loading="eager" />}
+      {!url && <div className="image-placeholder">{error ? '预览暂时不可用' : loading ? '正在准备预览…' : '等待上传'}</div>}
+    </div>
+  )
+}
 
 export default function LifeImageManager({ value, onChange, existingIds = [], disabled = false }) {
   const inputRef = useRef(null)
@@ -31,8 +45,7 @@ export default function LifeImageManager({ value, onChange, existingIds = [], di
       const media = await uploadImage(file, 'content')
       onChange((current) => current.map((item) => {
         if (item.id !== tempId) return item
-        releasePreview(item)
-        return { ...media, uploading: false, error: null, file: null }
+        return { ...media, preview: item.preview, uploading: false, error: null, file: null }
       }))
     } catch (requestError) {
       onChange((current) => current.map((item) => item.id === tempId ? { ...item, uploading: false, error: requestError.message || '图片上传失败，请重试。' } : item))
@@ -91,14 +104,17 @@ export default function LifeImageManager({ value, onChange, existingIds = [], di
       <div className="life-images__actions">
         <input ref={inputRef} className="sr-only" type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(event) => { add(event.target.files); event.target.value = '' }} />
         <button type="button" onClick={() => inputRef.current?.click()} disabled={disabled || value.length >= 9}>添加图片</button>
-        <small>JPEG、PNG 或 WebP，单张最大 15 MB；最多 9 张。</small>
+        <small>JPEG、PNG 或 WebP，单张最大 15 MB；最多 9 张。首张图片会作为列表封面，并完整展示。</small>
       </div>
       {error && <p className="form-feedback form-feedback--error" role="alert">{error}</p>}
       <div className="life-images__grid">
         {value.map((item, index) => (
           <article key={item.id} className="life-images__item">
-            {item.thumbnail_url || item.preview ? <img src={item.thumbnail_url || item.preview} alt={`第 ${index + 1} 张图片预览`} /> : <div className="image-placeholder">等待上传</div>}
-            <span>{index === 0 ? '列表封面' : `第 ${index + 1} 张`}</span>
+            <LifeImagePreview item={item} index={index} />
+            <div className="life-images__caption">
+              <span>{index === 0 ? '列表封面' : `第 ${index + 1} 张`}</span>
+              {item.width && item.height ? <small>{item.width} × {item.height}</small> : null}
+            </div>
             {item.uploading && <small>上传中…</small>}
             {item.error && <small className="form-feedback--error">{item.error}</small>}
             <div>

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { getGames } from '../api/games.js'
 import { getGuides } from '../api/guides.js'
 import { getLifeChapters, getLifePosts } from '../api/life.js'
+import AdaptiveMedia from '../components/common/AdaptiveMedia.jsx'
 import { GameCard } from '../components/games/CatalogCards'
 import GuideCard from '../components/guides/GuideCard'
 import HomeHero from '../components/home/HomeHero'
@@ -58,7 +59,7 @@ function ChapterPreview({ chapter }) {
     <Link className="home-chapter-item" to={`/life/chapter/${chapter.slug}`}>
       <span className="home-chapter-item__cover">
         {chapter.cover_thumbnail_url
-          ? <img src={chapter.cover_thumbnail_url} alt="" loading="lazy" />
+          ? <AdaptiveMedia src={chapter.cover_thumbnail_url} alt="" />
           : <span aria-hidden="true">章</span>}
       </span>
       <span className="home-chapter-item__copy">

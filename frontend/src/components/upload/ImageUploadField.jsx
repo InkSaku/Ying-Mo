@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { uploadImage } from '../../api/uploads.js'
+import useAuthenticatedImageUrl from '../../hooks/useAuthenticatedImageUrl.js'
+import AdaptiveMedia from '../common/AdaptiveMedia.jsx'
 
 const ACCEPTED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 const MAX_BYTES = 15 * 1024 * 1024
@@ -11,12 +13,15 @@ export default function ImageUploadField({
   onRemove,
   disabled = false,
   label = '头像',
+  variant = null,
 }) {
+  const displayVariant = variant || (label.includes('封面') ? 'cover' : 'avatar')
   const inputRef = useRef(null)
   const previewUrlRef = useRef(null)
   const [previewUrl, setPreviewUrl] = useState(null)
   const [error, setError] = useState(null)
   const [uploading, setUploading] = useState(false)
+  const { url: authenticatedImageUrl, loading: imageLoading, error: imageError } = useAuthenticatedImageUrl(previewUrl ? null : currentImageUrl)
 
   useEffect(() => () => {
     if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current)
@@ -48,7 +53,6 @@ export default function ImageUploadField({
     try {
       const media = await uploadImage(file, purpose)
       await onUploaded(media)
-      clearPreview()
     } catch (requestError) {
       setError(requestError.message || '图片上传失败，请重试。')
     } finally {
@@ -68,22 +72,24 @@ export default function ImageUploadField({
       await onRemove()
       clearPreview()
     } catch (requestError) {
-      setError(requestError.message || '删除头像失败，请重试。')
+      setError(requestError.message || `删除${label}失败，请重试。`)
     }
   }
 
-  const imageUrl = previewUrl || currentImageUrl
+  const imageUrl = previewUrl || authenticatedImageUrl
+  const previewUnavailable = !imageUrl && Boolean(currentImageUrl) && !imageLoading
 
   return (
-    <div className="image-upload-field">
+    <div className={`image-upload-field image-upload-field--${displayVariant}`}>
       <div
         className={`image-upload-field__dropzone ${disabled ? 'is-disabled' : ''}`}
         role="button"
         tabIndex={disabled ? -1 : 0}
         aria-label={`选择${label}图片`}
-        onClick={() => !disabled && inputRef.current?.click()}
+        aria-busy={uploading || imageLoading}
+        onClick={() => !disabled && !uploading && inputRef.current?.click()}
         onKeyDown={(event) => {
-          if (!disabled && (event.key === 'Enter' || event.key === ' ')) {
+          if (!disabled && !uploading && (event.key === 'Enter' || event.key === ' ')) {
             event.preventDefault()
             inputRef.current?.click()
           }
@@ -94,9 +100,14 @@ export default function ImageUploadField({
           void selectFile(event.dataTransfer.files?.[0])
         }}
       >
-        {imageUrl ? <img src={imageUrl} alt={`${label}预览`} /> : <span className="image-upload-field__placeholder">选择一张{label}图片</span>}
-        <span>{uploading ? '正在上传…' : '点击或拖放图片到这里'}</span>
-        <small>JPEG、PNG 或 WebP，最大 15 MB</small>
+        <span className="image-upload-field__preview-frame">
+          {imageUrl && <AdaptiveMedia src={imageUrl} alt={`${label}预览`} fit={displayVariant === 'avatar' ? 'cover' : 'contain'} loading="eager" />}
+          {!imageUrl && !previewUnavailable && <span className="image-upload-field__placeholder">{imageLoading ? '正在准备预览…' : `选择一张${label}图片`}</span>}
+          {previewUnavailable && <span className="image-upload-field__preview-error">{imageError ? '预览加载失败，可重新选择图片。' : '预览暂时不可用。'}</span>}
+          {uploading && <span className="image-upload-field__preview-status">正在上传…</span>}
+        </span>
+        <span>{uploading ? '图片上传中，请稍候' : '点击或拖放图片到这里'}</span>
+        <small>{displayVariant === 'cover' ? '各种比例都会完整预览；JPEG、PNG 或 WebP，最大 15 MB' : 'JPEG、PNG 或 WebP，最大 15 MB'}</small>
       </div>
       <input
         ref={inputRef}

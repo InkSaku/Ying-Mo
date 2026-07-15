@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { getLifeChapter, getLifePosts } from '../api/life.js'
+import AdaptiveMedia from '../components/common/AdaptiveMedia.jsx'
 import LifePostCard from '../components/life/LifePostCard.jsx'
 import Pagination from '../components/life/Pagination.jsx'
 
@@ -46,7 +47,7 @@ export default function LifeChapterDetailPage() {
   return (
     <section className="life-page page-container">
       <div className="chapter-hero">
-        {chapter.cover_url ? <img src={chapter.cover_url} alt={`${chapter.name} 的章节封面`} /> : <div className="chapter-hero__placeholder" aria-hidden="true">映</div>}
+        {chapter.cover_url ? <div className="chapter-hero__media"><AdaptiveMedia src={chapter.cover_url} alt={`${chapter.name} 的章节封面`} loading="eager" /></div> : <div className="chapter-hero__placeholder" aria-hidden="true">映</div>}
         <div>
           <p className="eyebrow">{typeLabels[chapter.chapter_type]}</p>
           <h1>{chapter.name}</h1>

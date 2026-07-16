@@ -9,7 +9,7 @@ import GuideCard from '../components/guides/GuideCard'
 import HomeHero from '../components/home/HomeHero'
 import ProductSpaceSection from '../components/home/ProductSpaceSection'
 import PageContainer from '../components/layout/PageContainer'
-import LifePostCard from '../components/life/LifePostCard'
+import HomeLifePostCard from '../components/home/HomeLifePostCard.jsx'
 
 const initialState = {
   posts: [],
@@ -104,6 +104,8 @@ export default function HomePage() {
     return () => { cancelled = true }
   }, [])
 
+  const [featuredPost, ...secondaryPosts] = home.posts
+
   return (
     <div className="home-page">
       <HomeHero
@@ -128,8 +130,13 @@ export default function HomePage() {
           <div className="home-life-layout">
             <div className="home-life-feed">
               <HomeState loading={home.postsLoading} error={home.postsError} empty={!home.posts.length}>
-                <div className="home-life-grid">
-                  {home.posts.map((post) => <LifePostCard key={post.id} post={post} />)}
+                <div className="home-life-showcase">
+                  {featuredPost && <HomeLifePostCard post={featuredPost} featured />}
+                  {secondaryPosts.length > 0 && (
+                    <div className="home-life-showcase__secondary">
+                      {secondaryPosts.map((post) => <HomeLifePostCard key={post.id} post={post} />)}
+                    </div>
+                  )}
                 </div>
               </HomeState>
             </div>

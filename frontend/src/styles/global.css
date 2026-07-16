@@ -16,6 +16,8 @@
 @import url("./admin.css");
 @import url("./home-redesign.css");
 @import url("./adaptive-media.css");
+@import url("./home-life-redesign.css");
+@import url("./publish.css");
 
 html {
   scroll-behavior: smooth;

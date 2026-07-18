@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { AnimatePresence, domAnimation, LazyMotion, m, MotionConfig, useReducedMotion } from 'motion/react'
 import { getGames } from '../api/games.js'
 import { getGuides } from '../api/guides.js'
 import { getLifeChapters, getLifePosts } from '../api/life.js'
@@ -10,6 +11,8 @@ import HomeHero from '../components/home/HomeHero'
 import ProductSpaceSection from '../components/home/ProductSpaceSection'
 import PageContainer from '../components/layout/PageContainer'
 import HomeLifePostCard from '../components/home/HomeLifePostCard.jsx'
+import Reveal from '../components/motion/Reveal.jsx'
+import { cappedStagger, pageEntrance, presenceTransition } from '../lib/motion.js'
 
 const initialState = {
   posts: [],
@@ -47,11 +50,51 @@ function HomeSectionHeading({ eyebrow, title, description, actionLabel, to, titl
   )
 }
 
-function HomeState({ loading, error, empty, children }) {
-  if (loading) return <div className="home-state home-state--loading"><span />正在读取社区内容…</div>
-  if (error) return <div className="home-state home-state--error">{error}</div>
-  if (empty) return <div className="home-state">这里还没有可以展示的内容。</div>
-  return children
+function HomeSkeleton({ variant }) {
+  const rows = variant === 'chapters' ? 5 : variant === 'guides' ? 3 : 4
+
+  if (variant === 'life') {
+    return (
+      <div className="home-skeleton home-skeleton--life" role="status" aria-label="正在读取生活记录">
+        <span className="home-skeleton__featured"><i /><b><em /><em /><em /></b></span>
+        <span className="home-skeleton__cards"><i /><i /><i /></span>
+      </div>
+    )
+  }
+
+  return (
+    <div className={`home-skeleton home-skeleton--${variant}`} role="status" aria-label="正在读取社区内容">
+      {Array.from({ length: rows }, (_, index) => (
+        <span className="home-skeleton__row" key={index}><i /><b><em /><em /></b></span>
+      ))}
+    </div>
+  )
+}
+
+function HomeState({ loading, error, empty, variant = 'default', children }) {
+  const stateKey = loading ? 'loading' : error ? 'error' : empty ? 'empty' : 'content'
+  let content = children
+
+  if (loading) content = <HomeSkeleton variant={variant} />
+  if (error) content = <div className="home-state home-state--error" role="alert">{error}</div>
+  if (empty) content = <div className="home-state">这里还没有可以展示的内容。</div>
+
+  return (
+    <div className="home-state-stage">
+      <AnimatePresence initial={false}>
+        <m.div
+          className="home-state-transition"
+          key={stateKey}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={presenceTransition}
+        >
+          {content}
+        </m.div>
+      </AnimatePresence>
+    </div>
+  )
 }
 
 function ChapterPreview({ chapter }) {
@@ -73,6 +116,7 @@ function ChapterPreview({ chapter }) {
 
 export default function HomePage() {
   const [home, setHome] = useState(initialState)
+  const reducedMotion = useReducedMotion()
 
   useEffect(() => {
     let cancelled = false
@@ -107,40 +151,53 @@ export default function HomePage() {
   const [featuredPost, ...secondaryPosts] = home.posts
 
   return (
-    <div className="home-page">
+    <LazyMotion features={domAnimation} strict>
+      <MotionConfig reducedMotion="user">
+      <m.div className="home-page" {...pageEntrance(reducedMotion)}>
       <HomeHero
         latestPost={home.posts[0]}
         latestGame={home.games[0]}
         loading={home.postsLoading || home.gamesLoading}
       />
 
-      <ProductSpaceSection latestPost={home.posts[0]} latestGame={home.games[0]} />
+        <ProductSpaceSection latestPost={home.posts[0]} latestGame={home.games[0]} />
 
       <section className="home-domain-section home-domain-section--life" aria-labelledby="home-life-title">
         <PageContainer>
-          <HomeSectionHeading
+          <Reveal>
+            <HomeSectionHeading
             eyebrow="生活区 · 最近更新"
             title="真实发生的日常，正在这里慢慢积累"
             description="首页只呈现社区中真实发布的内容。照片、时间、章节和作者信息都来自当前系统数据。"
             actionLabel="查看全部生活记录"
             to="/life"
             titleId="home-life-title"
-          />
+            />
+          </Reveal>
 
           <div className="home-life-layout">
             <div className="home-life-feed">
-              <HomeState loading={home.postsLoading} error={home.postsError} empty={!home.posts.length}>
+              <HomeState loading={home.postsLoading} error={home.postsError} empty={!home.posts.length} variant="life">
                 <div className="home-life-showcase">
-                  {featuredPost && <HomeLifePostCard post={featuredPost} featured />}
+                  {featuredPost && (
+                    <Reveal className="home-motion-card">
+                      <HomeLifePostCard post={featuredPost} featured />
+                    </Reveal>
+                  )}
                   {secondaryPosts.length > 0 && (
                     <div className="home-life-showcase__secondary">
-                      {secondaryPosts.map((post) => <HomeLifePostCard key={post.id} post={post} />)}
+                      {secondaryPosts.map((post, index) => (
+                        <Reveal className="home-motion-card" delay={cappedStagger(index + 1)} key={post.id}>
+                          <HomeLifePostCard post={post} />
+                        </Reveal>
+                      ))}
                     </div>
                   )}
                 </div>
               </HomeState>
             </div>
 
+            <Reveal className="home-motion-rail">
             <aside className="home-chapter-rail" aria-labelledby="home-chapter-title">
               <div className="home-chapter-rail__heading">
                 <div>
@@ -149,26 +206,33 @@ export default function HomePage() {
                 </div>
                 <Link to="/life/chapters" aria-label="查看全部生活章节">全部</Link>
               </div>
-              <HomeState loading={home.chaptersLoading} error={home.chaptersError} empty={!home.chapters.length}>
+              <HomeState loading={home.chaptersLoading} error={home.chaptersError} empty={!home.chapters.length} variant="chapters">
                 <div className="home-chapter-list">
-                  {home.chapters.map((chapter) => <ChapterPreview key={chapter.id} chapter={chapter} />)}
+                  {home.chapters.map((chapter, index) => (
+                    <Reveal delay={cappedStagger(index)} key={chapter.id}>
+                      <ChapterPreview chapter={chapter} />
+                    </Reveal>
+                  ))}
                 </div>
               </HomeState>
             </aside>
+            </Reveal>
           </div>
         </PageContainer>
       </section>
 
       <section className="home-domain-section home-domain-section--game" aria-labelledby="home-game-title">
         <PageContainer>
-          <HomeSectionHeading
+          <Reveal>
+            <HomeSectionHeading
             eyebrow="游戏区 · 目录与教材"
             title="先找到游戏，再进入结构化的实战经验"
             description="游戏、英雄、地图与教材保持清晰关联，让每条经验都能被准确找到和反复使用。"
             actionLabel="进入游戏区"
             to="/games"
             titleId="home-game-title"
-          />
+            />
+          </Reveal>
 
           <div className="home-game-layout">
             <div className="home-game-catalog">
@@ -179,9 +243,13 @@ export default function HomePage() {
                 </div>
                 <Link to="/games">查看目录</Link>
               </div>
-              <HomeState loading={home.gamesLoading} error={home.gamesError} empty={!home.games.length}>
+              <HomeState loading={home.gamesLoading} error={home.gamesError} empty={!home.games.length} variant="games">
                 <div className="catalog-grid home-game-grid">
-                  {home.games.map((game) => <GameCard key={game.id} game={game} />)}
+                  {home.games.map((game, index) => (
+                    <Reveal className="home-motion-card" delay={cappedStagger(index)} key={game.id}>
+                      <GameCard game={game} />
+                    </Reveal>
+                  ))}
                 </div>
               </HomeState>
             </div>
@@ -194,9 +262,13 @@ export default function HomePage() {
                 </div>
                 <Link to="/guides">查看全部</Link>
               </div>
-              <HomeState loading={home.guidesLoading} error={home.guidesError} empty={!home.guides.length}>
+              <HomeState loading={home.guidesLoading} error={home.guidesError} empty={!home.guides.length} variant="guides">
                 <div className="home-guide-list">
-                  {home.guides.map((guide) => <GuideCard key={guide.id} guide={guide} />)}
+                  {home.guides.map((guide, index) => (
+                    <Reveal className="home-motion-card" delay={cappedStagger(index)} key={guide.id}>
+                      <GuideCard guide={guide} />
+                    </Reveal>
+                  ))}
                 </div>
               </HomeState>
             </div>
@@ -206,6 +278,7 @@ export default function HomePage() {
 
       <section className="home-final-entry">
         <PageContainer>
+          <Reveal>
           <div className="home-final-entry__panel">
             <div>
               <p className="eyebrow">继续探索</p>
@@ -217,8 +290,11 @@ export default function HomePage() {
               <Link className="button" to="/publish">发布内容</Link>
             </div>
           </div>
+          </Reveal>
         </PageContainer>
       </section>
-    </div>
+      </m.div>
+      </MotionConfig>
+    </LazyMotion>
   )
 }

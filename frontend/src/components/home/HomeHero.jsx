@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom'
+import { AnimatePresence, m, useReducedMotion } from 'motion/react'
 import AdaptiveMedia from '../common/AdaptiveMedia.jsx'
 import PageContainer from '../layout/PageContainer'
+import { heroMotion, presenceTransition } from '../../lib/motion.js'
 
 function formatDate(value) {
   if (!value) return ''
@@ -67,40 +69,74 @@ function GamePreview({ game }) {
 }
 
 export default function HomeHero({ latestPost, latestGame, loading }) {
+  const reducedMotion = useReducedMotion()
+  const variants = heroMotion(reducedMotion)
+
   return (
     <section className="home-portal-hero" aria-labelledby="home-hero-title">
-      <PageContainer className="home-portal-hero__inner">
+      <PageContainer>
+        <m.div
+          className="home-portal-hero__inner"
+          variants={variants.container}
+          initial="hidden"
+          animate="visible"
+        >
         <div className="home-portal-hero__copy">
-          <div className="home-brand-line">
+          <m.div className="home-brand-line" variants={variants.item}>
             <span className="home-brand-line__mark">映墨</span>
             <span>Yingmo community</span>
-          </div>
-          <h1 id="home-hero-title">把生活留下，<br /><em>把经验讲清。</em></h1>
-          <p className="home-portal-hero__lead">一个同时承载生活影像与游戏知识的轻量社区。首页连接真实内容、明确入口和持续更新，而不是展示一组固定素材。</p>
-          <div className="home-portal-hero__actions">
+          </m.div>
+          <m.h1 id="home-hero-title" variants={variants.item}>把生活留下，<br /><em>把经验讲清。</em></m.h1>
+          <m.p className="home-portal-hero__lead" variants={variants.item}>一个同时承载生活影像与游戏知识的轻量社区。首页连接真实内容、明确入口和持续更新，而不是展示一组固定素材。</m.p>
+          <m.div className="home-portal-hero__actions" variants={variants.item}>
             <Link className="button button--primary" to="/life">进入生活区</Link>
             <Link className="button" to="/games">浏览游戏区</Link>
-          </div>
-          <nav className="home-portal-hero__quick" aria-label="首页快捷入口">
+          </m.div>
+          <m.nav className="home-portal-hero__quick" aria-label="首页快捷入口" variants={variants.item}>
             <a href="#home-spaces">双区入口</a>
             <a href="#home-life-title">最新生活</a>
             <a href="#home-game-title">游戏与教材</a>
-          </nav>
+          </m.nav>
         </div>
 
-        <div className="home-content-window" aria-label="社区最新内容预览">
+        <m.div className="home-content-window" aria-label="社区最新内容预览" variants={variants.item}>
           <div className="home-content-window__header">
             <div><span /><span /><span /></div>
             <p>社区新近内容</p>
             <small>实时读取</small>
           </div>
           <div className="home-content-window__body">
-            {loading
-              ? <div className="home-content-window__skeleton"><span /><span /><span /></div>
-              : <PostPreview post={latestPost} />}
-            {!loading && <GamePreview game={latestGame} />}
+            <AnimatePresence initial={false} mode="popLayout">
+              {loading ? (
+                <m.div
+                  key="hero-loading"
+                  className="home-content-window__skeleton"
+                  role="status"
+                  aria-label="正在读取社区新近内容"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={presenceTransition}
+                >
+                  <span /><span /><span />
+                </m.div>
+              ) : (
+                <m.div
+                  key="hero-content"
+                  className="home-content-window__loaded"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={presenceTransition}
+                >
+                  <PostPreview post={latestPost} />
+                  <GamePreview game={latestGame} />
+                </m.div>
+              )}
+            </AnimatePresence>
           </div>
-        </div>
+        </m.div>
+        </m.div>
       </PageContainer>
     </section>
   )

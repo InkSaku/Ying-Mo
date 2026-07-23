@@ -27,7 +27,7 @@ class Game(db.Model):
     cover_media_id = db.Column(db.Integer, db.ForeignKey("media.id", ondelete="SET NULL"), nullable=True)
     description = db.Column(db.String(2000), nullable=True)
     current_version = db.Column(db.String(50), nullable=True)
-    status = db.Column(db.String(20), nullable=False, default="active", server_default="active", index=True)
+    status = db.Column(db.String(20), nullable=False, default="inactive", server_default="inactive", index=True)
     created_by_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow, index=True)
     updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)

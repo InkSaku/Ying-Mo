@@ -1,7 +1,16 @@
 from app.models.user import serialize_datetime
 from app.users.service import public_user_dict
 def media_url(media, thumbnail=False): return f"/api/v1/uploads/images/{media.public_id}{'/thumbnail' if thumbnail else ''}" if media else None
-def ref(value): return {"id": value.id, "name_zh": value.name_zh, "name_en": value.name_en, "slug": value.slug} if value else None
+def ref(value):
+    if not value: return None
+    data = {"id": value.id, "name_zh": value.name_zh, "name_en": value.name_en, "slug": value.slug}
+    if hasattr(value, "current_status"):
+        data.update({"current_status": value.current_status, "review_status": value.review_status, "is_available": value.game.status == "active" and value.review_status == "approved" and value.current_status != "retired"})
+    elif hasattr(value, "review_status"):
+        data.update({"status": value.status, "review_status": value.review_status, "is_available": value.game.status == "active" and value.review_status == "approved" and value.status == "active"})
+    else:
+        data.update({"status": value.status, "is_available": value.status == "active"})
+    return data
 def step_dict(step): return {"id": step.id, "position": step.position, "title": step.title, "description": step.description, "media_id": step.media_id, "url": media_url(step.media), "thumbnail_url": media_url(step.media, True), "width": step.media.width, "height": step.media.height}
 def guide_dict(guide, user=None, detail=False):
     steps = guide.steps

@@ -788,6 +788,10 @@ def _catalog_list(model, actor):
     args=_page()
     if not args:return _validation("分页参数不合法。")
     page,size=args; stmt=db.select(model)
+    status=request.args.get("status")
+    if model is Game and status:
+        if status not in {"active","inactive"}:return _validation("游戏状态筛选值不合法。")
+        stmt=stmt.where(Game.status==status)
     raw_game_id=request.args.get("game_id")
     if raw_game_id:
         try: game_id=int(raw_game_id)
@@ -798,7 +802,9 @@ def _catalog_list(model, actor):
     if query:stmt=stmt.where(model.search_text.ilike(f"%{query}%"))
     total=db.session.scalar(db.select(func.count()).select_from(stmt.subquery())); items=db.session.scalars(stmt.order_by(model.updated_at.desc(),model.id.desc()).offset((page-1)*size).limit(size)).all()
     from app.games.routes import game_dict, hero_dict, map_dict, game_counts
-    if model is Game:return success_response([game_dict(item,game_counts([item.id])) for item in items],meta=_meta(page,size,total))
+    if model is Game:
+        counts=game_counts([item.id for item in items])
+        return success_response([game_dict(item,counts) for item in items],meta=_meta(page,size,total))
     return success_response([hero_dict(item) if model is GameHero else map_dict(item) for item in items],meta=_meta(page,size,total))
 
 @admin_bp.get("/catalog/games")

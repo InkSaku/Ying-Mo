@@ -44,10 +44,19 @@ def entity_ref(item): return {"id": item.id, "game": game_ref(item.game), "name_
 def game_counts(game_ids):
     heroes = dict(db.session.execute(db.select(GameHero.game_id, func.count(GameHero.id)).where(GameHero.game_id.in_(game_ids), GameHero.status == "active", GameHero.review_status == "approved").group_by(GameHero.game_id)).all()) if game_ids else {}
     maps = dict(db.session.execute(db.select(GameMap.game_id, func.count(GameMap.id)).where(GameMap.game_id.in_(game_ids), GameMap.review_status == "approved", GameMap.current_status != "retired").group_by(GameMap.game_id)).all()) if game_ids else {}
-    return heroes, maps
-def game_dict(game, counts=(None, None), detail=False):
-    heroes, maps = counts
-    data = {"id": game.id, "name_zh": game.name_zh, "name_en": game.name_en, "slug": game.slug, "aliases": game.aliases or [], "icon_url": media_url(game.icon_media), "icon_thumbnail_url": media_url(game.icon_media, True), "cover_url": media_url(game.cover_media), "cover_thumbnail_url": media_url(game.cover_media, True), "description": game.description, "current_version": game.current_version, "status": game.status, "hero_count": (heroes or {}).get(game.id, 0), "map_count": (maps or {}).get(game.id, 0), "created_at": serialize_datetime(game.created_at), "updated_at": serialize_datetime(game.updated_at)}
+    guides = dict(db.session.execute(db.select(GameGuide.game_id, func.count(GameGuide.id)).where(GameGuide.game_id.in_(game_ids), GameGuide.status == "published", GameGuide.guide_scope == "hero_map").group_by(GameGuide.game_id)).all()) if game_ids else {}
+    return heroes, maps, guides
+def catalog_issues(active_hero_count, usable_map_count):
+    issues = []
+    if not usable_map_count: issues.append("请先创建至少一张可用地图。")
+    if not active_hero_count: issues.append("请先创建至少一位可用英雄。")
+    return issues
+def game_dict(game, counts=None, detail=False):
+    heroes, maps, guides = counts or game_counts([game.id])
+    active_hero_count = (heroes or {}).get(game.id, 0)
+    usable_map_count = (maps or {}).get(game.id, 0)
+    issues = catalog_issues(active_hero_count, usable_map_count)
+    data = {"id": game.id, "name_zh": game.name_zh, "name_en": game.name_en, "slug": game.slug, "aliases": game.aliases or [], "icon_url": media_url(game.icon_media), "icon_thumbnail_url": media_url(game.icon_media, True), "cover_url": media_url(game.cover_media), "cover_thumbnail_url": media_url(game.cover_media, True), "description": game.description, "current_version": game.current_version, "status": game.status, "hero_count": active_hero_count, "map_count": usable_map_count, "active_hero_count": active_hero_count, "usable_map_count": usable_map_count, "guide_count": (guides or {}).get(game.id, 0), "catalog_ready": not issues, "catalog_issues": issues, "created_at": serialize_datetime(game.created_at), "updated_at": serialize_datetime(game.updated_at)}
     return data
 def hero_dict(hero): return {"id": hero.id, "game": game_ref(hero.game), "name_zh": hero.name_zh, "name_en": hero.name_en, "slug": hero.slug, "aliases": hero.aliases or [], "avatar_url": media_url(hero.avatar_media), "avatar_thumbnail_url": media_url(hero.avatar_media, True), "role": hero.role, "description": hero.description, "status": hero.status, "review_status": hero.review_status, "created_at": serialize_datetime(hero.created_at), "updated_at": serialize_datetime(hero.updated_at)}
 def map_dict(game_map, stats=None):
@@ -104,7 +113,8 @@ def list_games():
     total = db.session.scalar(db.select(func.count()).select_from(stmt.subquery()))
     order = (Game.created_at.desc(), Game.id.desc()) if sort == "latest" else (Game.name_zh.asc(), Game.id.asc())
     games = db.session.scalars(stmt.options(joinedload(Game.icon_media), joinedload(Game.cover_media)).order_by(*order).offset((page - 1) * size).limit(size)).all()
-    return success_response([game_dict(game, game_counts([item.id for item in games])) for game in games], meta=meta(page, size, total))
+    counts = game_counts([item.id for item in games])
+    return success_response([game_dict(game, counts) for game in games], meta=meta(page, size, total))
 
 @games_bp.get("/check-name")
 def check_game_name():
@@ -217,6 +227,18 @@ def write_entity(model, kind, entity=None, game=None):
     if not user: return error_response("PERMISSION_DENIED", "无权维护游戏目录。", 403)
     updates, error = catalog_payload(request.get_json(silent=True), kind, entity is None)
     if error: return error
+    if kind == "game" and updates.get("status") == "active" and (entity is None or entity.status != "active"):
+        active_hero_count = usable_map_count = 0
+        if entity is not None:
+            heroes, maps, _guides = game_counts([entity.id])
+            active_hero_count = heroes.get(entity.id, 0)
+            usable_map_count = maps.get(entity.id, 0)
+        issues = catalog_issues(active_hero_count, usable_map_count)
+        if issues:
+            details = []
+            if not usable_map_count: details.append(field_error("maps", "catalog_not_ready", "请先创建至少一张可用地图。"))
+            if not active_hero_count: details.append(field_error("heroes", "catalog_not_ready", "请先创建至少一位可用英雄。"))
+            return validation_error(details)
     name_zh = updates.get("name_zh", entity.name_zh if entity else "")
     name_en = updates.get("name_en", entity.name_en if entity else None)
     aliases = updates.get("aliases", entity.aliases if entity else [])

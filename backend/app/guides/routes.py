@@ -10,7 +10,7 @@ from app.common.search import escape_like, normalize_search_query
 from app.extensions import db
 from app.models import ContentFavorite, ContentLike, Game, GameGuide, GameGuideStep, GameHero, GameMap, GuideValidityFeedback
 from .serializers import guide_dict
-from .service import CATEGORIES, CONTENT_MODES, SIDES, VALIDITIES, can_publish, clean_date, clean_tags, clean_video, field_error, remove_files, searchable, text, validate_scope, validate_steps
+from .service import CATEGORIES, CONTENT_MODES, SIDES, VALIDITIES, CatalogSelectionError, can_publish, clean_date, clean_tags, clean_video, field_error, remove_files, searchable, text, validate_scope, validate_steps
 
 guides_bp = Blueprint("guides", __name__)
 GUIDE_OPTIONS = (joinedload(GameGuide.author), joinedload(GameGuide.game), joinedload(GameGuide.hero).joinedload(GameHero.avatar_media), joinedload(GameGuide.game_map).joinedload(GameMap.cover_media), selectinload(GameGuide.steps).joinedload(GameGuideStep.media), selectinload(GameGuide.validity_feedback))
@@ -30,16 +30,24 @@ def guide_payload(payload, existing=None, creating=False):
     unknown = set(payload) - fields
     if unknown: return None, validation([field_error(sorted(unknown)[0], "unknown_field", "不支持该字段。")])
     required = {"game_id", "hero_id", "map_id", "title", "category", "instructions"}
-    if creating and required - set(payload): return None, validation([field_error("body", "required", "请填写教材必填信息和步骤。")])
+    if creating and required - set(payload):
+        labels = {"game_id": "请选择游戏。", "map_id": "请选择地图。", "hero_id": "请选择英雄。", "title": "请填写点位标题。", "category": "请选择点位分类。", "instructions": "请填写详细说明。"}
+        return None, validation([field_error(field, "required", labels[field]) for field in sorted(required - set(payload))])
     if not payload: return None, validation([field_error("body", "required", "至少提交一个可修改字段。")])
     updates, errors = {}, []
-    try:
-        for field, maximum, required_text in (("title", 120, True), ("instructions", 10000, True), ("map_area", 120, False), ("skill", 120, False), ("aim_reference", 500, False), ("timing", 500, False), ("game_version", 50, False), ("notes", 5000, False), ("validity_note", 1000, False)):
-            if field in payload: updates[field] = text(payload[field], maximum, required_text)
-        if "tags" in payload: updates["tags"] = clean_tags(payload["tags"])
-        if "video_url" in payload: updates["video_url"] = clean_video(payload["video_url"])
-        if "tested_at" in payload: updates["tested_at"] = clean_date(payload["tested_at"])
-    except ValueError: errors.append(field_error("body", "invalid_format", "字段格式或长度不合法。"))
+    for field, maximum, required_text in (("title", 120, True), ("instructions", 10000, True), ("map_area", 120, False), ("skill", 120, False), ("aim_reference", 500, False), ("timing", 500, False), ("game_version", 50, False), ("notes", 5000, False), ("validity_note", 1000, False)):
+        if field in payload:
+            try: updates[field] = text(payload[field], maximum, required_text)
+            except ValueError: errors.append(field_error(field, "required" if required_text and not payload[field] else "invalid_format", "该字段不能为空。" if required_text and not payload[field] else "字段格式或长度不合法。"))
+    if "tags" in payload:
+        try: updates["tags"] = clean_tags(payload["tags"])
+        except ValueError: errors.append(field_error("tags", "invalid_format", "标签格式或数量不合法。"))
+    if "video_url" in payload:
+        try: updates["video_url"] = clean_video(payload["video_url"])
+        except ValueError: errors.append(field_error("video_url", "invalid_url", "请输入合法的 http 或 https 外部视频链接。"))
+    if "tested_at" in payload:
+        try: updates["tested_at"] = clean_date(payload["tested_at"])
+        except ValueError: errors.append(field_error("tested_at", "invalid_date", "测试日期格式不合法。"))
     for field, choices in (("category", CATEGORIES), ("side", SIDES), ("content_mode", CONTENT_MODES)):
         if field in payload:
             if payload[field] not in choices and field != "side": errors.append(field_error(field, "invalid_choice", "枚举值不合法。"))
@@ -48,10 +56,12 @@ def guide_payload(payload, existing=None, creating=False):
     for field in ("game_id", "hero_id", "map_id"):
         if field in payload:
             value = payload[field]
-            if value is not None and (not isinstance(value, int) or isinstance(value, bool) or value <= 0): errors.append(field_error(field, "invalid_type", "ID 必须是正整数或 null。"))
+            if creating and value is None: errors.append(field_error(field, "required", "请选择对应目录。"))
+            elif value is not None and (not isinstance(value, int) or isinstance(value, bool) or value <= 0): errors.append(field_error(field, "invalid_type", "ID 必须是正整数或 null。"))
             else: updates[field] = value
     if "guide_scope" in payload and payload["guide_scope"] != "hero_map": errors.append(field_error("guide_scope", "invalid_scope", "新版点位必须同时关联地图和英雄。"))
     updates["guide_scope"] = "hero_map"
+    if "steps" in payload: updates["steps"] = payload["steps"]
     if errors: return None, validation(errors)
     return updates, None
 
@@ -59,13 +69,13 @@ def save_guide(user, guide, updates, creating, draft=None):
     data = dict(updates); steps_payload = data.pop("steps", None)
     try: validate_scope(data, guide, creating)
     except ValueError: return None, validation([field_error("guide_scope", "invalid_scope", "教材范围与英雄、地图选择不匹配。")])
-    except LookupError: return None, error_response("RESOURCE_NOT_FOUND", "选择的游戏、英雄或地图不可用。", 404)
+    except CatalogSelectionError as error: return None, validation([field_error(error.field, error.code, error.message)])
     draft_media_ids = {link.media_id for link in draft.media_links} if draft else ()
     content_mode = data.get("content_mode", guide.content_mode if guide else "simple")
     try: steps = validate_steps(user, steps_payload, content_mode, guide.steps if guide and steps_payload is not None else (), draft_media_ids) if steps_payload is not None else None
     except ValueError: return None, validation([field_error("steps", "invalid_format", "图片最多 20 张，且不能重复绑定。")])
-    except LookupError: return None, error_response("RESOURCE_NOT_FOUND", "步骤图片不存在。", 404)
-    except PermissionError: return None, error_response("RESOURCE_CONFLICT", "步骤图片不可用于当前教材。", 409)
+    except LookupError: return None, error_response("RESOURCE_NOT_FOUND", "步骤图片不存在。", 404, [field_error("steps", "not_found", "步骤图片不存在。")])
+    except PermissionError: return None, error_response("RESOURCE_CONFLICT", "步骤图片不可用于当前教材。", 409, [field_error("steps", "ownership", "步骤图片不属于当前用户或已被其他内容使用。")])
     if creating: guide = GameGuide(author_id=user.id, status="published", **data); guide.search_text = searchable([guide.title, guide.instructions, guide.map_area, guide.skill, guide.aim_reference, guide.timing, guide.notes, *(guide.tags or [])])
     else:
         for field, value in data.items(): setattr(guide, field, value)

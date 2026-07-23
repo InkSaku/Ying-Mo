@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 
-function CatalogPlaceholder({ label, compact = false }) {
+export function CatalogPlaceholder({ label, compact = false }) {
   return <span className={`catalog-placeholder ${compact ? 'catalog-placeholder--compact' : ''}`} role="img" aria-label={`${label}暂无图片`}><span aria-hidden="true">映</span><small>暂无图片</small></span>
 }
 
@@ -26,8 +26,24 @@ export function GameCard({ game }) {
   </article>
 }
 export function HeroCard({ hero }) {
-  return <article className="catalog-card"><Link to={`/game/${hero.game.slug}/hero/${hero.slug}`}><div className="catalog-card__media">{hero.avatar_thumbnail_url ? <img src={hero.avatar_thumbnail_url} alt={`${hero.name_zh} 头像`} loading="lazy" /> : <span>映</span>}</div><div><p className="eyebrow">{hero.role || '未标注定位'}</p><h3>{hero.name_zh}</h3>{hero.name_en && <p className="game-card__english">{hero.name_en}</p>}<p>{hero.description || '暂无英雄说明。'}</p></div></Link></article>
+  return <article className="catalog-card"><Link to={`/game/${hero.game.slug}/hero/${hero.slug}`}><div className="catalog-card__media">{hero.avatar_thumbnail_url ? <img src={hero.avatar_thumbnail_url} alt={`${hero.name_zh} 头像`} loading="lazy" /> : <CatalogPlaceholder label={hero.name_zh} />}</div><div><p className="eyebrow">{hero.role || '未标注定位'}</p><h3>{hero.name_zh}</h3>{hero.name_en && <p className="game-card__english">{hero.name_en}</p>}<p>{hero.description || '暂无英雄说明。'}</p></div></Link></article>
 }
 export function MapCard({ map }) {
-  return <article className="catalog-card catalog-card--map"><Link to={`/game/${map.game.slug}/map/${map.slug}`}><div className="catalog-card__media">{map.cover_thumbnail_url ? <img src={map.cover_thumbnail_url} alt={`${map.name_zh} 封面`} loading="lazy" /> : <span>映</span>}</div><div><p className="eyebrow">{map.map_type || '未分类'} · {({ active: '当前启用', rotated_out: '暂时移出轮换', retired: '已退役' })[map.current_status]}</p><h3>{map.name_zh}</h3>{map.name_en && <p className="game-card__english">{map.name_en}</p>}<p>{map.description || '暂无地图说明。'}</p></div></Link></article>
+  const status = ({ active: '当前可用', rotated_out: '暂时轮换外', retired: '已退役' })[map.current_status] || map.current_status
+  return <article className={`catalog-card catalog-card--map catalog-card--${map.current_status}`}><Link to={`/game/${map.game.slug}/map/${map.slug}`}><div className="catalog-card__media">{map.cover_thumbnail_url || map.cover_url ? <img src={map.cover_thumbnail_url || map.cover_url} alt={`${map.name_zh}封面`} loading="lazy" /> : <CatalogPlaceholder label={map.name_zh} />}</div><div><p className="eyebrow">{map.map_type || '未分类'} · {status}</p><h3>{map.name_zh}</h3>{map.name_en && <p className="game-card__english">{map.name_en}</p>}<p>{map.description || '暂无地图说明。'}</p><div className="catalog-card__stats"><span>{map.guide_count || 0} 个点位</span><span>{map.hero_with_guides_count || 0} 位英雄已有点位</span></div></div></Link></article>
+}
+
+export function MapHeroCard({ hero, gameSlug, mapSlug }) {
+  return <article className={`catalog-card map-hero-card ${hero.has_guides ? 'has-guides' : ''}`}>
+    <Link to={`/game/${gameSlug}/map/${mapSlug}/hero/${hero.slug}`}>
+      <div className="catalog-card__media">{hero.avatar_thumbnail_url || hero.avatar_url ? <img src={hero.avatar_thumbnail_url || hero.avatar_url} alt={`${hero.name_zh}头像`} loading="lazy" /> : <CatalogPlaceholder label={hero.name_zh} />}</div>
+      <div>
+        <p className="eyebrow">{hero.role || '未标注定位'}</p>
+        <h3>{hero.name_zh}</h3>
+        {hero.name_en && <p className="game-card__english">{hero.name_en}</p>}
+        <p className="map-hero-card__count">{hero.guide_count || 0} 个当前地图点位</p>
+        <small>{hero.has_guides ? '打开点位列表' : '暂无点位，可以发布第一条'}</small>
+      </div>
+    </Link>
+  </article>
 }

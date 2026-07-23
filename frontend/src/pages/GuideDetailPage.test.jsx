@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { getGuide } from '../api/guides.js'
+import { getGuide, setGuideValidityFeedback } from '../api/guides.js'
 import GuideDetailPage from './GuideDetailPage.jsx'
 
 
@@ -102,5 +102,17 @@ describe('GuideDetailPage', () => {
     expect(screen.queryByRole('link', { name: '编辑点位' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '删除点位' })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: '返回 国王大道 · 安娜 点位列表' })).toBeInTheDocument()
+  })
+
+  it('makes the current users submitted feedback explicit and prevents a duplicate click', async () => {
+    getGuide.mockResolvedValue(guide({
+      validity_feedback: { valid: 3, possibly_invalid: 1, current_user: 'valid' },
+    }))
+    renderDetail()
+
+    expect(await screen.findByText('你已反馈：仍然有效')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '已反馈仍然有效' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '可能失效' })).toBeEnabled()
+    expect(setGuideValidityFeedback).not.toHaveBeenCalled()
   })
 })

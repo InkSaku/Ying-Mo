@@ -469,9 +469,11 @@ def featured(actor):
 @admin_bp.post("/guides/<int:guide_id>/mark-invalid")
 @require_content_admin()
 def mark_invalid(actor, guide_id):
-    guide = db.session.get(GameGuide, guide_id)
+    guide, data = db.session.get(GameGuide, guide_id), request.get_json(silent=True) or {}
     if not guide: return _not_found()
-    before = {"validity_status": guide.validity_status}; guide.validity_status, guide.last_confirmed_at = "invalid", utcnow(); _notify(guide.author_id, "system", {"message": "你的教材已被标记为失效。", "target_id": guide.id}, actor); create_admin_log(actor, "guide_marked_invalid", "game_guide", guide.id, guide.title, before, {"validity_status": "invalid"}); failure = _commit("教材状态保存失败。")
+    reason = _reason(data)
+    if not reason: return _validation("操作原因必填。")
+    before = {"validity_status": guide.validity_status}; guide.validity_status, guide.last_confirmed_at = "invalid", utcnow(); _notify(guide.author_id, "guide_validity_changed", {"guide_title": guide.title, "validity_status": "invalid", "reason": reason}, actor, "game_guide", guide.id); create_admin_log(actor, "guide_marked_invalid", "game_guide", guide.id, guide.title, before, {"validity_status": "invalid"}, {"reason": reason}); failure = _commit("教材状态保存失败。")
     return failure or success_response(guide_dict(guide, actor, True))
 
 
@@ -511,6 +513,7 @@ def update_guide_metadata(actor, guide_id):
     before = {field: getattr(guide, field) for field in updates}
     for field, value in updates.items(): setattr(guide, field, value)
     guide.guide_scope, guide.updated_at = "hero_map", utcnow()
+    _notify(guide.author_id, "system", {"message": "管理员修正了你的点位目录关联。", "guide_title": guide.title, "reason": reason}, actor, "game_guide", guide.id)
     create_admin_log(actor, "guide_metadata_updated", "game_guide", guide.id, guide.title, before, {field: getattr(guide, field) for field in updates}, {"reason": reason})
     failure = _commit("点位关联保存失败。")
     return failure or success_response(guide_dict(db.session.scalar(db.select(GameGuide).where(GameGuide.id == guide.id).options(*GUIDE_OPTIONS)), actor, True))
@@ -525,7 +528,10 @@ def bulk_mark_guides_possibly_invalid(actor):
     if key_error: return key_error
     if existing: return success_response({"updated": 0, "already_processed": True})
     game_id, map_id, hero_id = data.get("game_id"), data.get("map_id"), data.get("hero_id")
-    if not isinstance(game_id, int) or not (isinstance(map_id, int) or isinstance(hero_id, int)): return _validation("需指定游戏及地图或英雄。")
+    valid_id = lambda value: isinstance(value, int) and not isinstance(value, bool) and value > 0
+    if not valid_id(game_id) or not (valid_id(map_id) or valid_id(hero_id)) or (map_id is not None and not valid_id(map_id)) or (hero_id is not None and not valid_id(hero_id)): return _validation("需指定有效游戏及地图或英雄。")
+    game, game_map, hero = db.session.get(Game, game_id), db.session.get(GameMap, map_id) if map_id is not None else None, db.session.get(GameHero, hero_id) if hero_id is not None else None
+    if not game or (game_map and game_map.game_id != game.id) or (hero and hero.game_id != game.id): return _validation("地图和英雄必须属于指定游戏。")
     stmt = db.select(GameGuide).where(GameGuide.game_id == game_id, GameGuide.status == "published")
     if isinstance(map_id, int): stmt = stmt.where(GameGuide.map_id == map_id)
     if isinstance(hero_id, int): stmt = stmt.where(GameGuide.hero_id == hero_id)
@@ -534,6 +540,8 @@ def bulk_mark_guides_possibly_invalid(actor):
         before = {"validity_status": guide.validity_status}; guide.validity_status, guide.last_confirmed_at = "possibly_invalid", utcnow()
         _notify(guide.author_id, "guide_validity_changed", {"guide_title": guide.title, "validity_status": "possibly_invalid", "reason": reason}, actor, "game_guide", guide.id)
         create_admin_log(actor, "guide_bulk_possibly_invalid", "game_guide", guide.id, guide.title, before, {"validity_status": "possibly_invalid"}, {"reason": reason})
+    if not items:
+        create_admin_log(actor, "guide_bulk_possibly_invalid_empty", "game", game.id, game.name_zh, None, {"updated": 0}, {"reason": reason, "map_id": map_id, "hero_id": hero_id})
     failure = _commit("批量点位状态保存失败。")
     return failure or success_response({"updated": len(items)})
 
@@ -805,7 +813,14 @@ def _catalog_list(model, actor):
     if model is Game:
         counts=game_counts([item.id for item in items])
         return success_response([game_dict(item,counts) for item in items],meta=_meta(page,size,total))
-    return success_response([hero_dict(item) if model is GameHero else map_dict(item) for item in items],meta=_meta(page,size,total))
+    ids=[item.id for item in items]; relation=GameGuide.hero_id if model is GameHero else GameGuide.map_id
+    guide_counts=dict(db.session.execute(db.select(relation,func.count(GameGuide.id)).where(relation.in_(ids)).group_by(relation)).all()) if ids else {}
+    data=[]
+    for item in items:
+        serialized=hero_dict(item) if model is GameHero else map_dict(item)
+        serialized["guide_count"]=guide_counts.get(item.id,0)
+        data.append(serialized)
+    return success_response(data,meta=_meta(page,size,total))
 
 @admin_bp.get("/catalog/games")
 @require_content_admin()

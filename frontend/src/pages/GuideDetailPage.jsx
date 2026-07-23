@@ -111,8 +111,8 @@ export default function GuideDetailPage() {
       <p>仍有效 {guide.validity_feedback.valid} · 可能失效 {guide.validity_feedback.possibly_invalid}</p>
       {guide.validity_feedback.current_user && <p>你已反馈：{guide.validity_feedback.current_user === 'valid' ? '仍然有效' : '可能失效'}</p>}
       <div className="guide-form__actions">
-        <button disabled={pending} onClick={() => void feedback('valid')}>仍然有效</button>
-        <button disabled={pending} onClick={() => void feedback('possibly_invalid')}>可能失效</button>
+        <button disabled={pending || guide.validity_feedback.current_user === 'valid'} onClick={() => void feedback('valid')}>{guide.validity_feedback.current_user === 'valid' ? '已反馈仍然有效' : '仍然有效'}</button>
+        <button disabled={pending || guide.validity_feedback.current_user === 'possibly_invalid'} onClick={() => void feedback('possibly_invalid')}>{guide.validity_feedback.current_user === 'possibly_invalid' ? '已反馈可能失效' : '可能失效'}</button>
       </div>
     </section>
 

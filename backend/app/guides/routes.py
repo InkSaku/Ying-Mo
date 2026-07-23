@@ -1,6 +1,7 @@
 from flask import Blueprint, current_app, request, url_for
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from sqlalchemy import case, func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.auth.routes import _current_user
@@ -8,7 +9,7 @@ from app.auth.service import utcnow
 from app.common.responses import error_response, success_response
 from app.common.search import escape_like, normalize_search_query
 from app.extensions import db
-from app.models import ContentFavorite, ContentLike, Game, GameGuide, GameGuideStep, GameHero, GameMap, GuideValidityFeedback
+from app.models import ContentFavorite, ContentLike, Game, GameGuide, GameGuideStep, GameHero, GameMap, GuideValidityFeedback, Notification
 from .serializers import guide_dict
 from .service import CATEGORIES, CONTENT_MODES, SIDES, VALIDITIES, CatalogSelectionError, can_publish, clean_date, clean_tags, clean_video, field_error, remove_files, searchable, text, validate_scope, validate_steps
 
@@ -220,15 +221,24 @@ def upsert_validity_feedback(guide_id):
     guide = db.session.scalar(db.select(GameGuide).where(GameGuide.id == guide_id, GameGuide.status == "published", GameGuide.guide_scope == "hero_map").options(*GUIDE_OPTIONS))
     if not guide: return error_response("RESOURCE_NOT_FOUND", "请求的点位不存在。", 404)
     item = db.session.scalar(db.select(GuideValidityFeedback).where(GuideValidityFeedback.guide_id == guide.id, GuideValidityFeedback.user_id == user.id))
+    if item and item.feedback_type == feedback_type:
+        return error_response("DUPLICATE_FEEDBACK", "你已经提交过相同的有效性反馈。", 409, [field_error("feedback_type", "duplicate", "相同类型的反馈不能重复提交。")])
     changed = not item or item.feedback_type != feedback_type
     if item: item.feedback_type, item.updated_at = feedback_type, utcnow()
     else:
         item = GuideValidityFeedback(guide_id=guide.id, user_id=user.id, feedback_type=feedback_type); db.session.add(item)
     try:
         if changed and guide.author_id != user.id:
-            from app.models import Notification
-            db.session.add(Notification(recipient_id=guide.author_id, actor_id=user.id, notification_type="guide_validity_feedback", target_type="game_guide", target_id=guide.id, dedupe_key=f"guide-feedback:{guide.id}:{user.id}", payload={"feedback_type": feedback_type, "guide_title": guide.title}))
+            dedupe_key = f"guide-feedback:{guide.id}:{user.id}"
+            notification = db.session.scalar(db.select(Notification).where(Notification.dedupe_key == dedupe_key))
+            if notification:
+                notification.actor_id, notification.payload, notification.read_at, notification.created_at = user.id, {"feedback_type": feedback_type, "guide_title": guide.title}, None, utcnow()
+            else:
+                db.session.add(Notification(recipient_id=guide.author_id, actor_id=user.id, notification_type="guide_validity_feedback", target_type="game_guide", target_id=guide.id, dedupe_key=dedupe_key, payload={"feedback_type": feedback_type, "guide_title": guide.title}))
         db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return error_response("DUPLICATE_FEEDBACK", "你已经提交过有效性反馈。", 409, [field_error("feedback_type", "duplicate", "不能重复提交相同点位反馈。")])
     except Exception:
         db.session.rollback(); current_app.logger.exception("Unable to save guide validity feedback"); return error_response("INTERNAL_ERROR", "有效性反馈保存失败，请稍后重试。", 500)
     guide = db.session.scalar(db.select(GameGuide).where(GameGuide.id == guide.id).options(*GUIDE_OPTIONS))

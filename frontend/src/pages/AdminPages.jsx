@@ -284,7 +284,8 @@ function AdminContentPage() {
   const loader = tab === 'life' ? admin.getAdminLifePosts : tab === 'guide' ? admin.getAdminGuides : tab === 'comment' ? admin.getAdminComments : null
   const [state, load] = useLoad(() => tab === 'featured' ? admin.getAdminFeatured() : loader({ page_size: 50, query, status }), [tab, query, status])
   const [dialog, setDialog] = useDialog()
-  const [bulk, setBulk] = useState({ game_id: '', map_id: '', hero_id: '' })
+  const [bulk, setBulk] = useState({ game_id: '', map_id: '', hero_id: '', reason: '' })
+  const [bulkFeedback, setBulkFeedback] = useState({ error: '', message: '' })
   const execute = async (values) => {
     const { item, kind } = dialog
     const type = tab === 'life' ? 'life_post' : 'game_guide'
@@ -339,7 +340,29 @@ function AdminContentPage() {
         </div>
       </article>)}
     </div></State>
-    {tab === 'guide' && <form className="admin-filters" onSubmit={async (event) => { event.preventDefault(); await admin.bulkMarkGuidesPossiblyInvalid({ game_id: Number(bulk.game_id), ...(bulk.map_id ? { map_id: Number(bulk.map_id) } : {}), ...(bulk.hero_id ? { hero_id: Number(bulk.hero_id) } : {}), reason: '目录或版本更新后批量复核', confirmation: 'BULK_POSSIBLY_INVALID' }); load() }}><input required placeholder="游戏 ID" value={bulk.game_id} onChange={(event) => setBulk({ ...bulk, game_id: event.target.value })} /><input placeholder="地图 ID（至少地图或英雄其一）" value={bulk.map_id} onChange={(event) => setBulk({ ...bulk, map_id: event.target.value })} /><input placeholder="英雄 ID（至少地图或英雄其一）" value={bulk.hero_id} onChange={(event) => setBulk({ ...bulk, hero_id: event.target.value })} /><button>批量标记可能失效</button></form>}
+    {tab === 'guide' && <section className="admin-governance-bulk">
+      <h3>按目录批量标记可能失效</h3>
+      <p>适用于版本、地图轮换或英雄调整后发起复核。不会删除任何历史点位。</p>
+      <form className="admin-filters" onSubmit={async (event) => {
+        event.preventDefault()
+        setBulkFeedback({ error: '', message: '' })
+        try {
+          const result = await admin.bulkMarkGuidesPossiblyInvalid({ game_id: Number(bulk.game_id), ...(bulk.map_id ? { map_id: Number(bulk.map_id) } : {}), ...(bulk.hero_id ? { hero_id: Number(bulk.hero_id) } : {}), reason: bulk.reason, confirmation: 'BULK_POSSIBLY_INVALID' })
+          setBulkFeedback({ error: '', message: result.already_processed ? '这次批量操作已经处理过，没有重复执行。' : `已标记 ${result.updated} 个点位为可能失效。` })
+          load()
+        } catch (error) {
+          setBulkFeedback({ error: error.message, message: '' })
+        }
+      }}>
+        <input aria-label="批量操作游戏 ID" required placeholder="游戏 ID" value={bulk.game_id} onChange={(event) => setBulk({ ...bulk, game_id: event.target.value })} />
+        <input aria-label="批量操作地图 ID" placeholder="地图 ID（至少地图或英雄其一）" value={bulk.map_id} onChange={(event) => setBulk({ ...bulk, map_id: event.target.value })} />
+        <input aria-label="批量操作英雄 ID" placeholder="英雄 ID（至少地图或英雄其一）" value={bulk.hero_id} onChange={(event) => setBulk({ ...bulk, hero_id: event.target.value })} />
+        <textarea aria-label="批量操作原因" required placeholder="说明版本、地图或英雄发生了什么变化" value={bulk.reason} onChange={(event) => setBulk({ ...bulk, reason: event.target.value })} />
+        <button>批量标记可能失效</button>
+      </form>
+      {bulkFeedback.error && <p className="form-feedback form-feedback--error" role="alert">{bulkFeedback.error}</p>}
+      {bulkFeedback.message && <p className="form-feedback form-feedback--success" role="status">{bulkFeedback.message}</p>}
+    </section>}
     <AdminActionDialog
       open={Boolean(dialog)} title={dialog?.title} dangerous={dialog?.dangerous}
       fields={dialog?.kind === 'metadata' ? [{ name: 'game_id', label: '游戏 ID', required: true, value: dialog.item.game?.id }, { name: 'map_id', label: '地图 ID', required: true, value: dialog.item.map?.id }, { name: 'hero_id', label: '英雄 ID', required: true, value: dialog.item.hero?.id }, { name: 'category', label: '点位分类', type: 'select', required: true, value: dialog.item.category, options: [{ value: 'deployment_position', label: '炮台与部署点位' }, { value: 'skill_throw', label: '技能投掷' }, { value: 'timed_throw', label: '开局定时投掷' }, { value: 'hold_position', label: '架枪与站位' }, { value: 'movement_route', label: '位移与路线' }, { value: 'map_interaction', label: '地图机制与交互' }, { value: 'other', label: '其他点位' }] }, reasonField] : dialog?.kind === 'validity' ? [{ name: 'validity_status', label: '有效状态', type: 'select', required: true, value: dialog.item.validity_status, options: [{ value: 'unverified', label: '未验证' }, { value: 'valid', label: '当前有效' }, { value: 'possibly_invalid', label: '可能失效' }, { value: 'invalid', label: '已失效' }] }, reasonField] : [...(dialog?.kind === 'hide' || dialog?.dangerous ? [reasonField] : []), ...(dialog?.dangerous ? [{ name: 'confirm_text', label: '输入 DELETE 确认删除', required: true }] : [])]}
@@ -600,7 +623,7 @@ function AdminCatalogPage() {
       <State state={catalogState}>{catalogState.data && (catalogState.data.data.length ? <div className="admin-catalog-items">
         {catalogState.data.data.map((item) => <article className="admin-catalog-item" key={item.id}>
           <div className="admin-catalog-item__image">{(section === 'heroes' ? item.avatar_thumbnail_url || item.avatar_url : item.cover_thumbnail_url || item.cover_url) ? <img src={section === 'heroes' ? item.avatar_thumbnail_url || item.avatar_url : item.cover_thumbnail_url || item.cover_url} alt="" /> : <span aria-hidden="true">映</span>}</div>
-          <div className="admin-catalog-item__body"><strong>{item.name_zh}</strong>{item.name_en && <small>{item.name_en}</small>}<span>{section === 'heroes' ? item.role || '未标注定位' : item.map_type || '未标注类型'}</span></div>
+          <div className="admin-catalog-item__body"><strong>{item.name_zh}</strong>{item.name_en && <small>{item.name_en}</small>}<span>{section === 'heroes' ? item.role || '未标注定位' : item.map_type || '未标注类型'}</span><small>关联历史点位 {item.guide_count || 0} 个</small>{item.guide_count > 0 && (section === 'heroes' ? item.status === 'inactive' : item.current_status === 'retired') && <small className="admin-catalog-item__warning">历史点位仍保留，可在内容管理中批量标记可能失效。</small>}</div>
           <div className="admin-catalog-item__status"><span>{section === 'heroes' ? item.status : item.current_status}</span><span>{item.review_status}</span></div>
           <div className="admin-catalog-item__actions"><button onClick={() => openEditor(sectionType, item)}>编辑</button></div>
         </article>)}

@@ -1096,3 +1096,29 @@
     padding-block: 0.85rem 0.1rem;
   }
 }
+
+.admin-governance-bulk {
+  margin-top: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-soft);
+  padding: 1rem;
+}
+
+.admin-governance-bulk h3,
+.admin-governance-bulk > p {
+  margin-block: 0 0.5rem;
+}
+
+.admin-governance-bulk > p,
+.admin-catalog-item__warning {
+  color: var(--color-text-muted);
+}
+
+.admin-governance-bulk textarea {
+  min-width: min(24rem, 100%);
+}
+
+.admin-catalog-item__warning {
+  color: #a13f38;
+}

@@ -4,7 +4,7 @@ import pytest
 from flask_jwt_extended import create_access_token
 
 from app.extensions import db
-from app.models import AdminLog, Game, GameGuide, GameHero, GameMap, GuideValidityFeedback, Notification, User
+from app.models import AdminLog, Game, GameGuide, GameHero, GameMap, GuideValidityFeedback, Notification, Report, User
 
 
 def _headers(token, idempotency_key=None):
@@ -62,6 +62,7 @@ def governance_context(app):
     with app.app_context():
         db.session.execute(db.delete(Notification).where(Notification.recipient_id.in_((context["author_id"], context["reporter_id"]))))
         db.session.execute(db.delete(AdminLog).where(AdminLog.admin_id == context["admin_id"]))
+        db.session.execute(db.delete(Report).where(Report.target_type == "game_guide", Report.target_id.in_(context["guide_ids"])))
         db.session.execute(db.delete(GuideValidityFeedback).where(GuideValidityFeedback.guide_id.in_(context["guide_ids"])))
         db.session.execute(db.delete(GameGuide).where(GameGuide.id.in_(context["guide_ids"])))
         db.session.execute(db.delete(GameHero).where(GameHero.id.in_(context["hero_ids"])))
@@ -107,6 +108,51 @@ def test_admin_validity_change_requires_reason_logs_and_notifies(client, governa
         assert log.metadata_json["reason"] == "版本更新后需要复核"
         assert notification.recipient_id == governance_context["author_id"]
         assert notification.payload["validity_status"] == "possibly_invalid"
+
+
+def test_report_resolution_propagates_validity_reason_to_log_and_author(client, governance_context):
+    guide_id = governance_context["guide_ids"][0]
+    reason = "举报核查确认该点位已经失效"
+    with client.application.app_context():
+        report = Report(
+            reporter_id=governance_context["reporter_id"],
+            target_type="game_guide",
+            target_id=guide_id,
+            reason="guide_outdated",
+            status="pending",
+            active_key=f"{governance_context['reporter_id']}:game_guide:{guide_id}",
+            target_snapshot={},
+        )
+        db.session.add(report)
+        db.session.commit()
+        report_id = report.id
+
+    resolved = client.post(
+        f"/api/v1/admin/reports/{report_id}/resolve",
+        headers=_headers(governance_context["admin_token"]),
+        json={"action": "mark_guide_invalid", "resolution_message": reason},
+    )
+
+    assert resolved.status_code == 200
+    with client.application.app_context():
+        guide = db.session.get(GameGuide, guide_id)
+        log = db.session.scalar(
+            db.select(AdminLog).where(
+                AdminLog.action == "guide_marked_invalid",
+                AdminLog.target_id == guide_id,
+            )
+        )
+        notification = db.session.scalar(
+            db.select(Notification).where(
+                Notification.notification_type == "guide_validity_changed",
+                Notification.target_id == guide_id,
+            )
+        )
+        assert guide.validity_status == "invalid"
+        assert guide.last_confirmed_at is not None
+        assert log.metadata_json["reason"] == reason
+        assert notification.recipient_id == governance_context["author_id"]
+        assert notification.payload["reason"] == reason
 
 
 def test_admin_metadata_correction_enforces_one_game_and_notifies_author(client, governance_context):

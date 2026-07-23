@@ -203,7 +203,27 @@ def _apply_report_action(actor, report, action, message):
     elif action == "ban_user":
         if target_user.id == actor.id: return None, error_response("PERMISSION_DENIED", "不能封禁自己。", 403)
         target_user.status = UserStatus.BANNED.value; db.session.execute(db.delete(RefreshSession).where(RefreshSession.user_id == target_user.id)); _notify(target_user.id, "system", {"message": "你的账号已被封禁。"}, actor); create_admin_log(actor, "user_banned", "user", target_user.id, target_user.username, {"status": "active"}, {"status": "banned"})
-    elif action == "mark_guide_invalid": target.validity_status, target.last_confirmed_at = "invalid", utcnow(); _notify(target.author_id, "system", {"message": "你的教材已被标记为失效。", "target_id": target.id}, actor); create_admin_log(actor, "guide_marked_invalid", "game_guide", target.id, target.title, None, {"validity_status": "invalid"})
+    elif action == "mark_guide_invalid":
+        before = {"validity_status": target.validity_status}
+        target.validity_status, target.last_confirmed_at = "invalid", utcnow()
+        _notify(
+            target.author_id,
+            "guide_validity_changed",
+            {"guide_title": target.title, "validity_status": "invalid", "reason": message},
+            actor,
+            "game_guide",
+            target.id,
+        )
+        create_admin_log(
+            actor,
+            "guide_marked_invalid",
+            "game_guide",
+            target.id,
+            target.title,
+            before,
+            {"validity_status": "invalid"},
+            {"reason": message},
+        )
     return media, None
 
 

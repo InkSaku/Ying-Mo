@@ -5,6 +5,7 @@ import { getGame, getGameHero, getGameHeroes, getGameMap, getGameMapHeroes, getG
 import { getGuides } from '../api/guides.js'
 import { CatalogPlaceholder, HeroCard, MapCard, MapHeroCard } from '../components/games/CatalogCards.jsx'
 import GuideCard from '../components/guides/GuideCard.jsx'
+import Pagination from '../components/life/Pagination.jsx'
 
 
 const MAP_STATUS = {
@@ -85,6 +86,7 @@ export function GameMapDetailPage() {
   const { gameSlug, mapSlug } = useParams()
   const [search, setSearch] = useSearchParams()
   const [query, setQuery] = useState(search.get('query') || '')
+  useEffect(() => setQuery(search.get('query') || ''), [search])
   const role = search.get('role') || ''
   const only = search.get('with_guides') === 'true'
   const mapState = useData(() => getGameMap(gameSlug, mapSlug), [gameSlug, mapSlug])
@@ -159,21 +161,61 @@ export function GameHeroDetailPage() {
 
 export function GamePointListPage() {
   const { gameSlug, mapSlug, heroSlug } = useParams()
+  const [search, setSearch] = useSearchParams()
+  const [query, setQuery] = useState(search.get('query') || '')
+  useEffect(() => setQuery(search.get('query') || ''), [search])
   const mapState = useData(() => getGameMap(gameSlug, mapSlug), [gameSlug, mapSlug])
   const heroState = useData(() => getGameHero(gameSlug, heroSlug), [gameSlug, heroSlug])
-  const state = useData(() => getGuides({ game_slug: gameSlug, map_slug: mapSlug, hero_slug: heroSlug, page_size: 100, sort: 'updated' }), [gameSlug, mapSlug, heroSlug])
+  const page = Math.max(1, Number(search.get('page')) || 1)
+  const state = useData(() => getGuides({
+    game_slug: gameSlug,
+    map_slug: mapSlug,
+    hero_slug: heroSlug,
+    query: search.get('query') || '',
+    category: search.get('category') || '',
+    side: search.get('side') || '',
+    map_area: search.get('map_area') || '',
+    validity_status: search.get('validity_status') || '',
+    sort: search.get('sort') || 'updated',
+    page,
+    page_size: 12,
+  }), [gameSlug, mapSlug, heroSlug, search.toString()])
   const contextReady = mapState.data && heroState.data
+  const canPublish = contextReady && mapState.data.is_available !== false && heroState.data.is_available !== false
+
+  function update(values) {
+    const next = new URLSearchParams(search)
+    Object.entries(values).forEach(([key, value]) => value ? next.set(key, value) : next.delete(key))
+    if (!Object.hasOwn(values, 'page')) next.delete('page')
+    setSearch(next)
+  }
+
   return <section className="guides-page page-container">
     <Link className="text-link" to={`/game/${gameSlug}/map/${mapSlug}`}>返回地图英雄选择</Link>
     <State state={mapState} resource="地图">
       <State state={heroState} resource="英雄">
         {contextReady && <>
-          <p className="eyebrow">{mapState.data.game.name_zh} · 地图 + 英雄</p>
-          <h1>{mapState.data.name_zh} · {heroState.data.name_zh}</h1>
-          <div className="life-toolbar"><Link className="button button--primary" to={`/guide/create?game=${gameSlug}&map=${mapSlug}&hero=${heroSlug}`}>发布当前组合点位</Link></div>
+          <header className="guide-combination-header">
+            <p className="eyebrow">{mapState.data.game.name_zh} · 地图 + 英雄</p>
+            <h1>{mapState.data.name_zh} · {heroState.data.name_zh}</h1>
+            <p>只展示当前地图与当前英雄的点位，不需要再次选择目录。</p>
+            {canPublish
+              ? <Link className="button button--primary" to={`/guide/create?game=${gameSlug}&map=${mapSlug}&hero=${heroSlug}`}>发布当前组合点位</Link>
+              : <p className="catalog-warning">当前游戏、地图或英雄已停用；历史点位仍可查看，但不能为这个组合发布新点位。</p>}
+          </header>
+          <form className="guide-filters guide-combination-filters" onSubmit={(event) => { event.preventDefault(); update({ query, map_area: search.get('map_area') || '' }) }}>
+            <label>关键词<input aria-label="搜索当前组合点位" value={query} placeholder="标题、说明、技能或标签" onChange={(event) => setQuery(event.target.value)} /></label>
+            <label>分类<select aria-label="点位分类筛选" value={search.get('category') || ''} onChange={(event) => update({ category: event.target.value })}><option value="">全部分类</option><option value="deployment_position">炮台与部署点位</option><option value="skill_throw">技能投掷</option><option value="timed_throw">开局定时投掷</option><option value="hold_position">架枪与站位</option><option value="movement_route">位移与路线</option><option value="map_interaction">地图机制与交互</option><option value="other">其他点位</option></select></label>
+            <label>攻防方<select aria-label="攻防方筛选" value={search.get('side') || ''} onChange={(event) => update({ side: event.target.value })}><option value="">全部</option><option value="attack">进攻方</option><option value="defense">防守方</option><option value="both">攻防皆可</option></select></label>
+            <label>地图区域<input aria-label="地图区域筛选" value={search.get('map_area') || ''} onChange={(event) => update({ map_area: event.target.value })} placeholder="例如：A 区" /></label>
+            <label>有效状态<select aria-label="有效状态筛选" value={search.get('validity_status') || ''} onChange={(event) => update({ validity_status: event.target.value })}><option value="">全部状态</option><option value="unverified">未验证</option><option value="valid">当前有效</option><option value="possibly_invalid">可能失效</option><option value="invalid">已失效</option></select></label>
+            <label>排序<select aria-label="点位排序" value={search.get('sort') || 'updated'} onChange={(event) => update({ sort: event.target.value === 'updated' ? '' : event.target.value })}><option value="updated">最近更新</option><option value="latest">最新发布</option><option value="popular">热门</option></select></label>
+            <button type="submit">搜索</button>
+          </form>
           <State state={state} empty="这个英雄在这张地图还没有点位，记录第一个实用位置吧。" resource="点位">
             {state.data && <div className="guide-grid">{state.data.data.map((guide) => <GuideCard key={guide.id} guide={guide} />)}</div>}
           </State>
+          <Pagination pagination={state.loading ? null : state.data?.meta?.pagination} onPageChange={(next) => update({ page: String(next) })} />
         </>}
       </State>
     </State>

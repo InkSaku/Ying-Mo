@@ -231,12 +231,22 @@ def check_entity_name(game_slug, model, kind):
     return success_response({"exact_match": entity_ref(exact) if exact else None, "candidates": [entity_ref(item) for item in candidates]})
 
 def get_entity(game_slug, model, entity_slug, kind):
-    game, game_error = public_game_or_error(game_slug)
-    if game_error: return game_error
+    game = game_or_404(game_slug, public=False)
+    if not game: return error_response("RESOURCE_NOT_FOUND", "请求的游戏不存在。", 404)
     stmt = db.select(model).where(model.game_id == game.id, model.slug == entity_slug)
-    if kind == "hero": stmt = stmt.where(model.status == "active", model.review_status == "approved"); options = (joinedload(model.game), joinedload(model.avatar_media))
+    if kind == "hero": stmt = stmt.where(model.review_status == "approved"); options = (joinedload(model.game), joinedload(model.avatar_media))
     else: stmt = stmt.where(model.review_status == "approved"); options = (joinedload(model.game), joinedload(model.cover_media))
     item = db.session.scalar(stmt.options(*options))
+    if not item: return error_response("RESOURCE_NOT_FOUND", "请求的资源不存在。", 404)
+    available = game.status == "active" and (
+        item.status == "active" if kind == "hero" else True
+    )
+    if not available:
+        relation = GameGuide.hero_id if kind == "hero" else GameGuide.map_id
+        has_history = db.session.scalar(db.select(GameGuide.id).where(GameGuide.game_id == game.id, relation == item.id, GameGuide.status == "published", GameGuide.guide_scope == "hero_map").limit(1))
+        if not has_history:
+            if game.status != "active": return error_response("GAME_INACTIVE", "这款游戏目录尚未启用。", 409)
+            return error_response("RESOURCE_NOT_FOUND", "请求的资源不存在。", 404)
     return success_response(hero_dict(item) if kind == "hero" else map_dict(item, map_stats([item.id]))) if item else error_response("RESOURCE_NOT_FOUND", "请求的资源不存在。", 404)
 
 def write_entity(model, kind, entity=None, game=None):

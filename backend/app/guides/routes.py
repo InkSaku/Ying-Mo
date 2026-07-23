@@ -1,6 +1,6 @@
 from flask import Blueprint, current_app, request, url_for
 from flask_jwt_extended import get_jwt_identity, jwt_required
-from sqlalchemy import func
+from sqlalchemy import case, func
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.auth.routes import _current_user
@@ -22,6 +22,13 @@ def page_args():
     return page, size, None
 def meta(page, size, total): return {"pagination": {"page": page, "page_size": size, "total": total, "total_pages": (total + size - 1) // size, "has_next": page * size < total, "has_previous": page > 1}}
 def optional_user(): return _current_user() if get_jwt_identity() else None
+def interaction_counts(guide_ids):
+    result = {guide_id: {"like_count": 0, "favorite_count": 0} for guide_id in guide_ids}
+    if not guide_ids: return result
+    for model, field in ((ContentLike, "like_count"), (ContentFavorite, "favorite_count")):
+        rows = db.session.execute(db.select(model.target_id, func.count(model.id)).where(model.target_type == "game_guide", model.target_id.in_(guide_ids)).group_by(model.target_id)).all()
+        for guide_id, count in rows: result[guide_id][field] = int(count or 0)
+    return result
 
 def guide_payload(payload, existing=None, creating=False):
     fields = {"game_id", "hero_id", "map_id", "guide_scope", "content_mode", "title", "category", "instructions", "map_area", "side", "skill", "aim_reference", "timing", "game_version", "tags", "notes", "video_url", "tested_at", "validity_note", "steps"}
@@ -121,8 +128,9 @@ def list_guides():
         stmt = stmt.where(GameGuide.search_text.ilike(f"%{escape_like(query)}%", escape="\\"))
     game_slug = request.args.get("game_slug"); hero_slug = request.args.get("hero_slug"); map_slug = request.args.get("map_slug")
     if game_slug:
-        game = db.session.scalar(db.select(Game).where(Game.slug == game_slug, Game.status == "active"))
+        game = db.session.scalar(db.select(Game).where(Game.slug == game_slug))
         if not game: return error_response("RESOURCE_NOT_FOUND", "请求的资源不存在。", 404)
+        if game.status != "active" and not (hero_slug and map_slug): return error_response("GAME_INACTIVE", "这款游戏目录尚未启用。", 409)
         stmt = stmt.where(GameGuide.game_id == game.id)
         if hero_slug:
             hero = db.session.scalar(db.select(GameHero).where(GameHero.game_id == game.id, GameHero.slug == hero_slug))
@@ -151,17 +159,20 @@ def list_guides():
         likes = db.select(ContentLike.target_id, func.count(ContentLike.id).label("count")).where(ContentLike.target_type == "game_guide").group_by(ContentLike.target_id).subquery()
         favorites = db.select(ContentFavorite.target_id, func.count(ContentFavorite.id).label("count")).where(ContentFavorite.target_type == "game_guide").group_by(ContentFavorite.target_id).subquery()
         stmt = stmt.outerjoin(likes, likes.c.target_id == GameGuide.id).outerjoin(favorites, favorites.c.target_id == GameGuide.id)
-        order = (func.coalesce(likes.c.count, 0).desc(), func.coalesce(favorites.c.count, 0).desc(), GameGuide.updated_at.desc(), GameGuide.id.desc())
-    else: order = (GameGuide.updated_at.desc(), GameGuide.id.desc()) if sort == "updated" else (GameGuide.created_at.desc(), GameGuide.id.desc())
+        order = (case((GameGuide.validity_status == "invalid", 1), else_=0), func.coalesce(likes.c.count, 0).desc(), func.coalesce(favorites.c.count, 0).desc(), GameGuide.updated_at.desc(), GameGuide.id.desc())
+    else:
+        date_order = GameGuide.updated_at.desc() if sort == "updated" else GameGuide.created_at.desc()
+        order = (case((GameGuide.validity_status == "invalid", 1), else_=0), date_order, GameGuide.id.desc())
     items = db.session.scalars(stmt.options(*GUIDE_OPTIONS).order_by(*order).offset((page - 1) * size).limit(size)).unique().all()
-    return success_response([guide_dict(item) for item in items], meta=meta(page, size, total))
+    counts = interaction_counts([item.id for item in items])
+    return success_response([guide_dict(item, interaction_counts=counts[item.id]) for item in items], meta=meta(page, size, total))
 
 @guides_bp.get("/<int:guide_id>")
 @jwt_required(optional=True, locations=["headers"])
 def get_guide(guide_id):
     guide = db.session.scalar(db.select(GameGuide).where(GameGuide.id == guide_id).options(*GUIDE_OPTIONS)); user = optional_user()
     if not guide or (guide.status != "published" and (not user or guide.author_id != user.id)): return error_response("RESOURCE_NOT_FOUND", "请求的资源不存在。", 404)
-    return success_response(guide_dict(guide, user, True))
+    return success_response(guide_dict(guide, user, True, interaction_counts([guide.id])[guide.id]))
 
 @guides_bp.post("")
 @jwt_required(locations=["headers"])
@@ -184,7 +195,7 @@ def create_guide():
     guide, error = save_guide(user, None, updates, True, draft)
     if error: return error
     guide = db.session.scalar(db.select(GameGuide).where(GameGuide.id == guide.id).options(*GUIDE_OPTIONS))
-    return success_response(guide_dict(guide, user, True), 201, {"location": url_for("guides.get_guide", guide_id=guide.id)})
+    return success_response(guide_dict(guide, user, True, interaction_counts([guide.id])[guide.id]), 201, {"location": url_for("guides.get_guide", guide_id=guide.id)})
 
 @guides_bp.patch("/<int:guide_id>")
 @jwt_required(locations=["headers"])
@@ -196,7 +207,7 @@ def update_guide(guide_id):
     if error: return error
     guide, error = save_guide(user, guide, updates, False)
     if error: return error
-    guide = db.session.scalar(db.select(GameGuide).where(GameGuide.id == guide.id).options(*GUIDE_OPTIONS)); return success_response(guide_dict(guide, user, True))
+    guide = db.session.scalar(db.select(GameGuide).where(GameGuide.id == guide.id).options(*GUIDE_OPTIONS)); return success_response(guide_dict(guide, user, True, interaction_counts([guide.id])[guide.id]))
 
 
 @guides_bp.put("/<int:guide_id>/validity-feedback")
@@ -221,7 +232,7 @@ def upsert_validity_feedback(guide_id):
     except Exception:
         db.session.rollback(); current_app.logger.exception("Unable to save guide validity feedback"); return error_response("INTERNAL_ERROR", "有效性反馈保存失败，请稍后重试。", 500)
     guide = db.session.scalar(db.select(GameGuide).where(GameGuide.id == guide.id).options(*GUIDE_OPTIONS))
-    return success_response(guide_dict(guide, user, True))
+    return success_response(guide_dict(guide, user, True, interaction_counts([guide.id])[guide.id]))
 
 @guides_bp.delete("/<int:guide_id>")
 @jwt_required(locations=["headers"])

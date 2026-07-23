@@ -211,4 +211,60 @@ describe('map-first public browsing', () => {
     expect(publish).toHaveAttribute('href', '/guide/create?game=overwatch&map=kings-row&hero=ana')
     expect(within(publish).queryByText('选择英雄')).not.toBeInTheDocument()
   })
+
+  it('restores combination filters from the URL and renders complete point card facts', async () => {
+    getGameMap.mockResolvedValue(map())
+    getGameHero.mockResolvedValue(hero())
+    getGuides.mockResolvedValue(result([{
+      id: 90,
+      title: '拐角睡眠针',
+      category: 'skill_throw',
+      validity_status: 'valid',
+      map: map(),
+      hero: hero(),
+      map_area: 'A 区',
+      side: 'attack',
+      timing: '开门后 2 秒',
+      excerpt: '站在拐角处瞄准招牌。',
+      author: { nickname: '墨友' },
+      like_count: 8,
+      favorite_count: 5,
+      cover_image: null,
+      updated_at: '2026-07-20T08:00:00Z',
+    }]))
+
+    renderRoute(
+      '/game/overwatch/map/kings-row/hero/ana?query=睡眠&category=skill_throw&side=attack&map_area=A+区&validity_status=valid&sort=popular',
+      '/game/:gameSlug/map/:mapSlug/hero/:heroSlug',
+      <GamePointListPage />,
+    )
+
+    await waitFor(() => expect(getGuides).toHaveBeenCalledWith({
+      game_slug: 'overwatch',
+      map_slug: 'kings-row',
+      hero_slug: 'ana',
+      query: '睡眠',
+      category: 'skill_throw',
+      side: 'attack',
+      map_area: 'A 区',
+      validity_status: 'valid',
+      sort: 'popular',
+      page: 1,
+      page_size: 12,
+    }))
+    expect(screen.getByLabelText('搜索当前组合点位')).toHaveValue('睡眠')
+    expect(screen.getByLabelText('点位分类筛选')).toHaveValue('skill_throw')
+    expect(screen.getByLabelText('攻防方筛选')).toHaveValue('attack')
+    expect(screen.getByLabelText('地图区域筛选')).toHaveValue('A 区')
+    expect(screen.getByLabelText('有效状态筛选')).toHaveValue('valid')
+    expect(screen.getByLabelText('点位排序')).toHaveValue('popular')
+    const card = (await screen.findByRole('heading', { name: '拐角睡眠针' })).closest('article')
+    expect(within(card).getByText('A 区')).toBeInTheDocument()
+    expect(within(card).getByText('进攻方')).toBeInTheDocument()
+    expect(within(card).getByText('时机：开门后 2 秒')).toBeInTheDocument()
+    expect(within(card).getByText('赞 8 · 收藏 5')).toBeInTheDocument()
+    expect(screen.queryByLabelText('游戏')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('地图')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('英雄')).not.toBeInTheDocument()
+  })
 })

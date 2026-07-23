@@ -15,7 +15,7 @@ import LifeChapterCreatePage from '../pages/LifeChapterCreatePage'
 import LifeChapterDetailPage from '../pages/LifeChapterDetailPage'
 import GamesPage from '../pages/GamesPage'
 import GameDetailPage from '../pages/GameDetailPage'
-import { GameHeroDetailPage, GameHeroesPage, GameMapDetailPage, GameMapsPage } from '../pages/GameCatalogPages'
+import { GameHeroDetailPage, GameHeroesPage, GameMapDetailPage, GameMapsPage, GamePointListPage } from '../pages/GameCatalogPages'
 import GuidesPage from '../pages/GuidesPage'
 import GuideEditorPage from '../pages/GuideEditorPage'
 import GuideDetailPage from '../pages/GuideDetailPage'
@@ -54,6 +54,7 @@ export const router = createBrowserRouter([
       { path: '/game/:gameSlug/maps', element: <GameMapsPage /> },
       { path: '/game/:gameSlug/hero/:heroSlug', element: <GameHeroDetailPage /> },
       { path: '/game/:gameSlug/map/:mapSlug', element: <GameMapDetailPage /> },
+      { path: '/game/:gameSlug/map/:mapSlug/hero/:heroSlug', element: <GamePointListPage /> },
       { path: '/guides', element: <GuidesPage /> },
       { path: '/guide/create', element: <ProtectedRoute><GuideEditorPage /></ProtectedRoute> },
       { path: '/guide/:id', element: <GuideDetailPage /> },

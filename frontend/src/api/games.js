@@ -9,6 +9,7 @@ export async function getGameHero(slug, heroSlug) { const { data } = await apiCl
 export async function checkGameHeroName(slug, query) { const { data } = await apiClient.get(`/games/${encodeURIComponent(slug)}/heroes/check-name`, params(query)); return data.data }
 export async function getGameMaps(slug, query) { const { data } = await apiClient.get(`/games/${encodeURIComponent(slug)}/maps`, params(query)); return data }
 export async function getGameMap(slug, mapSlug) { const { data } = await apiClient.get(`/games/${encodeURIComponent(slug)}/maps/${encodeURIComponent(mapSlug)}`); return data.data }
+export async function getGameMapHeroes(slug, mapSlug, query) { const { data } = await apiClient.get(`/games/${encodeURIComponent(slug)}/maps/${encodeURIComponent(mapSlug)}/heroes`, params(query)); return data }
 export async function checkGameMapName(slug, query) { const { data } = await apiClient.get(`/games/${encodeURIComponent(slug)}/maps/check-name`, params(query)); return data.data }
 export async function createGame(payload) { const { data } = await apiClient.post('/games', payload); return data.data }
 export async function updateGame(id, payload) { const { data } = await apiClient.patch(`/games/${id}`, payload); return data.data }

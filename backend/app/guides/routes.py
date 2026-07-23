@@ -8,12 +8,12 @@ from app.auth.service import utcnow
 from app.common.responses import error_response, success_response
 from app.common.search import escape_like, normalize_search_query
 from app.extensions import db
-from app.models import Game, GameGuide, GameGuideStep, GameHero, GameMap
+from app.models import ContentFavorite, ContentLike, Game, GameGuide, GameGuideStep, GameHero, GameMap, GuideValidityFeedback
 from .serializers import guide_dict
-from .service import CATEGORIES, DIFFICULTIES, SIDES, VALIDITIES, can_publish, clean_date, clean_tags, clean_video, field_error, remove_files, searchable, text, validate_scope, validate_steps
+from .service import CATEGORIES, CONTENT_MODES, SIDES, VALIDITIES, can_publish, clean_date, clean_tags, clean_video, field_error, remove_files, searchable, text, validate_scope, validate_steps
 
 guides_bp = Blueprint("guides", __name__)
-GUIDE_OPTIONS = (joinedload(GameGuide.author), joinedload(GameGuide.game), joinedload(GameGuide.hero), joinedload(GameGuide.game_map), selectinload(GameGuide.steps).joinedload(GameGuideStep.media))
+GUIDE_OPTIONS = (joinedload(GameGuide.author), joinedload(GameGuide.game), joinedload(GameGuide.hero).joinedload(GameHero.avatar_media), joinedload(GameGuide.game_map).joinedload(GameMap.cover_media), selectinload(GameGuide.steps).joinedload(GameGuideStep.media), selectinload(GameGuide.validity_feedback))
 def validation(details): return error_response("VALIDATION_ERROR", "请求参数不合法。", 422, details)
 def page_args():
     try: page, size = int(request.args.get("page", 1)), int(request.args.get("page_size", 20))
@@ -24,12 +24,12 @@ def meta(page, size, total): return {"pagination": {"page": page, "page_size": s
 def optional_user(): return _current_user() if get_jwt_identity() else None
 
 def guide_payload(payload, existing=None, creating=False):
-    fields = {"game_id", "hero_id", "map_id", "guide_scope", "title", "category", "instructions", "map_area", "side", "skill", "aim_reference", "timing", "difficulty", "game_version", "tags", "notes", "video_url", "tested_at", "validity_note", "steps"}
+    fields = {"game_id", "hero_id", "map_id", "guide_scope", "content_mode", "title", "category", "instructions", "map_area", "side", "skill", "aim_reference", "timing", "game_version", "tags", "notes", "video_url", "tested_at", "validity_note", "steps"}
     if not isinstance(payload, dict): return None, validation([field_error("body", "invalid_format", "请求体必须是 JSON 对象。")])
     if "validity_status" in payload: return None, error_response("PERMISSION_DENIED", "教材有效状态只能由管理员修改。", 403)
     unknown = set(payload) - fields
     if unknown: return None, validation([field_error(sorted(unknown)[0], "unknown_field", "不支持该字段。")])
-    required = {"game_id", "guide_scope", "title", "category", "instructions", "tags", "steps"}
+    required = {"game_id", "hero_id", "map_id", "title", "category", "instructions"}
     if creating and required - set(payload): return None, validation([field_error("body", "required", "请填写教材必填信息和步骤。")])
     if not payload: return None, validation([field_error("body", "required", "至少提交一个可修改字段。")])
     updates, errors = {}, []
@@ -40,16 +40,18 @@ def guide_payload(payload, existing=None, creating=False):
         if "video_url" in payload: updates["video_url"] = clean_video(payload["video_url"])
         if "tested_at" in payload: updates["tested_at"] = clean_date(payload["tested_at"])
     except ValueError: errors.append(field_error("body", "invalid_format", "字段格式或长度不合法。"))
-    for field, choices in (("category", CATEGORIES), ("side", SIDES), ("difficulty", DIFFICULTIES)):
+    for field, choices in (("category", CATEGORIES), ("side", SIDES), ("content_mode", CONTENT_MODES)):
         if field in payload:
-            if payload[field] not in choices and not (field in {"side", "difficulty"} and payload[field] is None): errors.append(field_error(field, "invalid_choice", "枚举值不合法。"))
+            if payload[field] not in choices and field != "side": errors.append(field_error(field, "invalid_choice", "枚举值不合法。"))
+            elif field == "side" and payload[field] is not None and payload[field] not in choices: errors.append(field_error(field, "invalid_choice", "枚举值不合法。"))
             else: updates[field] = payload[field]
     for field in ("game_id", "hero_id", "map_id"):
         if field in payload:
             value = payload[field]
             if value is not None and (not isinstance(value, int) or isinstance(value, bool) or value <= 0): errors.append(field_error(field, "invalid_type", "ID 必须是正整数或 null。"))
             else: updates[field] = value
-    if "guide_scope" in payload: updates["guide_scope"] = payload["guide_scope"]
+    if "guide_scope" in payload and payload["guide_scope"] != "hero_map": errors.append(field_error("guide_scope", "invalid_scope", "新版点位必须同时关联地图和英雄。"))
+    updates["guide_scope"] = "hero_map"
     if errors: return None, validation(errors)
     return updates, None
 
@@ -59,14 +61,20 @@ def save_guide(user, guide, updates, creating, draft=None):
     except ValueError: return None, validation([field_error("guide_scope", "invalid_scope", "教材范围与英雄、地图选择不匹配。")])
     except LookupError: return None, error_response("RESOURCE_NOT_FOUND", "选择的游戏、英雄或地图不可用。", 404)
     draft_media_ids = {link.media_id for link in draft.media_links} if draft else ()
-    try: steps = validate_steps(user, steps_payload, guide.steps if guide and steps_payload is not None else (), draft_media_ids) if steps_payload is not None else None
-    except ValueError: return None, validation([field_error("steps", "invalid_format", "步骤需为 1 至 20 个完整且不重复的图文步骤。")])
+    content_mode = data.get("content_mode", guide.content_mode if guide else "simple")
+    try: steps = validate_steps(user, steps_payload, content_mode, guide.steps if guide and steps_payload is not None else (), draft_media_ids) if steps_payload is not None else None
+    except ValueError: return None, validation([field_error("steps", "invalid_format", "图片最多 20 张，且不能重复绑定。")])
     except LookupError: return None, error_response("RESOURCE_NOT_FOUND", "步骤图片不存在。", 404)
     except PermissionError: return None, error_response("RESOURCE_CONFLICT", "步骤图片不可用于当前教材。", 409)
-    if creating: guide = GameGuide(author_id=user.id, status="published", **data); guide.search_text = searchable([guide.title, guide.instructions, *(guide.tags or [])])
+    if creating: guide = GameGuide(author_id=user.id, status="published", **data); guide.search_text = searchable([guide.title, guide.instructions, guide.map_area, guide.skill, guide.aim_reference, guide.timing, guide.notes, *(guide.tags or [])])
     else:
         for field, value in data.items(): setattr(guide, field, value)
-        guide.search_text, guide.updated_at = searchable([guide.title, guide.instructions, *(guide.tags or [])]), utcnow()
+        guide.search_text, guide.updated_at = searchable([guide.title, guide.instructions, guide.map_area, guide.skill, guide.aim_reference, guide.timing, guide.notes, *(guide.tags or [])]), utcnow()
+    final_image_count = len(steps) if steps is not None else len(guide.steps)
+    if not final_image_count and not guide.video_url:
+        return None, validation([field_error("visualization", "required", "请至少上传一张图片或填写合法外部视频链接。")])
+    if guide.category == "timed_throw" and not guide.timing:
+        return None, validation([field_error("timing", "required", "开局定时投掷必须填写投掷时间或时机。")])
     if guide.validity_status != "unverified" and (creating or "validity_status" in data): guide.last_confirmed_at = utcnow()
     removed = []
     unused_draft_media = []
@@ -95,7 +103,7 @@ def save_guide(user, guide, updates, creating, draft=None):
 def list_guides():
     page, size, error = page_args()
     if error: return error
-    stmt = db.select(GameGuide).where(GameGuide.status == "published")
+    stmt = db.select(GameGuide).where(GameGuide.status == "published", GameGuide.guide_scope == "hero_map")
     query = request.args.get("query", "").strip()
     if query:
         try: query = normalize_search_query(query)
@@ -115,17 +123,26 @@ def list_guides():
             if not game_map: return error_response("RESOURCE_NOT_FOUND", "请求的资源不存在。", 404)
             stmt = stmt.where(GameGuide.map_id == game_map.id)
     elif hero_slug or map_slug: return validation([field_error("game_slug", "required", "筛选英雄或地图时必须同时指定游戏。")])
-    for field, choices in (("category", CATEGORIES), ("side", SIDES), ("difficulty", DIFFICULTIES), ("validity_status", VALIDITIES)):
+    if bool(hero_slug) != bool(map_slug): return validation([field_error("map_slug", "required", "地图和英雄点位查询必须同时指定地图和英雄。")])
+    for field, choices in (("category", CATEGORIES), ("side", SIDES), ("validity_status", VALIDITIES)):
         value = request.args.get(field)
         if value:
             if value not in choices: return validation([field_error(field, "invalid_choice", "筛选值不合法。")])
             stmt = stmt.where(getattr(GameGuide, field) == value)
-    version = request.args.get("game_version"); author = request.args.get("author_username")
+    version = request.args.get("game_version"); author = request.args.get("author_username"); tag = request.args.get("tag"); map_area = request.args.get("map_area")
     if version: stmt = stmt.where(GameGuide.game_version == version)
     if author: stmt = stmt.join(GameGuide.author).where(GameGuide.author.has(username_normalized=author.casefold()))
-    sort = request.args.get("sort", "latest")
-    if sort not in {"latest", "updated"}: return validation([field_error("sort", "invalid_choice", "排序方式不支持。")])
-    total = db.session.scalar(db.select(func.count()).select_from(stmt.subquery())); order = (GameGuide.updated_at.desc(), GameGuide.id.desc()) if sort == "updated" else (GameGuide.created_at.desc(), GameGuide.id.desc())
+    if tag: stmt = stmt.where(GameGuide.tags.contains([tag]))
+    if map_area: stmt = stmt.where(GameGuide.map_area == map_area)
+    sort = request.args.get("sort", "updated" if hero_slug and map_slug else "latest")
+    if sort not in {"latest", "updated", "popular"}: return validation([field_error("sort", "invalid_choice", "排序方式不支持。")])
+    total = db.session.scalar(db.select(func.count()).select_from(stmt.subquery()))
+    if sort == "popular":
+        likes = db.select(ContentLike.target_id, func.count(ContentLike.id).label("count")).where(ContentLike.target_type == "game_guide").group_by(ContentLike.target_id).subquery()
+        favorites = db.select(ContentFavorite.target_id, func.count(ContentFavorite.id).label("count")).where(ContentFavorite.target_type == "game_guide").group_by(ContentFavorite.target_id).subquery()
+        stmt = stmt.outerjoin(likes, likes.c.target_id == GameGuide.id).outerjoin(favorites, favorites.c.target_id == GameGuide.id)
+        order = (func.coalesce(likes.c.count, 0).desc(), func.coalesce(favorites.c.count, 0).desc(), GameGuide.updated_at.desc(), GameGuide.id.desc())
+    else: order = (GameGuide.updated_at.desc(), GameGuide.id.desc()) if sort == "updated" else (GameGuide.created_at.desc(), GameGuide.id.desc())
     items = db.session.scalars(stmt.options(*GUIDE_OPTIONS).order_by(*order).offset((page - 1) * size).limit(size)).unique().all()
     return success_response([guide_dict(item) for item in items], meta=meta(page, size, total))
 
@@ -170,6 +187,31 @@ def update_guide(guide_id):
     guide, error = save_guide(user, guide, updates, False)
     if error: return error
     guide = db.session.scalar(db.select(GameGuide).where(GameGuide.id == guide.id).options(*GUIDE_OPTIONS)); return success_response(guide_dict(guide, user, True))
+
+
+@guides_bp.put("/<int:guide_id>/validity-feedback")
+@jwt_required(locations=["headers"])
+def upsert_validity_feedback(guide_id):
+    user = _current_user(); payload = request.get_json(silent=True) or {}
+    feedback_type = payload.get("feedback_type")
+    if feedback_type not in {"valid", "possibly_invalid"}:
+        return validation([field_error("feedback_type", "invalid_choice", "反馈类型不合法。")])
+    guide = db.session.scalar(db.select(GameGuide).where(GameGuide.id == guide_id, GameGuide.status == "published", GameGuide.guide_scope == "hero_map").options(*GUIDE_OPTIONS))
+    if not guide: return error_response("RESOURCE_NOT_FOUND", "请求的点位不存在。", 404)
+    item = db.session.scalar(db.select(GuideValidityFeedback).where(GuideValidityFeedback.guide_id == guide.id, GuideValidityFeedback.user_id == user.id))
+    changed = not item or item.feedback_type != feedback_type
+    if item: item.feedback_type, item.updated_at = feedback_type, utcnow()
+    else:
+        item = GuideValidityFeedback(guide_id=guide.id, user_id=user.id, feedback_type=feedback_type); db.session.add(item)
+    try:
+        if changed and guide.author_id != user.id:
+            from app.models import Notification
+            db.session.add(Notification(recipient_id=guide.author_id, actor_id=user.id, notification_type="guide_validity_feedback", target_type="game_guide", target_id=guide.id, dedupe_key=f"guide-feedback:{guide.id}:{user.id}", payload={"feedback_type": feedback_type, "guide_title": guide.title}))
+        db.session.commit()
+    except Exception:
+        db.session.rollback(); current_app.logger.exception("Unable to save guide validity feedback"); return error_response("INTERNAL_ERROR", "有效性反馈保存失败，请稍后重试。", 500)
+    guide = db.session.scalar(db.select(GameGuide).where(GameGuide.id == guide.id).options(*GUIDE_OPTIONS))
+    return success_response(guide_dict(guide, user, True))
 
 @guides_bp.delete("/<int:guide_id>")
 @jwt_required(locations=["headers"])

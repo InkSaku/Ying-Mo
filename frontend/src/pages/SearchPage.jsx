@@ -4,7 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { searchAll, searchByScope } from '../api/search.js'
 import Pagination from '../components/life/Pagination.jsx'
 
-const scopes = [['all', '全部'], ['life_chapter', '生活章节'], ['life_post', '日常'], ['game', '游戏'], ['game_hero', '英雄'], ['game_map', '地图'], ['game_guide', '教材'], ['user', '用户']]
+const scopes = [['all', '全部'], ['life_chapter', '生活章节'], ['life_post', '日常'], ['game', '游戏'], ['game_hero', '英雄'], ['game_map', '地图'], ['game_guide', '点位'], ['user', '用户']]
 const labels = Object.fromEntries(scopes)
 function Item({ item }) { const c = item.content; const title = c.name || c.title || c.name_zh || c.nickname; const subtitle = c.excerpt || c.description || c.bio || c.name_en || c.author?.nickname || ''; return <Link className="search-item" to={item.url}><strong>{title}</strong><span>{subtitle}</span><small>{labels[item.type]}</small></Link> }
 export default function SearchPage() {

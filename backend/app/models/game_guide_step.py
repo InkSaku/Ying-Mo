@@ -19,8 +19,9 @@ class GameGuideStep(db.Model):
     guide_id = db.Column(db.Integer, db.ForeignKey("game_guides.id", ondelete="CASCADE"), nullable=False, index=True)
     media_id = db.Column(db.Integer, db.ForeignKey("media.id", ondelete="RESTRICT"), nullable=False)
     position = db.Column(db.Integer, nullable=False)
-    title = db.Column(db.String(120), nullable=False)
-    description = db.Column(db.String(3000), nullable=False)
+    # Simple-mode media may have no title or caption.  Step mode can still use both.
+    title = db.Column(db.String(120), nullable=True)
+    description = db.Column(db.String(3000), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
     updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
 

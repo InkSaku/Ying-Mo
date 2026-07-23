@@ -35,6 +35,12 @@ const NOTIFICATION_TYPES = {
     icon: '结',
     tone: 'result',
   },
+  guide_validity_feedback: {
+    title: '有人反馈了你的点位有效性', label: '有效性反馈', icon: '验', tone: 'review',
+  },
+  guide_validity_changed: {
+    title: '你的点位有效状态已更新', label: '状态更新', icon: '验', tone: 'moderation',
+  },
   system: {
     title: '映墨发来一条系统通知',
     label: '系统通知',

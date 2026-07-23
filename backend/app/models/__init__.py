@@ -7,6 +7,7 @@ from .game_hero import GameHero
 from .game_map import GameMap
 from .game_guide import GameGuide
 from .game_guide_step import GameGuideStep
+from .guide_validity_feedback import GuideValidityFeedback
 from .content_like import ContentLike
 from .content_favorite import ContentFavorite
 from .comment import Comment
@@ -19,4 +20,4 @@ from .featured_content import FeaturedContent
 from .refresh_session import RefreshSession
 from .user import User, UserRole, UserStatus
 
-__all__ = ["AdminLog", "Comment", "ContentDraft", "ContentDraftMedia", "ContentFavorite", "ContentLike", "FeaturedContent", "Game", "GameGuide", "GameGuideStep", "GameHero", "GameMap", "LifeChapter", "LifePost", "LifePostMedia", "Media", "MediaPurpose", "Notification", "RefreshSession", "Report", "User", "UserRole", "UserStatus"]
+__all__ = ["AdminLog", "Comment", "ContentDraft", "ContentDraftMedia", "ContentFavorite", "ContentLike", "FeaturedContent", "Game", "GameGuide", "GameGuideStep", "GameHero", "GameMap", "GuideValidityFeedback", "LifeChapter", "LifePost", "LifePostMedia", "Media", "MediaPurpose", "Notification", "RefreshSession", "Report", "User", "UserRole", "UserStatus"]

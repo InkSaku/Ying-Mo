@@ -42,7 +42,7 @@ def _content(type_name, item, viewer, chapter_stats_map=None):
     elif type_name == "game_map":
         data, url = map_dict(item), f"/game/{item.game.slug}/map/{item.slug}"
     elif type_name == "game_guide":
-        data, url = guide_dict(item), f"/guide/{item.id}"
+        data, url = guide_dict(item), f"/game/{item.game.slug}/map/{item.game_map.slug}/hero/{item.hero.slug}"
     else:
         data, url = public_user_dict(item), f"/user/{item.username}"
     return {"type": type_name, "url": url, "content": data}
@@ -66,7 +66,7 @@ def _stmt(scope, query, viewer):
         stmt = db.select(GameMap).join(GameMap.game).where(Game.status == "active", GameMap.review_status == "approved", GameMap.current_status != "retired", GameMap.search_text.ilike(pattern, escape="\\"))
         return stmt.order_by(_name_rank(GameMap, query), GameMap.updated_at.desc(), GameMap.id.desc()), (joinedload(GameMap.game), joinedload(GameMap.cover_media))
     if scope == "game_guide":
-        stmt = db.select(GameGuide).where(GameGuide.status == "published", or_(GameGuide.title.ilike(pattern, escape="\\"), GameGuide.instructions.ilike(pattern, escape="\\"), GameGuide.search_text.ilike(pattern, escape="\\")))
+        stmt = db.select(GameGuide).join(GameGuide.game_map).join(GameGuide.hero).where(GameGuide.status == "published", GameGuide.guide_scope == "hero_map", or_(GameGuide.title.ilike(pattern, escape="\\"), GameGuide.instructions.ilike(pattern, escape="\\"), GameGuide.search_text.ilike(pattern, escape="\\"), GameMap.search_text.ilike(pattern, escape="\\"), GameHero.search_text.ilike(pattern, escape="\\")))
         return stmt.order_by(case((GameGuide.title.ilike(f"{escape_like(query)}%", escape="\\"), 0), else_=1), GameGuide.updated_at.desc(), GameGuide.id.desc()), GUIDE_OPTIONS
     stmt = db.select(User).where(User.status == UserStatus.ACTIVE.value, or_(User.username.ilike(pattern, escape="\\"), User.nickname.ilike(pattern, escape="\\"), User.bio.ilike(pattern, escape="\\"), User.region.ilike(pattern, escape="\\")))
     return stmt.order_by(case((User.username_normalized == query, 0), (User.username.ilike(f"{escape_like(query)}%", escape="\\"), 1), else_=2), User.updated_at.desc(), User.id.desc()), ()
@@ -90,7 +90,7 @@ def suggestions(query, viewer, limit):
             elif scope == "life_post": label, subtitle = content["title"], "日常"
             elif scope == "game": label, subtitle = content["name_zh"], content.get("name_en") or "游戏"
             elif scope in {"game_hero", "game_map"}: label, subtitle = content["name_zh"], content["game"]["name_zh"]
-            elif scope == "game_guide": label, subtitle = content["title"], "游戏教材"
+            elif scope == "game_guide": label, subtitle = content["title"], f"{content['map']['name_zh']} · {content['hero']['name_zh']} 点位"
             else: label, subtitle = content["nickname"], f"@{content['username']}"
             results.append({"type": scope, "label": label, "subtitle": subtitle, "url": item["url"]})
             if len(results) >= limit:

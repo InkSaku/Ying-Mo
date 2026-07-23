@@ -11,7 +11,8 @@ class GameGuide(db.Model):
     __tablename__ = "game_guides"
     __table_args__ = (
         db.CheckConstraint("guide_scope IN ('game', 'hero', 'map', 'hero_map')", name="ck_game_guides_scope"),
-        db.CheckConstraint("category IN ('skill_position', 'turret_position', 'grenade_throw', 'detonator_throw', 'hold_angle', 'defense_position', 'attack_route', 'opening_tip', 'energy_gain', 'team_composition', 'map_mechanic', 'other')", name="ck_game_guides_category"),
+        db.CheckConstraint("category IN ('deployment_position', 'skill_throw', 'timed_throw', 'hold_position', 'movement_route', 'map_interaction', 'other')", name="ck_game_guides_category"),
+        db.CheckConstraint("content_mode IN ('simple', 'steps')", name="ck_game_guides_content_mode"),
         db.CheckConstraint("side IN ('attack', 'defense', 'both') OR side IS NULL", name="ck_game_guides_side"),
         db.CheckConstraint("difficulty IN ('beginner', 'intermediate', 'advanced') OR difficulty IS NULL", name="ck_game_guides_difficulty"),
         db.CheckConstraint("validity_status IN ('unverified', 'valid', 'possibly_invalid', 'invalid')", name="ck_game_guides_validity"),
@@ -19,6 +20,7 @@ class GameGuide(db.Model):
         db.Index("ix_game_guides_game_created", "game_id", "created_at"),
         db.Index("ix_game_guides_hero_created", "hero_id", "created_at"),
         db.Index("ix_game_guides_map_created", "map_id", "created_at"),
+        db.Index("ix_game_guides_game_map_hero_updated", "game_id", "map_id", "hero_id", "updated_at"),
         db.Index("ix_game_guides_author_created", "author_id", "created_at"),
         db.Index("ix_game_guides_status_created", "status", "created_at"),
     )
@@ -29,6 +31,7 @@ class GameGuide(db.Model):
     hero_id = db.Column(db.Integer, db.ForeignKey("game_heroes.id", ondelete="RESTRICT"), nullable=True)
     map_id = db.Column(db.Integer, db.ForeignKey("game_maps.id", ondelete="RESTRICT"), nullable=True)
     guide_scope = db.Column(db.String(20), nullable=False)
+    content_mode = db.Column(db.String(16), nullable=False, default="simple", server_default="simple")
     title = db.Column(db.String(120), nullable=False)
     category = db.Column(db.String(40), nullable=False)
     instructions = db.Column(db.Text, nullable=False)
@@ -59,4 +62,5 @@ class GameGuide(db.Model):
     hero = db.relationship("GameHero", foreign_keys=[hero_id])
     game_map = db.relationship("GameMap", foreign_keys=[map_id])
     steps = db.relationship("GameGuideStep", back_populates="guide", cascade="all, delete-orphan", order_by="GameGuideStep.position")
+    validity_feedback = db.relationship("GuideValidityFeedback", back_populates="guide", cascade="all, delete-orphan")
     hidden_by = db.relationship("User", foreign_keys=[hidden_by_id])

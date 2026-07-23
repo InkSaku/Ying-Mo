@@ -6,7 +6,7 @@ class Report(db.Model):
     __tablename__ = "reports"
     __table_args__ = (
         db.CheckConstraint("target_type IN ('life_post', 'game_guide', 'comment', 'user')", name="ck_reports_target_type"),
-        db.CheckConstraint("reason IN ('inappropriate', 'violence_illegal', 'harassment', 'spam', 'plagiarism', 'incorrect_tutorial', 'duplicate', 'other')", name="ck_reports_reason"),
+        db.CheckConstraint("reason IN ('inappropriate', 'violence_illegal', 'harassment', 'spam', 'plagiarism', 'incorrect_tutorial', 'guide_outdated', 'wrong_map_or_hero', 'duplicate', 'other')", name="ck_reports_reason"),
         db.CheckConstraint("status IN ('pending', 'in_progress', 'resolved', 'rejected')", name="ck_reports_status"),
         db.Index("ix_reports_reporter_created", "reporter_id", "created_at"),
         db.Index("ix_reports_target", "target_type", "target_id"),

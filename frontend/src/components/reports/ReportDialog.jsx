@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createReport } from '../../api/reports.js'
 
-const reasons = [['inappropriate', '不当内容'], ['violence_illegal', '暴力或违法'], ['harassment', '骚扰或仇恨'], ['spam', '垃圾营销'], ['plagiarism', '抄袭'], ['incorrect_tutorial', '教程有误'], ['duplicate', '重复内容'], ['other', '其他']]
+const reasons = [['inappropriate', '不当内容'], ['violence_illegal', '暴力或违法'], ['harassment', '骚扰或仇恨'], ['spam', '垃圾营销'], ['plagiarism', '抄袭'], ['incorrect_tutorial', '教学错误'], ['guide_outdated', '点位已失效（建议先反馈有效性）'], ['wrong_map_or_hero', '地图或英雄关联错误'], ['duplicate', '重复内容'], ['other', '其他']]
 
 export default function ReportDialog({ targetType, targetId, onClose }) {
   const [reason, setReason] = useState(''); const [description, setDescription] = useState(''); const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const closeRef = useRef(null)

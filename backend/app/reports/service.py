@@ -7,7 +7,7 @@ from app.extensions import db
 from app.models import Report
 from app.moderation.targets import serialize_target_snapshot
 
-REASONS = {"inappropriate", "violence_illegal", "harassment", "spam", "plagiarism", "incorrect_tutorial", "duplicate", "other"}
+REASONS = {"inappropriate", "violence_illegal", "harassment", "spam", "plagiarism", "incorrect_tutorial", "guide_outdated", "wrong_map_or_hero", "duplicate", "other"}
 
 
 def create_report(reporter, target_type, target, reason, description):

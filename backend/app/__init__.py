@@ -33,6 +33,8 @@ def create_app(config_name=None, config_overrides=None):
     _register_request_id(app)
     init_extensions(app)
     register_commands(app)
+    from app.games.seed import register_seed_command
+    register_seed_command(app)
     register_blueprints(app)
     register_error_handlers(app)
     app.logger.info("Yingmo backend initialized in %s environment", app.config["APP_ENV"])

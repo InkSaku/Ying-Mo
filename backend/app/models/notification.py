@@ -5,7 +5,7 @@ from .content_like import utcnow
 class Notification(db.Model):
     __tablename__ = "notifications"
     __table_args__ = (
-        db.CheckConstraint("notification_type IN ('like','comment','reply','chapter_review','content_hidden','report_result','system')", name="ck_notifications_type"),
+        db.CheckConstraint("notification_type IN ('like','comment','reply','chapter_review','content_hidden','report_result','guide_validity_feedback','guide_validity_changed','system')", name="ck_notifications_type"),
         db.CheckConstraint("target_type IS NULL OR target_type IN ('life_post', 'game_guide')", name="ck_notifications_target_type"),
         db.Index("ix_notifications_recipient_created", "recipient_id", "created_at"),
         db.Index("ix_notifications_recipient_read_created", "recipient_id", "read_at", "created_at"),
@@ -24,4 +24,3 @@ class Notification(db.Model):
     read_at = db.Column(db.DateTime(timezone=True))
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
     actor = db.relationship("User", foreign_keys=[actor_id])
-

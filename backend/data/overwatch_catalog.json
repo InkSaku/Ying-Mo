@@ -1,0 +1,5 @@
+{
+  "source": {"official_url": "https://overwatch.blizzard.com/en-us/heroes/", "verified_at": "2026-07-21", "note": "Fill the complete hero roster and current map pool from Blizzard official sources before production import. The repository intentionally does not guess an incomplete map roster."},
+  "game": {"name_zh": "守望先锋", "name_en": "Overwatch", "slug": "overwatch", "aliases": ["Overwatch", "OW"], "description": "地图优先的守望先锋点位目录。"},
+  "heroes": [], "maps": []
+}

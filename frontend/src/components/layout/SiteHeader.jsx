@@ -10,7 +10,7 @@ import PageContainer from './PageContainer'
 const navigation = [
   { to: '/', label: '首页', end: true },
   { to: '/life', label: '日常' },
-  { to: '/games', label: '游戏教材' },
+  { to: '/games', label: '游戏点位' },
   { to: '/discover', label: '发现' },
   { to: '/publish', label: '发布' },
   { to: '/about', label: '关于' },

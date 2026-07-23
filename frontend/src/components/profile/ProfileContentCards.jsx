@@ -3,24 +3,14 @@ import { Link } from 'react-router-dom'
 import AdaptiveMedia from '../common/AdaptiveMedia.jsx'
 
 const categoryLabels = {
-  skill_position: '技能点位',
-  turret_position: '炮台点位',
-  grenade_throw: '手雷投掷',
-  detonator_throw: '雷管投掷',
-  hold_angle: '架枪位置',
-  defense_position: '防守站位',
-  attack_route: '进攻路线',
-  opening_tip: '开局技巧',
-  energy_gain: '能量获取',
-  team_composition: '阵容配合',
-  map_mechanic: '地图机制',
-  other: '其他技巧',
+  deployment_position: '炮台与部署点位', skill_throw: '技能投掷', timed_throw: '开局定时投掷', hold_position: '架枪与站位', movement_route: '位移与路线', map_interaction: '地图机制与交互', other: '其他点位',
 }
 
 const validityLabels = {
   valid: '当前有效',
   invalid: '已失效',
   unverified: '未验证',
+  possibly_invalid: '可能失效',
 }
 
 const dateFormatter = new Intl.DateTimeFormat('zh-CN', {

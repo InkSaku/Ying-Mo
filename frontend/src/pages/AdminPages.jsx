@@ -54,23 +54,113 @@ const reasonField = { name: 'reason', label: '操作原因', type: 'textarea', r
 const resolutionField = { name: 'resolution_message', label: '对举报者可见的处理说明', type: 'textarea', required: true }
 const noteField = { name: 'internal_note', label: '内部备注（不会通知用户）', type: 'textarea' }
 
-function AdminDashboardPage() {
-  const [state] = useLoad(admin.getAdminSummary)
-  const labels = [
-    ['待处理举报', 'pending_report_count'], ['处理中举报', 'in_progress_report_count'],
-    ['待审核章节', 'pending_chapter_count'], ['已下架日常', 'hidden_life_post_count'],
-    ['已下架教材', 'hidden_guide_count'], ['活跃用户', 'active_user_count'],
-    ['今日举报', 'today_report_count'], ['今日管理操作', 'today_admin_action_count'],
-  ]
-
-  return <State state={state}>{state.data && <section className="admin-page">
-    <AdminPageHeader eyebrow="工作台" title="后台概览" description="快速查看当前需要关注的社区治理事项。" />
-    <div className="admin-stats">
-      {labels.map(([label, key]) => <div key={key}><strong>{state.data[key]}</strong><span>{label}</span></div>)}
-    </div>
-  </section>}</State>
+const adminLabels = {
+  target: {
+    life_post: '日常',
+    game_guide: '游戏教材',
+    comment: '评论',
+    user: '用户',
+  },
+  status: {
+    active: '正常',
+    approved: '已通过',
+    banned: '已封禁',
+    deactivated: '已停用',
+    hidden: '已下架',
+    in_progress: '处理中',
+    pending: '待处理',
+    published: '已发布',
+    rejected: '已驳回',
+    resolved: '已处理',
+  },
+  role: {
+    user: '普通用户',
+    content_admin: '内容管理员',
+    system_admin: '系统管理员',
+  },
+  reason: {
+    spam: '垃圾或广告',
+    harassment: '骚扰或攻击',
+    inappropriate: '不当内容',
+    misinformation: '错误或误导信息',
+    copyright: '侵权内容',
+    other: '其他问题',
+  },
 }
 
+function adminLabel(group, value) {
+  return adminLabels[group]?.[value] || value || '—'
+}
+
+function AdminDashboardPage() {
+  const [state] = useLoad(admin.getAdminSummary)
+
+  return <State state={state}>{state.data && (() => {
+    const attentionItems = [
+      { label: '待处理举报', key: 'pending_report_count', description: '等待管理员领取', to: '/admin/reports', tone: 'urgent' },
+      { label: '处理中举报', key: 'in_progress_report_count', description: '已进入处理流程', to: '/admin/reports', tone: 'active' },
+      { label: '待审核章节', key: 'pending_chapter_count', description: '等待内容审核', to: '/admin/chapters', tone: 'review' },
+      { label: '今日新增举报', key: 'today_report_count', description: '今日收到的社区反馈', to: '/admin/reports', tone: 'neutral' },
+    ]
+    const operationItems = [
+      { label: '活跃用户', key: 'active_user_count', description: '当前正常账号' },
+      { label: '已下架日常', key: 'hidden_life_post_count', description: '进入治理状态' },
+      { label: '已下架教材', key: 'hidden_guide_count', description: '进入治理状态' },
+      { label: '今日管理操作', key: 'today_admin_action_count', description: '今日已记录动作' },
+    ]
+    const attentionTotal = state.data.pending_report_count + state.data.in_progress_report_count + state.data.pending_chapter_count
+
+    return <section className="admin-page admin-dashboard">
+      <AdminPageHeader eyebrow="工作台" title="后台概览" description="先处理需要判断的事项，再查看社区运行状态。" />
+
+      <section className="admin-dashboard__hero">
+        <div className="admin-dashboard__hero-copy">
+          <p className="admin-dashboard__kicker">今日治理焦点</p>
+          <h3>{attentionTotal > 0 ? `还有 ${attentionTotal} 项需要关注` : '当前没有积压事项'}</h3>
+          <p>{attentionTotal > 0 ? '建议优先处理举报与章节审核，让社区内容保持清晰、友善和可信。' : '举报和章节审核暂时没有积压，可以继续查看今日社区运行数据。'}</p>
+        </div>
+        <div className="admin-dashboard__total">
+          <span>当前待关注</span>
+          <strong>{attentionTotal}</strong>
+          <small>举报与章节审核</small>
+        </div>
+      </section>
+
+      <section className="admin-dashboard__section">
+        <header className="admin-dashboard__section-header">
+          <h3>优先处理</h3>
+          <p>点击对应事项进入处理页面</p>
+        </header>
+        <div className="admin-dashboard__priority-grid">
+          {attentionItems.map((item) => <Link className="admin-dashboard__priority-card" data-tone={item.tone} key={item.key} to={item.to}>
+            <span className="admin-dashboard__priority-value">
+              <strong>{state.data[item.key]}</strong>
+              <span>查看 →</span>
+            </span>
+            <span className="admin-dashboard__priority-copy">
+              <strong>{item.label}</strong>
+              <small>{item.description}</small>
+            </span>
+          </Link>)}
+        </div>
+      </section>
+
+      <section className="admin-dashboard__section">
+        <header className="admin-dashboard__section-header">
+          <h3>社区运行</h3>
+          <p>用于快速了解当前治理状态</p>
+        </header>
+        <div className="admin-dashboard__metrics">
+          {operationItems.map((item) => <div className="admin-dashboard__metric" key={item.key}>
+            <span>{item.label}</span>
+            <strong>{state.data[item.key]}</strong>
+            <small>{item.description}</small>
+          </div>)}
+        </div>
+      </section>
+    </section>
+  })()}</State>
+}
 function AdminReportsPage() {
   const [state, load] = useLoad(() => admin.getAdminReports({ page_size: 50 }))
 
@@ -83,8 +173,11 @@ function AdminReportsPage() {
     />
     <div className="admin-list">
       {state.data.data.map((item) => <Link key={item.id} to={`/admin/reports/${item.id}`}>
-        <strong>#{item.id} · {item.target_type}</strong>
-        <span>{item.reason} · {item.status}</span>
+        <strong>#{item.id} · {adminLabel('target', item.target_type)}</strong>
+        <span className="admin-list__meta">
+          <span>{adminLabel('reason', item.reason)}</span>
+          <span className={`admin-status admin-status--${item.status}`}>{adminLabel('status', item.status)}</span>
+        </span>
         <small>{new Date(item.created_at).toLocaleString('zh-CN')}</small>
       </Link>)}
     </div>
@@ -141,7 +234,11 @@ function AdminUsersPage() {
     </form>
     <State state={state}>{state.data && <div className="admin-list">
       {state.data.data.map((item) => <Link key={item.id} to={`/admin/users/${item.id}`}>
-        <strong>{item.nickname} @{item.username}</strong><span>{item.role} · {item.status}</span>
+        <strong>{item.nickname} @{item.username}</strong>
+        <span className="admin-list__meta">
+          <span>{adminLabel('role', item.role)}</span>
+          <span className={`admin-status admin-status--${item.status}`}>{adminLabel('status', item.status)}</span>
+        </span>
         <small>发布：{item.can_publish ? '允许' : '限制'} / 评论：{item.can_comment ? '允许' : '限制'}</small>
       </Link>)}
     </div>}</State>
@@ -187,6 +284,7 @@ function AdminContentPage() {
   const loader = tab === 'life' ? admin.getAdminLifePosts : tab === 'guide' ? admin.getAdminGuides : tab === 'comment' ? admin.getAdminComments : null
   const [state, load] = useLoad(() => tab === 'featured' ? admin.getAdminFeatured() : loader({ page_size: 50, query, status }), [tab, query, status])
   const [dialog, setDialog] = useDialog()
+  const [bulk, setBulk] = useState({ game_id: '', map_id: '', hero_id: '' })
   const execute = async (values) => {
     const { item, kind } = dialog
     const type = tab === 'life' ? 'life_post' : 'game_guide'
@@ -196,7 +294,8 @@ function AdminContentPage() {
       if (tab === 'comment') await admin.deleteAdminComment(item.id, payload)
       else await admin.deleteAdminContent(type, item.id, payload)
     }
-    if (kind === 'invalid') await admin.markGuideInvalid(item.id)
+    if (kind === 'validity') await admin.updateGuideValidity(item.id, { validity_status: values.validity_status, reason: values.reason })
+    if (kind === 'metadata') await admin.updateGuideMetadata(item.id, { game_id: Number(values.game_id), map_id: Number(values.map_id), hero_id: Number(values.hero_id), category: values.category, reason: values.reason })
     if (kind === 'comment-hide') await admin.hideComment(item.id)
     load()
   }
@@ -211,9 +310,9 @@ function AdminContentPage() {
   const items = state.data?.data || state.data || []
 
   return <section className="admin-page">
-    <AdminPageHeader eyebrow="社区治理" title="内容管理" description="管理日常、教材、评论与编辑精选，保持内容清晰可信。" />
+    <AdminPageHeader eyebrow="社区治理" title="内容管理" description="管理日常、点位、评论与编辑精选，保持内容清晰可信。" />
     <div className="account-tabs">
-      {[['life', '日常'], ['guide', '教材'], ['comment', '评论'], ['featured', '编辑精选']].map(([key, label]) => <button key={key} aria-pressed={tab === key} onClick={() => setTab(key)}>{label}</button>)}
+      {[['life', '日常'], ['guide', '点位'], ['comment', '评论'], ['featured', '编辑精选']].map(([key, label]) => <button key={key} aria-pressed={tab === key} onClick={() => setTab(key)}>{label}</button>)}
     </div>
     {tab !== 'featured' && <form className="admin-filters" onSubmit={(event) => { event.preventDefault(); load() }}>
       <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索标题或评论" />
@@ -224,7 +323,8 @@ function AdminContentPage() {
     </form>}
     <State state={state}><div className="admin-list">
       {items.map((item) => <article key={item.id || `${item.target_type}-${item.target_id}`}>
-        <strong>{item.title || item.content?.title || item.body || `评论 #${item.id}`}</strong>
+          <strong>{item.title || item.content?.title || item.body || `评论 #${item.id}`}</strong>
+          {tab === 'guide' && <small>地图：{item.map?.name_zh || '—'} · 英雄：{item.hero?.name_zh || '—'} · 分类：{item.category} · 反馈：有效 {item.validity_feedback?.valid || 0} / 可能失效 {item.validity_feedback?.possibly_invalid || 0}</small>}
         <span>{item.status || item.content?.status || item.target_type}</span>
         <div className="admin-list__actions">
           {tab === 'comment' ? <>
@@ -233,15 +333,16 @@ function AdminContentPage() {
             {item.status !== 'deleted' && <button className="button--danger" onClick={() => setDialog({ item, kind: 'delete', title: '永久删除评论', dangerous: true })}>删除</button>}
           </> : tab === 'featured' ? <button onClick={() => void quick(item, 'unfeature')}>取消精选</button> : <>
             {item.status === 'published' ? <><button onClick={() => setDialog({ item, kind: 'hide', title: '下架内容' })}>下架</button><button onClick={() => void quick(item, 'feature')}>精选</button></> : <button onClick={() => void quick(item, 'restore')}>恢复</button>}
-            {tab === 'guide' && <button onClick={() => setDialog({ item, kind: 'invalid', title: '标记教材失效' })}>标记失效</button>}
+            {tab === 'guide' && <><button onClick={() => setDialog({ item, kind: 'metadata', title: '修正点位地图、英雄与分类' })}>修正关联</button><button onClick={() => setDialog({ item, kind: 'validity', title: '更新点位有效状态' })}>有效状态</button></>}
             <button className="button--danger" onClick={() => setDialog({ item, kind: 'delete', title: '永久删除内容', dangerous: true })}>永久删除</button>
           </>}
         </div>
       </article>)}
     </div></State>
+    {tab === 'guide' && <form className="admin-filters" onSubmit={async (event) => { event.preventDefault(); await admin.bulkMarkGuidesPossiblyInvalid({ game_id: Number(bulk.game_id), ...(bulk.map_id ? { map_id: Number(bulk.map_id) } : {}), ...(bulk.hero_id ? { hero_id: Number(bulk.hero_id) } : {}), reason: '目录或版本更新后批量复核', confirmation: 'BULK_POSSIBLY_INVALID' }); load() }}><input required placeholder="游戏 ID" value={bulk.game_id} onChange={(event) => setBulk({ ...bulk, game_id: event.target.value })} /><input placeholder="地图 ID（至少地图或英雄其一）" value={bulk.map_id} onChange={(event) => setBulk({ ...bulk, map_id: event.target.value })} /><input placeholder="英雄 ID（至少地图或英雄其一）" value={bulk.hero_id} onChange={(event) => setBulk({ ...bulk, hero_id: event.target.value })} /><button>批量标记可能失效</button></form>}
     <AdminActionDialog
       open={Boolean(dialog)} title={dialog?.title} dangerous={dialog?.dangerous}
-      fields={[...(dialog?.kind === 'hide' || dialog?.dangerous ? [reasonField] : []), ...(dialog?.dangerous ? [{ name: 'confirm_text', label: '输入 DELETE 确认删除', required: true }] : [])]}
+      fields={dialog?.kind === 'metadata' ? [{ name: 'game_id', label: '游戏 ID', required: true, value: dialog.item.game?.id }, { name: 'map_id', label: '地图 ID', required: true, value: dialog.item.map?.id }, { name: 'hero_id', label: '英雄 ID', required: true, value: dialog.item.hero?.id }, { name: 'category', label: '点位分类', type: 'select', required: true, value: dialog.item.category, options: [{ value: 'deployment_position', label: '炮台与部署点位' }, { value: 'skill_throw', label: '技能投掷' }, { value: 'timed_throw', label: '开局定时投掷' }, { value: 'hold_position', label: '架枪与站位' }, { value: 'movement_route', label: '位移与路线' }, { value: 'map_interaction', label: '地图机制与交互' }, { value: 'other', label: '其他点位' }] }, reasonField] : dialog?.kind === 'validity' ? [{ name: 'validity_status', label: '有效状态', type: 'select', required: true, value: dialog.item.validity_status, options: [{ value: 'unverified', label: '未验证' }, { value: 'valid', label: '当前有效' }, { value: 'possibly_invalid', label: '可能失效' }, { value: 'invalid', label: '已失效' }] }, reasonField] : [...(dialog?.kind === 'hide' || dialog?.dangerous ? [reasonField] : []), ...(dialog?.dangerous ? [{ name: 'confirm_text', label: '输入 DELETE 确认删除', required: true }] : [])]}
       submitLabel="确认" onClose={() => setDialog(null)}
       onSubmit={async (values) => { if (dialog?.dangerous && values.confirm_text !== 'DELETE') throw new Error('确认词不匹配。'); await execute(values) }}
     />

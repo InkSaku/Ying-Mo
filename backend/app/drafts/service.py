@@ -10,8 +10,8 @@ from app.uploads.storage import file_exists, remove_media_files
 DRAFT_TYPES = {"life_post", "game_guide"}
 LIFE_FIELDS = {"title", "body", "chapter_id", "location", "mood", "tags", "shot_at", "visibility"}
 GUIDE_FIELDS = {
-    "game_id", "hero_id", "map_id", "guide_scope", "title", "category", "instructions",
-    "map_area", "side", "skill", "aim_reference", "timing", "difficulty", "game_version",
+    "game_id", "hero_id", "map_id", "guide_scope", "content_mode", "title", "category", "instructions",
+    "map_area", "side", "skill", "aim_reference", "timing", "game_version",
     "tags", "notes", "video_url", "validity_status", "tested_at", "validity_note", "steps",
 }
 
@@ -83,14 +83,14 @@ def validate_payload(draft_type, payload):
         for field in ("game_id", "hero_id", "map_id"):
             if field in cleaned and cleaned[field] is not None and (not isinstance(cleaned[field], int) or isinstance(cleaned[field], bool) or cleaned[field] <= 0):
                 raise ValueError(field)
-        if "guide_scope" in cleaned and cleaned["guide_scope"] not in {"game", "hero", "map", "hero_map", None, ""}:
+        if "guide_scope" in cleaned and cleaned["guide_scope"] not in {"hero_map", None, ""}:
             raise ValueError("guide_scope")
-        if "category" in cleaned and cleaned["category"] not in {"skill_position", "turret_position", "grenade_throw", "detonator_throw", "hold_angle", "defense_position", "attack_route", "opening_tip", "energy_gain", "team_composition", "map_mechanic", "other", None, ""}:
+        if "category" in cleaned and cleaned["category"] not in {"deployment_position", "skill_throw", "timed_throw", "hold_position", "movement_route", "map_interaction", "other", None, ""}:
             raise ValueError("category")
         if "side" in cleaned and cleaned["side"] not in {"attack", "defense", "both", None, ""}:
             raise ValueError("side")
-        if "difficulty" in cleaned and cleaned["difficulty"] not in {"beginner", "intermediate", "advanced", None, ""}:
-            raise ValueError("difficulty")
+        if "content_mode" in cleaned and cleaned["content_mode"] not in {"simple", "steps", None, ""}:
+            raise ValueError("content_mode")
         if "validity_status" in cleaned and cleaned["validity_status"] not in {"unverified", "valid", "possibly_invalid", "invalid", None, ""}:
             raise ValueError("validity_status")
         if "steps" in cleaned:

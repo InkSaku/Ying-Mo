@@ -13,7 +13,7 @@ from app.guides.serializers import guide_dict
 from app.guides.service import remove_files
 from app.interactions.targets import cleanup_target_interactions
 from app.life.routes import CHAPTER_OPTIONS, POST_OPTIONS, chapter_dict, chapter_slug, normalize_name, post_dict
-from app.models import AdminLog, Comment, FeaturedContent, Game, GameGuide, GameGuideStep, GameHero, GameMap, LifeChapter, LifePost, LifePostMedia, Media, Notification, RefreshSession, Report, User, UserRole, UserStatus
+from app.models import AdminLog, Comment, FeaturedContent, Game, GameGuide, GameGuideStep, GameHero, GameMap, GuideValidityFeedback, LifeChapter, LifePost, LifePostMedia, Media, Notification, RefreshSession, Report, User, UserRole, UserStatus
 from app.models.user import serialize_datetime
 from app.moderation.service import close_open_reports_for_target, report_result_notification
 from app.moderation.targets import CONTENT_TARGET_TYPES, resolve_admin_target, serialize_target_snapshot, target_author_id
@@ -485,9 +485,57 @@ def update_guide_validity(actor, guide_id):
         return _validation("有效状态和操作原因必填。")
     before = {"validity_status": guide.validity_status}
     guide.validity_status, guide.last_confirmed_at = status, utcnow()
+    _notify(guide.author_id, "guide_validity_changed", {"guide_title": guide.title, "validity_status": status, "reason": reason}, actor, "game_guide", guide.id)
     create_admin_log(actor, "guide_validity_updated", "game_guide", guide.id, guide.title, before, {"validity_status": status}, {"reason": reason})
     failure = _commit("教材状态保存失败。")
     return failure or success_response(guide_dict(guide, actor, True))
+
+
+@admin_bp.patch("/guides/<int:guide_id>/metadata")
+@require_content_admin()
+def update_guide_metadata(actor, guide_id):
+    guide, data = db.session.get(GameGuide, guide_id), request.get_json(silent=True) or {}
+    if not guide: return _not_found()
+    allowed_categories = {"deployment_position", "skill_throw", "timed_throw", "hold_position", "movement_route", "map_interaction", "other"}
+    updates = {field: data[field] for field in ("game_id", "map_id", "hero_id", "category") if field in data}
+    if not updates: return _validation("至少提交一项地图、英雄、游戏或分类修正。")
+    if "category" in updates and updates["category"] not in allowed_categories: return _validation("点位分类不合法。")
+    game_id = updates.get("game_id", guide.game_id); map_id = updates.get("map_id", guide.map_id); hero_id = updates.get("hero_id", guide.hero_id)
+    if not all(isinstance(value, int) and not isinstance(value, bool) and value > 0 for value in (game_id, map_id, hero_id)):
+        return _validation("游戏、地图和英雄必须是有效 ID。")
+    game, game_map, hero = db.session.get(Game, game_id), db.session.get(GameMap, map_id), db.session.get(GameHero, hero_id)
+    if not game or not game_map or not hero or game_map.game_id != game_id or hero.game_id != game_id: return _validation("地图和英雄必须属于同一游戏。")
+    if updates.get("category") == "timed_throw" and not guide.timing: return _validation("开局定时投掷必须已有投掷时间或时机。")
+    reason = _reason(data)
+    if not reason: return _validation("操作原因必填。")
+    before = {field: getattr(guide, field) for field in updates}
+    for field, value in updates.items(): setattr(guide, field, value)
+    guide.guide_scope, guide.updated_at = "hero_map", utcnow()
+    create_admin_log(actor, "guide_metadata_updated", "game_guide", guide.id, guide.title, before, {field: getattr(guide, field) for field in updates}, {"reason": reason})
+    failure = _commit("点位关联保存失败。")
+    return failure or success_response(guide_dict(db.session.scalar(db.select(GameGuide).where(GameGuide.id == guide.id).options(*GUIDE_OPTIONS)), actor, True))
+
+
+@admin_bp.post("/guides/bulk-possibly-invalid")
+@require_content_admin()
+def bulk_mark_guides_possibly_invalid(actor):
+    data = request.get_json(silent=True) or {}; reason = _reason(data)
+    if not reason or not _confirmed(data, "BULK_POSSIBLY_INVALID"): return _validation("批量标记需要原因和 confirmation=BULK_POSSIBLY_INVALID。")
+    _, existing, key_error = _idempotency(actor)
+    if key_error: return key_error
+    if existing: return success_response({"updated": 0, "already_processed": True})
+    game_id, map_id, hero_id = data.get("game_id"), data.get("map_id"), data.get("hero_id")
+    if not isinstance(game_id, int) or not (isinstance(map_id, int) or isinstance(hero_id, int)): return _validation("需指定游戏及地图或英雄。")
+    stmt = db.select(GameGuide).where(GameGuide.game_id == game_id, GameGuide.status == "published")
+    if isinstance(map_id, int): stmt = stmt.where(GameGuide.map_id == map_id)
+    if isinstance(hero_id, int): stmt = stmt.where(GameGuide.hero_id == hero_id)
+    items = db.session.scalars(stmt).all()
+    for guide in items:
+        before = {"validity_status": guide.validity_status}; guide.validity_status, guide.last_confirmed_at = "possibly_invalid", utcnow()
+        _notify(guide.author_id, "guide_validity_changed", {"guide_title": guide.title, "validity_status": "possibly_invalid", "reason": reason}, actor, "game_guide", guide.id)
+        create_admin_log(actor, "guide_bulk_possibly_invalid", "game_guide", guide.id, guide.title, before, {"validity_status": "possibly_invalid"}, {"reason": reason})
+    failure = _commit("批量点位状态保存失败。")
+    return failure or success_response({"updated": len(items)})
 
 
 @admin_bp.post("/comments/<int:comment_id>/hide")

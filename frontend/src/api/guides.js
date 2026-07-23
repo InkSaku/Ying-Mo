@@ -5,3 +5,4 @@ export async function getGuide(id) { const { data } = await apiClient.get(`/guid
 export async function createGuide(payload) { const { data } = await apiClient.post('/guides', payload); return data.data }
 export async function updateGuide(id, payload) { const { data } = await apiClient.patch(`/guides/${id}`, payload); return data.data }
 export async function deleteGuide(id) { await apiClient.delete(`/guides/${id}`) }
+export async function setGuideValidityFeedback(id, feedback_type) { const { data } = await apiClient.put(`/guides/${id}/validity-feedback`, { feedback_type }); return data.data }

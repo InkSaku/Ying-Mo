@@ -9,7 +9,7 @@ from app.auth.service import utcnow
 from app.common.responses import error_response, success_response
 from app.common.search import escape_like, normalize_search_query
 from app.extensions import db
-from app.models import Game, GameHero, GameMap
+from app.models import Game, GameGuide, GameHero, GameMap
 from app.models.user import serialize_datetime
 from app.uploads.storage import remove_media_files
 from .service import clean_aliases, clean_text, entity_has_conflict, is_catalog_admin, media_url, name_tokens, normalize_name, search_text, slug_for, validate_media
@@ -50,7 +50,15 @@ def game_dict(game, counts=(None, None), detail=False):
     data = {"id": game.id, "name_zh": game.name_zh, "name_en": game.name_en, "slug": game.slug, "aliases": game.aliases or [], "icon_url": media_url(game.icon_media), "icon_thumbnail_url": media_url(game.icon_media, True), "cover_url": media_url(game.cover_media), "cover_thumbnail_url": media_url(game.cover_media, True), "description": game.description, "current_version": game.current_version, "status": game.status, "hero_count": (heroes or {}).get(game.id, 0), "map_count": (maps or {}).get(game.id, 0), "created_at": serialize_datetime(game.created_at), "updated_at": serialize_datetime(game.updated_at)}
     return data
 def hero_dict(hero): return {"id": hero.id, "game": game_ref(hero.game), "name_zh": hero.name_zh, "name_en": hero.name_en, "slug": hero.slug, "aliases": hero.aliases or [], "avatar_url": media_url(hero.avatar_media), "avatar_thumbnail_url": media_url(hero.avatar_media, True), "role": hero.role, "description": hero.description, "status": hero.status, "review_status": hero.review_status, "created_at": serialize_datetime(hero.created_at), "updated_at": serialize_datetime(hero.updated_at)}
-def map_dict(game_map): return {"id": game_map.id, "game": game_ref(game_map.game), "name_zh": game_map.name_zh, "name_en": game_map.name_en, "slug": game_map.slug, "aliases": game_map.aliases or [], "cover_url": media_url(game_map.cover_media), "cover_thumbnail_url": media_url(game_map.cover_media, True), "map_type": game_map.map_type, "description": game_map.description, "current_status": game_map.current_status, "review_status": game_map.review_status, "created_at": serialize_datetime(game_map.created_at), "updated_at": serialize_datetime(game_map.updated_at)}
+def map_dict(game_map, stats=None):
+    data = {"id": game_map.id, "game": game_ref(game_map.game), "name_zh": game_map.name_zh, "name_en": game_map.name_en, "slug": game_map.slug, "aliases": game_map.aliases or [], "cover_url": media_url(game_map.cover_media), "cover_thumbnail_url": media_url(game_map.cover_media, True), "map_type": game_map.map_type, "description": game_map.description, "current_status": game_map.current_status, "review_status": game_map.review_status, "created_at": serialize_datetime(game_map.created_at), "updated_at": serialize_datetime(game_map.updated_at)}
+    if stats is not None: data.update({"guide_count": stats.get(game_map.id, (0, 0))[0], "hero_with_guides_count": stats.get(game_map.id, (0, 0))[1]})
+    return data
+
+def map_stats(map_ids):
+    if not map_ids: return {}
+    rows = db.session.execute(db.select(GameGuide.map_id, func.count(GameGuide.id), func.count(func.distinct(GameGuide.hero_id))).where(GameGuide.map_id.in_(map_ids), GameGuide.status == "published", GameGuide.guide_scope == "hero_map").group_by(GameGuide.map_id)).all()
+    return {map_id: (count, heroes) for map_id, count, heroes in rows}
 
 def catalog_payload(payload, kind, creating=False):
     fields = {"name_zh", "name_en", "aliases", "description", "status", "icon_media_id", "cover_media_id", "current_version"} if kind == "game" else ({"name_zh", "name_en", "aliases", "description", "status", "review_status", "avatar_media_id", "role"} if kind == "hero" else {"name_zh", "name_en", "aliases", "description", "current_status", "review_status", "cover_media_id", "map_type"})
@@ -141,7 +149,8 @@ def list_entities(game_slug, model, kind):
     order = (model.created_at.desc(), model.id.desc()) if sort == "latest" else (model.name_zh.asc(), model.id.asc())
     options = (joinedload(model.game), joinedload(model.avatar_media if kind == "hero" else model.cover_media))
     items = db.session.scalars(stmt.options(*options).order_by(*order).offset((page - 1) * size).limit(size)).all()
-    return success_response([hero_dict(item) if kind == "hero" else map_dict(item) for item in items], meta=meta(page, size, total))
+    stats = map_stats([item.id for item in items]) if kind == "map" else None
+    return success_response([hero_dict(item) if kind == "hero" else map_dict(item, stats) for item in items], meta=meta(page, size, total))
 
 @games_bp.get("/<game_slug>/heroes/check-name")
 def check_hero_name(game_slug): return check_entity_name(game_slug, GameHero, "hero")
@@ -155,6 +164,32 @@ def check_map_name(game_slug): return check_entity_name(game_slug, GameMap, "map
 def list_maps(game_slug): return list_entities(game_slug, GameMap, "map")
 @games_bp.get("/<game_slug>/maps/<map_slug>")
 def get_map(game_slug, map_slug): return get_entity(game_slug, GameMap, map_slug, "map")
+
+
+@games_bp.get("/<game_slug>/maps/<map_slug>/heroes")
+def list_map_heroes(game_slug, map_slug):
+    page, size, error = page_args()
+    if error: return error
+    game = game_or_404(game_slug)
+    if not game: return error_response("RESOURCE_NOT_FOUND", "请求的资源不存在。", 404)
+    game_map = db.session.scalar(db.select(GameMap).where(GameMap.game_id == game.id, GameMap.slug == map_slug, GameMap.review_status == "approved", GameMap.current_status != "retired"))
+    if not game_map: return error_response("RESOURCE_NOT_FOUND", "请求的资源不存在。", 404)
+    guides = db.select(GameGuide.hero_id.label("hero_id"), func.count(GameGuide.id).label("guide_count")).where(GameGuide.game_id == game.id, GameGuide.map_id == game_map.id, GameGuide.status == "published", GameGuide.guide_scope == "hero_map").group_by(GameGuide.hero_id).subquery()
+    stmt = db.select(GameHero, func.coalesce(guides.c.guide_count, 0).label("guide_count")).outerjoin(guides, guides.c.hero_id == GameHero.id).where(GameHero.game_id == game.id, GameHero.status == "active", GameHero.review_status == "approved")
+    query = request.args.get("query", "").strip()
+    if query:
+        try: query = normalize_search_query(query)
+        except ValueError as exc: return validation_error([field_error("query", "invalid_length", str(exc))])
+        stmt = stmt.where(GameHero.search_text.ilike(f"%{escape_like(query)}%", escape="\\"))
+    role = request.args.get("role")
+    if role: stmt = stmt.where(GameHero.role == role)
+    with_guides = request.args.get("with_guides")
+    if with_guides not in {None, "", "true", "false"}: return validation_error([field_error("with_guides", "invalid_choice", "筛选值不合法。")])
+    if with_guides == "true": stmt = stmt.where(func.coalesce(guides.c.guide_count, 0) > 0)
+    total = db.session.scalar(db.select(func.count()).select_from(stmt.subquery()))
+    rows = db.session.execute(stmt.options(joinedload(GameHero.game), joinedload(GameHero.avatar_media)).order_by(func.coalesce(guides.c.guide_count, 0).desc(), GameHero.name_zh.asc(), GameHero.id.asc()).offset((page - 1) * size).limit(size)).unique().all()
+    data = [{**hero_dict(hero), "guide_count": int(count or 0), "has_guides": bool(count)} for hero, count in rows]
+    return success_response(data, meta=meta(page, size, total))
 
 def check_entity_name(game_slug, model, kind):
     game = game_or_404(game_slug); token = normalize_name(request.args.get("name", ""))
@@ -175,7 +210,7 @@ def get_entity(game_slug, model, entity_slug, kind):
     if kind == "hero": stmt = stmt.where(model.status == "active", model.review_status == "approved"); options = (joinedload(model.game), joinedload(model.avatar_media))
     else: stmt = stmt.where(model.review_status == "approved", model.current_status != "retired"); options = (joinedload(model.game), joinedload(model.cover_media))
     item = db.session.scalar(stmt.options(*options))
-    return success_response(hero_dict(item) if kind == "hero" else map_dict(item)) if item else error_response("RESOURCE_NOT_FOUND", "请求的资源不存在。", 404)
+    return success_response(hero_dict(item) if kind == "hero" else map_dict(item, map_stats([item.id]))) if item else error_response("RESOURCE_NOT_FOUND", "请求的资源不存在。", 404)
 
 def write_entity(model, kind, entity=None, game=None):
     user = require_admin()

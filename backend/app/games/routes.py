@@ -288,7 +288,11 @@ def write_entity(model, kind, entity=None, game=None):
     except LookupError: return error_response("RESOURCE_NOT_FOUND", "请求的图片不存在。", 404)
     except (ValueError, PermissionError): return error_response("RESOURCE_CONFLICT", "图片不可用于当前目录。", 409)
     if kind == "game" and media.get("icon_media_id") and media.get("cover_media_id") and media["icon_media_id"].id == media["cover_media_id"].id: return validation_error([field_error("cover_media_id", "duplicate", "图标和封面不能使用同一图片。")])
-    old_media = []
+    previous_media = {
+        field: getattr(entity, media_attribute[field], None)
+        for field in media_fields
+    } if entity else {}
+    old_media = {}
     try:
         before = {field: getattr(entity, field) for field in updates} if entity else None
         if entity is None:
@@ -296,7 +300,8 @@ def write_entity(model, kind, entity=None, game=None):
             entity.normalized_name, entity.search_text, entity.aliases = normalize_name(name_zh), search_text(name_zh, name_en, aliases), aliases
             db.session.add(entity); db.session.flush()
         else:
-            for field, value in updates.items(): setattr(entity, field, value)
+            for field, value in updates.items():
+                if field not in media_fields: setattr(entity, field, value)
             entity.normalized_name, entity.search_text, entity.aliases, entity.updated_at = normalize_name(name_zh), search_text(name_zh, name_en, aliases), aliases, utcnow()
         if kind == "game":
             bindings = {"icon_media_id": "game_icon", "cover_media_id": "game_cover"}
@@ -305,11 +310,13 @@ def write_entity(model, kind, entity=None, game=None):
         else:
             bindings = {"cover_media_id": "game_map_cover"}
         for field, item in media.items():
-            previous = getattr(entity, field.replace("_id", ""), None)
-            if previous and previous.id != (item.id if item else None): old_media.append(previous)
-            setattr(entity, field, item.id if item else None)
+            previous = previous_media.get(field)
+            next_media_id = item.id if item else None
+            if previous and previous.id != next_media_id: old_media.setdefault(previous.id, previous)
+            setattr(entity, field, next_media_id)
             if item: item.bound_type, item.bound_id, item.bound_at = bindings[field], entity.id, utcnow()
-        for item in old_media: db.session.delete(item)
+        db.session.flush()
+        for item in old_media.values(): db.session.delete(item)
         from app.admin.audit import create_admin_log
         create_admin_log(user, f"catalog_{kind}_{'created' if before is None else 'updated'}", f"game_{kind}", entity.id, entity.name_zh, before, {field: getattr(entity, field) for field in updates})
         db.session.commit()
@@ -317,7 +324,7 @@ def write_entity(model, kind, entity=None, game=None):
         db.session.rollback(); return error_response("DUPLICATE_RESOURCE", "目录名称冲突。", 409)
     except Exception:
         db.session.rollback(); current_app.logger.exception("Unable to save catalog entity"); return error_response("INTERNAL_ERROR", "目录保存失败，请稍后重试。", 500)
-    for item in old_media: remove_media_files(item)
+    for item in old_media.values(): remove_media_files(item)
     refreshed = db.session.get(model, entity.id)
     return success_response(game_dict(refreshed, game_counts([refreshed.id])), 201 if request.method == "POST" else 200) if kind == "game" else success_response(hero_dict(refreshed) if kind == "hero" else map_dict(refreshed), 201 if request.method == "POST" else 200)
 

@@ -747,12 +747,14 @@
 
 .home-guide-list .guide-card a {
   display: grid;
-  grid-template-columns: 7.4rem minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .home-guide-list .guide-card__media {
-  min-height: 100%;
+  min-height: 0;
+  align-self: start;
   aspect-ratio: auto;
+  background: transparent;
 }
 
 .home-guide-list .guide-card > a > div:last-child {
@@ -943,10 +945,6 @@
 
   .home-module-card__footer span:nth-child(3) {
     display: none;
-  }
-
-  .home-guide-list .guide-card a {
-    grid-template-columns: 5.75rem minmax(0, 1fr);
   }
 
   .home-final-entry__actions,

@@ -58,7 +58,8 @@
 .catalog-card--map .catalog-card__media { overflow:visible; aspect-ratio:auto; background:transparent; }
 .catalog-card--rotated_out { border-style:dashed; }
 .map-detail-hero { display:grid; grid-template-columns:minmax(18rem,1.05fr) minmax(17rem,.95fr); gap:clamp(1.25rem,4vw,3rem); align-items:center; margin:1.25rem 0 2rem; }
-.map-detail-hero__media { position:relative; min-height:22rem; overflow:hidden; aspect-ratio:4/3; border:1px solid var(--color-border); border-radius:var(--radius-xl); background:var(--color-game-soft); }
+.map-detail-hero__media { position:relative; overflow:hidden; border:1px solid var(--color-border); border-radius:var(--radius-xl); background:transparent; }
+.map-detail-hero__media--empty { min-height:22rem; background:var(--color-game-soft); }
 .map-detail-hero__body { display:grid; justify-items:start; gap:.75rem; }
 .map-detail-hero__body h1,.map-detail-hero__body p { margin:0; }
 .map-status { display:inline-flex; padding:.3rem .65rem; border-radius:999px; background:var(--color-game-soft); color:var(--color-game); font-size:.78rem; }
@@ -75,5 +76,5 @@
 .catalog-toolbar__check { display:flex!important; grid-template-columns:auto 1fr!important; align-items:center; min-height:2.75rem; }
 .catalog-toolbar__check input { min-height:auto; }
 @media (max-width:900px) { .hero-picker__grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
-@media (max-width:760px) { .catalog-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }.games-directory-grid,.catalog-grid--maps { grid-template-columns:1fr; }.game-hero,.map-detail-hero { grid-template-columns:1fr; }.game-hero__media,.game-hero__placeholder { min-height:13rem; }.map-detail-hero__media { min-height:15rem; }.hero-picker__grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:760px) { .catalog-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }.games-directory-grid,.catalog-grid--maps { grid-template-columns:1fr; }.game-hero,.map-detail-hero { grid-template-columns:1fr; }.game-hero__media,.game-hero__placeholder { min-height:13rem; }.map-detail-hero__media--empty { min-height:15rem; }.hero-picker__grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media (max-width:460px) { .catalog-grid,.hero-picker__grid { grid-template-columns:1fr; }.catalog-toolbar>* { width:100%; }.game-card__stats { grid-template-columns:1fr; }.game-card__stats span { grid-template-columns:auto 1fr; gap:.35rem; align-items:baseline; }.catalog-page-header__stats,.game-point-summary { display:grid; } }

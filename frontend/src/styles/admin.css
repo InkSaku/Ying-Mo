@@ -624,12 +624,15 @@
 
 .admin-game-card__cover {
   display: grid;
-  min-height: 11rem;
-  aspect-ratio: 16 / 7;
   place-items: center;
   overflow: hidden;
-  background: linear-gradient(135deg, var(--color-primary-soft), var(--color-bg-soft));
+  background: transparent;
   color: var(--color-text-subtle);
+}
+
+.admin-game-card__cover--empty {
+  min-height: 11rem;
+  background: linear-gradient(135deg, var(--color-primary-soft), var(--color-bg-soft));
 }
 
 .admin-game-card__content {

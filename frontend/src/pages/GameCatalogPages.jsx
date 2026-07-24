@@ -108,6 +108,7 @@ export function GameMapDetailPage() {
   }
 
   const map = mapState.data
+  const mapCover = map?.cover_url || map?.cover_thumbnail_url
   const heroEmpty = search.get('query') || role || only
     ? '没有符合当前筛选条件的英雄。'
     : '这款游戏还没有可用英雄。'
@@ -117,7 +118,7 @@ export function GameMapDetailPage() {
     <State state={mapState} resource="地图">
       {map && <>
         <header className="map-detail-hero">
-          <div className="map-detail-hero__media">{map.cover_url || map.cover_thumbnail_url ? <AdaptiveMedia src={map.cover_url || map.cover_thumbnail_url} alt={`${map.name_zh}封面`} fit="contain" loading="eager" /> : <CatalogPlaceholder label={map.name_zh} />}</div>
+          <div className={`map-detail-hero__media${mapCover ? '' : ' map-detail-hero__media--empty'}`}>{mapCover ? <AdaptiveMedia src={mapCover} alt={`${map.name_zh}封面`} fit="natural" loading="eager" /> : <CatalogPlaceholder label={map.name_zh} />}</div>
           <div className="map-detail-hero__body">
             <p className="eyebrow">{map.game.name_zh} · {map.map_type || '未标注地图类型'}</p>
             <h1>{map.name_zh}</h1>

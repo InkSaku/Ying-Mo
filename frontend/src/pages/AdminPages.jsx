@@ -593,7 +593,7 @@ function AdminCatalogPage() {
     {editing?.type === 'game' && <CatalogEditor type="game" item={editing.item} onClose={() => setEditing(undefined)} onSaved={handleSaved} />}
     <State state={gamesState}>{gamesState.data && (gamesState.data.data.length ? <div className="admin-game-grid">
       {gamesState.data.data.map((game) => <article className="admin-game-card" key={game.id}>
-        <div className="admin-game-card__cover">{game.cover_thumbnail_url || game.cover_url ? <AdaptiveMedia src={game.cover_thumbnail_url || game.cover_url} alt={`${game.name_zh}封面`} fit="contain" /> : <span aria-hidden="true">游戏封面</span>}</div>
+        <div className={`admin-game-card__cover${game.cover_thumbnail_url || game.cover_url ? '' : ' admin-game-card__cover--empty'}`}>{game.cover_thumbnail_url || game.cover_url ? <AdaptiveMedia src={game.cover_thumbnail_url || game.cover_url} alt={`${game.name_zh}封面`} fit="natural" /> : <span aria-hidden="true">游戏封面</span>}</div>
         <div className="admin-game-card__content">
           <div className="admin-game-card__heading">
             <div className="admin-game-card__media">{game.icon_thumbnail_url || game.icon_url ? <AdaptiveMedia src={game.icon_thumbnail_url || game.icon_url} alt="" fit="contain" /> : <span aria-hidden="true">映</span>}</div>

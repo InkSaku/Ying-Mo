@@ -52,9 +52,10 @@
 .catalog-page-header>p { color:var(--color-text-muted); }
 .catalog-page-header__stats,.game-point-summary,.catalog-card__stats { display:flex; flex-wrap:wrap; gap:.5rem 1rem; color:var(--color-text-muted); font-size:.82rem; }
 .catalog-page-header__stats span,.game-point-summary span,.catalog-card__stats span { padding:.35rem .6rem; border:1px solid var(--color-border); border-radius:999px; background:var(--color-bg-soft); }
-.catalog-grid--maps { grid-template-columns:repeat(2,minmax(0,1fr)); }
-.catalog-card--map>a { grid-template-columns:minmax(10rem,.85fr) 1.15fr; }
-.catalog-card--map .catalog-card__media { aspect-ratio:4/3; }
+.catalog-grid--maps { align-items:start; grid-template-columns:repeat(2,minmax(0,1fr)); }
+.catalog-card--map { align-self:start; }
+.catalog-card--map>a { height:auto; grid-template-columns:minmax(0,1fr); }
+.catalog-card--map .catalog-card__media { overflow:visible; aspect-ratio:auto; background:transparent; }
 .catalog-card--rotated_out { border-style:dashed; }
 .map-detail-hero { display:grid; grid-template-columns:minmax(18rem,1.05fr) minmax(17rem,.95fr); gap:clamp(1.25rem,4vw,3rem); align-items:center; margin:1.25rem 0 2rem; }
 .map-detail-hero__media { position:relative; min-height:22rem; overflow:hidden; aspect-ratio:4/3; border:1px solid var(--color-border); border-radius:var(--radius-xl); background:var(--color-game-soft); }
@@ -73,6 +74,6 @@
 .map-hero-card small { display:block; margin-top:.55rem; color:var(--color-text-subtle); }
 .catalog-toolbar__check { display:flex!important; grid-template-columns:auto 1fr!important; align-items:center; min-height:2.75rem; }
 .catalog-toolbar__check input { min-height:auto; }
-@media (max-width:900px) { .hero-picker__grid { grid-template-columns:repeat(3,minmax(0,1fr)); }.catalog-card--map>a { grid-template-columns:1fr; } }
+@media (max-width:900px) { .hero-picker__grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
 @media (max-width:760px) { .catalog-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }.games-directory-grid,.catalog-grid--maps { grid-template-columns:1fr; }.game-hero,.map-detail-hero { grid-template-columns:1fr; }.game-hero__media,.game-hero__placeholder { min-height:13rem; }.map-detail-hero__media { min-height:15rem; }.hero-picker__grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-@media (max-width:460px) { .catalog-grid,.hero-picker__grid { grid-template-columns:1fr; }.catalog-toolbar>* { width:100%; }.game-card__stats { grid-template-columns:1fr; }.game-card__stats span { grid-template-columns:auto 1fr; gap:.35rem; align-items:baseline; }.catalog-page-header__stats,.game-point-summary { display:grid; }.catalog-card--map>a { grid-template-columns:7rem 1fr; }.catalog-card--map .catalog-card__media { aspect-ratio:1; } }
+@media (max-width:460px) { .catalog-grid,.hero-picker__grid { grid-template-columns:1fr; }.catalog-toolbar>* { width:100%; }.game-card__stats { grid-template-columns:1fr; }.game-card__stats span { grid-template-columns:auto 1fr; gap:.35rem; align-items:baseline; }.catalog-page-header__stats,.game-point-summary { display:grid; } }

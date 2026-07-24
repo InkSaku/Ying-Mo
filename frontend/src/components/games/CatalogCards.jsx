@@ -33,7 +33,7 @@ export function HeroCard({ hero }) {
 export function MapCard({ map }) {
   const status = ({ active: '当前可用', rotated_out: '暂时轮换外', retired: '已退役' })[map.current_status] || map.current_status
   const cover = map.cover_thumbnail_url || map.cover_url
-  return <article className={`catalog-card catalog-card--map catalog-card--${map.current_status}`}><Link to={`/game/${map.game.slug}/map/${map.slug}`}><div className="catalog-card__media">{cover ? <AdaptiveMedia src={cover} alt={`${map.name_zh}封面`} fit="contain" /> : <CatalogPlaceholder label={map.name_zh} />}</div><div><p className="eyebrow">{map.map_type || '未分类'} · {status}</p><h3>{map.name_zh}</h3>{map.name_en && <p className="game-card__english">{map.name_en}</p>}<p>{map.description || '暂无地图说明。'}</p><div className="catalog-card__stats"><span>{map.guide_count || 0} 个点位</span><span>{map.hero_with_guides_count || 0} 位英雄已有点位</span></div></div></Link></article>
+  return <article className={`catalog-card catalog-card--map catalog-card--${map.current_status}`}><Link to={`/game/${map.game.slug}/map/${map.slug}`}><div className="catalog-card__media">{cover ? <AdaptiveMedia src={cover} alt={`${map.name_zh}封面`} fit="natural" /> : <CatalogPlaceholder label={map.name_zh} />}</div><div><p className="eyebrow">{map.map_type || '未分类'} · {status}</p><h3>{map.name_zh}</h3>{map.name_en && <p className="game-card__english">{map.name_en}</p>}<p>{map.description || '暂无地图说明。'}</p><div className="catalog-card__stats"><span>{map.guide_count || 0} 个点位</span><span>{map.hero_with_guides_count || 0} 位英雄已有点位</span></div></div></Link></article>
 }
 
 export function MapHeroCard({ hero, gameSlug, mapSlug }) {

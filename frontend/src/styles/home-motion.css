@@ -11,11 +11,13 @@
 }
 
 .home-motion-card,
-.home-motion-card > article,
-.home-motion-card > .home-life-card,
 .home-motion-card > .game-card,
 .home-motion-card > .guide-card {
   height: 100%;
+}
+
+.home-motion-card > .home-life-card {
+  height: auto;
 }
 
 .home-content-window__loaded {

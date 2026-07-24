@@ -16,15 +16,37 @@ function authorName(post) {
   return post.author?.nickname || post.author?.username || '一位记录者'
 }
 
+function coverOrientation(post) {
+  if (!post.cover_image) return 'unknown'
+
+  const width = Number(post.cover_width)
+  const height = Number(post.cover_height)
+
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return 'unknown'
+  }
+
+  const ratio = width / height
+  if (ratio >= 1.25) return 'landscape'
+  if (ratio <= 0.8) return 'portrait'
+  return 'square'
+}
+
 export default function HomeLifePostCard({ post, featured = false }) {
   const name = authorName(post)
   const title = post.title || '没有标题的日常'
   const excerpt = post.excerpt || '把这一天留在这里。'
   const context = [post.chapter?.name, post.mood].filter(Boolean).join(' · ') || '生活记录'
   const imageCount = Math.max(0, Number(post.image_count) || 0)
+  const orientation = coverOrientation(post)
+  const cardClassName = [
+    'home-life-card',
+    featured ? 'home-life-card--featured' : 'home-life-card--compact',
+    `home-life-card--${orientation}`,
+  ].join(' ')
 
   return (
-    <article className={`home-life-card ${featured ? 'home-life-card--featured' : 'home-life-card--compact'}`}>
+    <article className={cardClassName}>
       <Link
         className="home-life-card__link"
         to={`/life/post/${post.id}`}
@@ -35,7 +57,7 @@ export default function HomeLifePostCard({ post, featured = false }) {
             <AdaptiveMedia
               src={post.cover_image}
               alt={`生活照片：${title}`}
-              fit="contain"
+              fit="natural"
               width={post.cover_width}
               height={post.cover_height}
               loading={featured ? 'eager' : 'lazy'}

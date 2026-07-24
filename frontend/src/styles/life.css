@@ -8,6 +8,17 @@
   font-size: clamp(2.2rem, 6vw, 3.6rem);
 }
 
+.life-post-grid {
+  display: grid;
+  align-items: start;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.life-post-grid > * {
+  min-width: 0;
+}
+
 .life-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -364,6 +375,10 @@
 .life-detail__body { max-width: 48rem; white-space: pre-wrap; font-size: 1.08rem; line-height: 1.9; }
 .button--danger { color: #9d3e36; }
 
+@media (max-width: 900px) {
+  .life-post-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 @media (max-width: 700px) {
   .chapter-list { grid-template-columns: 1fr 1fr; }
   .life-form__pair,
@@ -371,6 +386,10 @@
   .chapter-hero__media,
   .chapter-hero__placeholder { min-height: 13rem; }
   .life-gallery__lightbox-media { height: min(72dvh, 42rem); }
+}
+
+@media (max-width: 640px) {
+  .life-post-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (max-width: 460px) {

@@ -7,6 +7,7 @@
 
 .home-life-showcase__secondary {
   display: grid;
+  align-items: start;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
   gap: 1rem;
 }
@@ -32,7 +33,7 @@
 
 .home-life-card__link {
   display: grid;
-  height: 100%;
+  height: auto;
   min-width: 0;
   color: inherit;
   text-decoration: none;
@@ -62,12 +63,21 @@
   pointer-events: none;
 }
 
-.home-life-card__media .adaptive-media {
-  background: var(--color-surface-muted);
+.home-life-card__media .adaptive-media--natural,
+.home-life-card__media .adaptive-media--natural > .adaptive-media__image {
+  width: 100%;
+  height: auto;
+  max-height: none;
+  aspect-ratio: auto;
 }
 
-.home-life-card__media .adaptive-media--contain > .adaptive-media__image {
-  object-position: center;
+.home-life-card__media .adaptive-media--natural {
+  background: transparent;
+}
+
+.home-life-card__media .adaptive-media--natural > .adaptive-media__image {
+  object-fit: initial;
+  object-position: initial;
 }
 
 .home-life-card__placeholder {
@@ -204,20 +214,34 @@
 }
 
 .home-life-card--featured .home-life-card__link {
-  min-height: 29rem;
+  align-items: start;
+  grid-template-rows: auto;
+}
+
+.home-life-card--featured.home-life-card--landscape .home-life-card__link {
   grid-template-columns: minmax(0, 1.42fr) minmax(18rem, 0.72fr);
 }
 
+.home-life-card--featured:not(.home-life-card--landscape) .home-life-card__link {
+  grid-template-columns: 1fr;
+  grid-template-rows: auto auto;
+}
+
 .home-life-card--featured .home-life-card__media {
-  min-height: 29rem;
+  min-height: 0;
 }
 
 .home-life-card--featured .home-life-card__body {
+  align-content: start;
+  background: var(--color-surface);
+  padding: clamp(1.4rem, 3vw, 2.15rem);
+}
+
+.home-life-card--featured.home-life-card--landscape .home-life-card__body {
   align-content: end;
   background:
     radial-gradient(circle at 88% 12%, var(--color-primary-veil), transparent 28%),
     var(--color-surface);
-  padding: clamp(1.4rem, 3vw, 2.15rem);
 }
 
 .home-life-card--featured .home-life-card__title {
@@ -231,29 +255,39 @@
 }
 
 .home-life-card--compact .home-life-card__link {
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto;
 }
 
 .home-life-card--compact .home-life-card__media {
-  aspect-ratio: 4 / 3;
+  min-height: 0;
+  aspect-ratio: auto;
 }
 
 .home-life-card--compact .home-life-card__title {
   font-size: 1.18rem;
 }
 
-.home-life-showcase__secondary > .home-life-card:only-child .home-life-card__link {
-  min-height: 19rem;
+.home-life-showcase__secondary
+  > .home-motion-card:only-child
+  > .home-life-card--landscape
+  .home-life-card__link {
+  align-items: start;
   grid-template-columns: minmax(0, 1.16fr) minmax(16rem, 0.84fr);
-  grid-template-rows: 1fr;
+  grid-template-rows: auto;
 }
 
-.home-life-showcase__secondary > .home-life-card:only-child .home-life-card__media {
-  min-height: 19rem;
+.home-life-showcase__secondary
+  > .home-motion-card:only-child
+  > .home-life-card--landscape
+  .home-life-card__media {
+  min-height: 0;
   aspect-ratio: auto;
 }
 
-.home-life-showcase__secondary > .home-life-card:only-child .home-life-card__body {
+.home-life-showcase__secondary
+  > .home-motion-card:only-child
+  > .home-life-card--landscape
+  .home-life-card__body {
   align-content: center;
   padding: clamp(1.25rem, 3vw, 1.8rem);
 }
@@ -267,17 +301,22 @@
 }
 
 @media (max-width: 760px) {
-  .home-life-card--featured .home-life-card__link,
-  .home-life-showcase__secondary > .home-life-card:only-child .home-life-card__link {
-    min-height: 0;
+  .home-life-card--featured.home-life-card--landscape .home-life-card__link,
+  .home-life-showcase__secondary
+    > .home-motion-card:only-child
+    > .home-life-card--landscape
+    .home-life-card__link {
     grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
+    grid-template-rows: auto auto;
   }
 
-  .home-life-card--featured .home-life-card__media,
-  .home-life-showcase__secondary > .home-life-card:only-child .home-life-card__media {
+  .home-life-card--featured.home-life-card--landscape .home-life-card__media,
+  .home-life-showcase__secondary
+    > .home-motion-card:only-child
+    > .home-life-card--landscape
+    .home-life-card__media {
     min-height: 0;
-    aspect-ratio: 16 / 10;
+    aspect-ratio: auto;
   }
 
   .home-life-card--featured .home-life-card__body {
@@ -294,8 +333,9 @@
     border-radius: var(--radius-lg);
   }
 
-  .home-life-card--compact .home-life-card__media {
-    aspect-ratio: 16 / 11;
+  .home-life-card--compact .home-life-card__media,
+  .home-life-card--featured .home-life-card__media {
+    aspect-ratio: auto;
   }
 
   .home-life-card__body,

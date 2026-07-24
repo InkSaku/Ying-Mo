@@ -12,6 +12,16 @@ SCOPES = {"game", "hero", "map", "hero_map"}
 CATEGORIES = {"deployment_position", "skill_throw", "timed_throw", "hold_position", "movement_route", "map_interaction", "other"}
 CONTENT_MODES = {"simple", "steps"}
 SIDES = {"attack", "defense", "both"}; VALIDITIES = {"unverified", "valid", "possibly_invalid", "invalid"}
+
+
+class CatalogSelectionError(LookupError):
+    def __init__(self, field, code, message):
+        super().__init__(message)
+        self.field = field
+        self.code = code
+        self.message = message
+
+
 def field_error(field, code, message): return {"field": field, "code": code, "message": message}
 def text(value, maximum, required=False):
     if value is None and not required: return None
@@ -42,10 +52,26 @@ def validate_scope(data, existing=None, creating=False):
     need_hero, need_map = {"game": (False, False), "hero": (True, False), "map": (False, True), "hero_map": (True, True)}[scope]
     if bool(hero_id) != need_hero or bool(map_id) != need_map: raise ValueError("scope")
     game = db.session.get(Game, game_id); hero = db.session.get(GameHero, hero_id) if hero_id else None; game_map = db.session.get(GameMap, map_id) if map_id else None
-    scope_changed = creating or any(field in data for field in ("game_id", "hero_id", "map_id", "guide_scope"))
-    if not game or (scope_changed and game.status != "active"): raise LookupError("game")
-    if hero and (hero.game_id != game.id or (scope_changed and (hero.status != "active" or hero.review_status != "approved"))): raise LookupError("hero")
-    if game_map and (game_map.game_id != game.id or (scope_changed and (game_map.review_status != "approved" or game_map.current_status == "retired"))): raise LookupError("map")
+    game_changed = creating or not existing or game_id != existing.game_id
+    hero_changed = creating or not existing or hero_id != existing.hero_id
+    map_changed = creating or not existing or map_id != existing.map_id
+    selection_changed = game_changed or hero_changed or map_changed
+    if not game:
+        raise CatalogSelectionError("game_id", "not_found", "所选游戏不存在。")
+    if selection_changed and game.status != "active":
+        raise CatalogSelectionError("game_id", "unavailable", "所选游戏当前不可用于发布点位。")
+    if need_hero and not hero:
+        raise CatalogSelectionError("hero_id", "not_found", "所选英雄不存在。")
+    if hero and hero.game_id != game.id:
+        raise CatalogSelectionError("hero_id", "game_mismatch", "所选英雄不属于当前游戏。")
+    if hero and hero_changed and (hero.status != "active" or hero.review_status != "approved"):
+        raise CatalogSelectionError("hero_id", "unavailable", "所选英雄当前不可用于发布点位。")
+    if need_map and not game_map:
+        raise CatalogSelectionError("map_id", "not_found", "所选地图不存在。")
+    if game_map and game_map.game_id != game.id:
+        raise CatalogSelectionError("map_id", "game_mismatch", "所选地图不属于当前游戏。")
+    if game_map and map_changed and (game_map.review_status != "approved" or game_map.current_status == "retired"):
+        raise CatalogSelectionError("map_id", "unavailable", "所选地图当前不可用于发布点位。")
     return game, hero, game_map
 def validate_steps(user, steps, content_mode="simple", existing_steps=(), draft_media_ids=()):
     if not isinstance(steps, list) or len(steps) > 20: raise ValueError("steps")

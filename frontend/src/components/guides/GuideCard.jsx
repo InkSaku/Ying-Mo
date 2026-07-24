@@ -1,5 +1,30 @@
 import { Link } from 'react-router-dom'
-const category = { deployment_position: '炮台与部署点位', skill_throw: '技能投掷', timed_throw: '开局定时投掷', hold_position: '架枪与站位', movement_route: '位移与路线', map_interaction: '地图机制与交互', other: '其他点位' }
-const validity = { unverified: '未验证', valid: '当前有效', possibly_invalid: '可能失效', invalid: '已失效' }
-function labelCategory(value) { return category[value] || value }
-export default function GuideCard({ guide }) { return <article className="guide-card"><Link to={`/guide/${guide.id}`}><div className="guide-card__media">{guide.cover_image ? <img src={guide.cover_image} alt={`${guide.title} 封面`} loading="lazy" /> : <span>映</span>}</div><div><p className="eyebrow">{labelCategory(guide.category)} · {validity[guide.validity_status]}</p><h3>{guide.title}</h3><p>{guide.map?.name_zh} · {guide.hero?.name_zh}</p>{guide.map_area && <p>{guide.map_area}{guide.side ? ` · ${guide.side === 'attack' ? '进攻方' : guide.side === 'defense' ? '防守方' : '攻防皆可'}` : ''}</p>}{guide.timing && <p>时机：{guide.timing}</p>}<p>{guide.excerpt}</p><small>{guide.author.nickname} · {guide.image_count || 0} 张图片{guide.video_only ? ' · 视频' : ''} · {new Date(guide.updated_at).toLocaleDateString('zh-CN')}</small></div></Link></article> }
+import { categoryLabels, validityLabels } from './guideLabels.js'
+
+function sideLabel(side) {
+  return side === 'attack' ? '进攻方' : side === 'defense' ? '防守方' : side === 'both' ? '攻防皆可' : ''
+}
+
+export default function GuideCard({ guide }) {
+  return <article className={`guide-card guide-card--${guide.validity_status}`}>
+    <Link to={`/guide/${guide.id}`}>
+      <div className="guide-card__media">{guide.cover_image ? <img src={guide.cover_image} alt={`${guide.title}封面`} loading="lazy" /> : <span role="img" aria-label={`${guide.title}暂无图片`}>映</span>}</div>
+      <div className="guide-card__body">
+        <p className="eyebrow">{categoryLabels[guide.category] || guide.category}</p>
+        <h3>{guide.title}</h3>
+        <p className="guide-card__context">{guide.map?.name_zh} · {guide.hero?.name_zh}</p>
+        <div className="guide-card__facts">
+          {guide.map_area && <span>{guide.map_area}</span>}
+          {guide.side && <span>{sideLabel(guide.side)}</span>}
+          {guide.timing && <span>时机：{guide.timing}</span>}
+        </div>
+        <p className={`guide-validity guide-validity--${guide.validity_status}`}>{validityLabels[guide.validity_status] || guide.validity_status}</p>
+        <p className="guide-card__excerpt">{guide.excerpt}</p>
+        <footer className="guide-card__footer">
+          <span>{guide.author.nickname} · 更新于 {new Date(guide.updated_at).toLocaleDateString('zh-CN')}</span>
+          <span>赞 {guide.like_count || 0} · 收藏 {guide.favorite_count || 0}</span>
+        </footer>
+      </div>
+    </Link>
+  </article>
+}

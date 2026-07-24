@@ -481,6 +481,23 @@ python -m flask --app run.py db upgrade
 
 不要通过手工修改生产数据库来替代迁移文件。
 
+### 本地游戏目录样例
+
+仓库提供 `backend/data/overwatch_catalog.local.json`，仅用于本地开发和端到端链路验收。它只包含少量 PRD 示例英雄与地图，不是完整或正式的《守望先锋》目录，也不会在应用启动时自动写入数据库。
+
+先创建一个内容管理员或系统管理员账号，再显式执行：
+
+```bash
+cd backend
+source .venv/bin/activate
+
+python -m flask --app run.py import-overwatch-catalog \
+  --path data/overwatch_catalog.local.json \
+  --admin 管理员用户名
+```
+
+导入命令可重复执行：已有游戏、地图和英雄会按稳定 slug 更新，不会重复创建，也不会删除本次 JSON 中未列出的历史目录。
+
 ---
 
 ## 🧭 当前阶段

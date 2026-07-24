@@ -24,7 +24,7 @@ export const restoreContent = (type, id) => send('post', `/admin/content/${type}
 export const deleteAdminContent = (type, id, payload) => send('delete', `/admin/content/${type}/${id}`, payload)
 export const featureContent = (type, id, payload) => send('post', `/admin/content/${type}/${id}/feature`, payload)
 export const unfeatureContent = (type, id) => send('delete', `/admin/content/${type}/${id}/feature`)
-export const markGuideInvalid = (id) => send('post', `/admin/guides/${id}/mark-invalid`)
+export const markGuideInvalid = (id, payload) => send('post', `/admin/guides/${id}/mark-invalid`, payload)
 export const updateGuideValidity = (id, payload) => send('patch', `/admin/guides/${id}/validity`, payload)
 export const updateGuideMetadata = (id, payload) => send('patch', `/admin/guides/${id}/metadata`, payload)
 export const bulkMarkGuidesPossiblyInvalid = (payload) => send('post', '/admin/guides/bulk-possibly-invalid', payload)

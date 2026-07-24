@@ -284,7 +284,8 @@ function AdminContentPage() {
   const loader = tab === 'life' ? admin.getAdminLifePosts : tab === 'guide' ? admin.getAdminGuides : tab === 'comment' ? admin.getAdminComments : null
   const [state, load] = useLoad(() => tab === 'featured' ? admin.getAdminFeatured() : loader({ page_size: 50, query, status }), [tab, query, status])
   const [dialog, setDialog] = useDialog()
-  const [bulk, setBulk] = useState({ game_id: '', map_id: '', hero_id: '' })
+  const [bulk, setBulk] = useState({ game_id: '', map_id: '', hero_id: '', reason: '' })
+  const [bulkFeedback, setBulkFeedback] = useState({ error: '', message: '' })
   const execute = async (values) => {
     const { item, kind } = dialog
     const type = tab === 'life' ? 'life_post' : 'game_guide'
@@ -339,7 +340,29 @@ function AdminContentPage() {
         </div>
       </article>)}
     </div></State>
-    {tab === 'guide' && <form className="admin-filters" onSubmit={async (event) => { event.preventDefault(); await admin.bulkMarkGuidesPossiblyInvalid({ game_id: Number(bulk.game_id), ...(bulk.map_id ? { map_id: Number(bulk.map_id) } : {}), ...(bulk.hero_id ? { hero_id: Number(bulk.hero_id) } : {}), reason: '目录或版本更新后批量复核', confirmation: 'BULK_POSSIBLY_INVALID' }); load() }}><input required placeholder="游戏 ID" value={bulk.game_id} onChange={(event) => setBulk({ ...bulk, game_id: event.target.value })} /><input placeholder="地图 ID（至少地图或英雄其一）" value={bulk.map_id} onChange={(event) => setBulk({ ...bulk, map_id: event.target.value })} /><input placeholder="英雄 ID（至少地图或英雄其一）" value={bulk.hero_id} onChange={(event) => setBulk({ ...bulk, hero_id: event.target.value })} /><button>批量标记可能失效</button></form>}
+    {tab === 'guide' && <section className="admin-governance-bulk">
+      <h3>按目录批量标记可能失效</h3>
+      <p>适用于版本、地图轮换或英雄调整后发起复核。不会删除任何历史点位。</p>
+      <form className="admin-filters" onSubmit={async (event) => {
+        event.preventDefault()
+        setBulkFeedback({ error: '', message: '' })
+        try {
+          const result = await admin.bulkMarkGuidesPossiblyInvalid({ game_id: Number(bulk.game_id), ...(bulk.map_id ? { map_id: Number(bulk.map_id) } : {}), ...(bulk.hero_id ? { hero_id: Number(bulk.hero_id) } : {}), reason: bulk.reason, confirmation: 'BULK_POSSIBLY_INVALID' })
+          setBulkFeedback({ error: '', message: result.already_processed ? '这次批量操作已经处理过，没有重复执行。' : `已标记 ${result.updated} 个点位为可能失效。` })
+          load()
+        } catch (error) {
+          setBulkFeedback({ error: error.message, message: '' })
+        }
+      }}>
+        <input aria-label="批量操作游戏 ID" required placeholder="游戏 ID" value={bulk.game_id} onChange={(event) => setBulk({ ...bulk, game_id: event.target.value })} />
+        <input aria-label="批量操作地图 ID" placeholder="地图 ID（至少地图或英雄其一）" value={bulk.map_id} onChange={(event) => setBulk({ ...bulk, map_id: event.target.value })} />
+        <input aria-label="批量操作英雄 ID" placeholder="英雄 ID（至少地图或英雄其一）" value={bulk.hero_id} onChange={(event) => setBulk({ ...bulk, hero_id: event.target.value })} />
+        <textarea aria-label="批量操作原因" required placeholder="说明版本、地图或英雄发生了什么变化" value={bulk.reason} onChange={(event) => setBulk({ ...bulk, reason: event.target.value })} />
+        <button>批量标记可能失效</button>
+      </form>
+      {bulkFeedback.error && <p className="form-feedback form-feedback--error" role="alert">{bulkFeedback.error}</p>}
+      {bulkFeedback.message && <p className="form-feedback form-feedback--success" role="status">{bulkFeedback.message}</p>}
+    </section>}
     <AdminActionDialog
       open={Boolean(dialog)} title={dialog?.title} dangerous={dialog?.dangerous}
       fields={dialog?.kind === 'metadata' ? [{ name: 'game_id', label: '游戏 ID', required: true, value: dialog.item.game?.id }, { name: 'map_id', label: '地图 ID', required: true, value: dialog.item.map?.id }, { name: 'hero_id', label: '英雄 ID', required: true, value: dialog.item.hero?.id }, { name: 'category', label: '点位分类', type: 'select', required: true, value: dialog.item.category, options: [{ value: 'deployment_position', label: '炮台与部署点位' }, { value: 'skill_throw', label: '技能投掷' }, { value: 'timed_throw', label: '开局定时投掷' }, { value: 'hold_position', label: '架枪与站位' }, { value: 'movement_route', label: '位移与路线' }, { value: 'map_interaction', label: '地图机制与交互' }, { value: 'other', label: '其他点位' }] }, reasonField] : dialog?.kind === 'validity' ? [{ name: 'validity_status', label: '有效状态', type: 'select', required: true, value: dialog.item.validity_status, options: [{ value: 'unverified', label: '未验证' }, { value: 'valid', label: '当前有效' }, { value: 'possibly_invalid', label: '可能失效' }, { value: 'invalid', label: '已失效' }] }, reasonField] : [...(dialog?.kind === 'hide' || dialog?.dangerous ? [reasonField] : []), ...(dialog?.dangerous ? [{ name: 'confirm_text', label: '输入 DELETE 确认删除', required: true }] : [])]}
@@ -394,7 +417,20 @@ function AdminChaptersPage() {
 }
 
 function CatalogEditor({ type, item, game, onClose, onSaved }) {
-  const [form, setForm] = useState(() => ({ name_zh: item?.name_zh || '', name_en: item?.name_en || '', aliases: (item?.aliases || []).join(','), icon_media_id: undefined, cover_media_id: undefined, avatar_media_id: undefined }))
+  const [form, setForm] = useState(() => ({
+    name_zh: item?.name_zh || '',
+    name_en: item?.name_en || '',
+    aliases: (item?.aliases || []).join(','),
+    description: item?.description || '',
+    current_version: item?.current_version || '',
+    role: item?.role || '',
+    status: item?.status || 'active',
+    map_type: item?.map_type || '',
+    current_status: item?.current_status || 'active',
+    icon_media_id: undefined,
+    cover_media_id: undefined,
+    avatar_media_id: undefined,
+  }))
   const uploaded = useRef(new Map())
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -416,15 +452,26 @@ function CatalogEditor({ type, item, game, onClose, onSaved }) {
     const nameZh = form.name_zh.trim()
     if (!nameZh) throw new Error('请填写中文名。')
     const nameEn = form.name_en.trim()
-    const base = { name_zh: nameZh, name_en: nameEn || null, aliases: form.aliases.split(',').map((value) => value.trim()).filter(Boolean) }
+    const base = {
+      name_zh: nameZh,
+      name_en: nameEn || null,
+      aliases: form.aliases.split(',').map((value) => value.trim()).filter(Boolean),
+      description: form.description.trim() || null,
+    }
     let savedItem
     if (type === 'game') {
-      const payload = { ...base, ...(form.icon_media_id !== undefined ? { icon_media_id: form.icon_media_id } : {}), ...(form.cover_media_id !== undefined ? { cover_media_id: form.cover_media_id } : {}) }
+      const payload = { ...base, current_version: form.current_version.trim() || null, ...(form.icon_media_id !== undefined ? { icon_media_id: form.icon_media_id } : {}), ...(form.cover_media_id !== undefined ? { cover_media_id: form.cover_media_id } : {}) }
       savedItem = item ? await updateGame(item.id, payload) : await createGame(payload)
     } else {
       if (!game) throw new Error('请先选择所属游戏。')
       const imageKey = type === 'hero' ? 'avatar_media_id' : 'cover_media_id'
-      const payload = { ...base, ...(form[imageKey] !== undefined ? { [imageKey]: form[imageKey] } : {}) }
+      const payload = {
+        ...base,
+        ...(type === 'hero'
+          ? { role: form.role.trim() || null, status: form.status }
+          : { map_type: form.map_type.trim() || null, current_status: form.current_status }),
+        ...(form[imageKey] !== undefined ? { [imageKey]: form[imageKey] } : {}),
+      }
       if (type === 'hero') savedItem = item ? await updateGameHero(game.id, item.id, payload) : await createGameHero(game.id, payload)
       else savedItem = item ? await updateGameMap(game.id, item.id, payload) : await createGameMap(game.id, payload)
     }
@@ -437,6 +484,16 @@ function CatalogEditor({ type, item, game, onClose, onSaved }) {
     <label>中文名<input required value={form.name_zh} onChange={(event) => setForm((current) => ({ ...current, name_zh: event.target.value }))} /></label>
     <label>英文名（可选）<input value={form.name_en} placeholder="例如 Overwatch" onChange={(event) => setForm((current) => ({ ...current, name_en: event.target.value }))} /></label>
     <label>别名（可选）<input value={form.aliases} placeholder="多个别名使用逗号分隔" onChange={(event) => setForm((current) => ({ ...current, aliases: event.target.value }))} /></label>
+    <label>简介（可选）<textarea value={form.description} placeholder="用几句话说明这项目录内容" onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} /></label>
+    {type === 'game' && <label>当前版本（可选）<input value={form.current_version} placeholder="例如 2.15.0" onChange={(event) => setForm((current) => ({ ...current, current_version: event.target.value }))} /></label>}
+    {type === 'hero' && <>
+      <label>英雄定位 role（可选）<input value={form.role} placeholder="例如 support" onChange={(event) => setForm((current) => ({ ...current, role: event.target.value }))} /></label>
+      <label>英雄状态<select value={form.status} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value }))}><option value="active">可用</option><option value="inactive">停用</option></select></label>
+    </>}
+    {type === 'map' && <>
+      <label>地图类型 map_type（可选）<input value={form.map_type} placeholder="例如 hybrid" onChange={(event) => setForm((current) => ({ ...current, map_type: event.target.value }))} /></label>
+      <label>地图状态<select value={form.current_status} onChange={(event) => setForm((current) => ({ ...current, current_status: event.target.value }))}><option value="active">当前可用</option><option value="rotated_out">暂时轮换外</option><option value="retired">已退役</option></select></label>
+    </>}
     {type === 'game' && <div className="catalog-editor__images">{image('游戏图标（可选）', item?.icon_thumbnail_url || item?.icon_url, 'icon_media_id')}{image('游戏封面（可选）', item?.cover_thumbnail_url || item?.cover_url, 'cover_media_id')}</div>}
     {type === 'hero' && image('英雄头像（可选）', item?.avatar_thumbnail_url || item?.avatar_url, 'avatar_media_id')}
     {type === 'map' && image('地图封面（可选）', item?.cover_thumbnail_url || item?.cover_url, 'cover_media_id')}
@@ -452,6 +509,7 @@ function AdminCatalogPage() {
   const [gameQuery, setGameQuery] = useState('')
   const [catalogQuery, setCatalogQuery] = useState('')
   const [editing, setEditing] = useState(undefined)
+  const [statusAction, setStatusAction] = useState({ gameId: null, messages: [] })
   const [gamesState, reloadGames] = useLoad(() => admin.getAdminGames({ page_size: 50, query: gameQuery }), [gameQuery])
   const [selectedGameState, reloadSelectedGame] = useLoad(() => selectedGameId ? admin.getAdminGame(selectedGameId) : Promise.resolve(null), [String(selectedGameId || '')])
   const [catalogState, reloadCatalog] = useLoad(() => {
@@ -474,6 +532,28 @@ function AdminCatalogPage() {
   const sectionLabel = section === 'heroes' ? '英雄' : '地图'
   const sectionType = section === 'heroes' ? 'hero' : 'map'
   const openEditor = (type, item = null) => setEditing({ type, item })
+  const changeGameStatus = async (game, nextStatus) => {
+    setStatusAction({ gameId: game.id, messages: [] })
+    try {
+      await updateGame(game.id, { status: nextStatus })
+      setStatusAction({ gameId: null, messages: [] })
+      reloadGames()
+      if (selectedGameId === game.id) reloadSelectedGame()
+    } catch (requestError) {
+      const messages = requestError.details?.map((detail) => detail.message).filter(Boolean)
+      setStatusAction({ gameId: game.id, messages: messages?.length ? messages : [requestError.message] })
+    }
+  }
+  const gameStatusControls = (game) => <>
+    <button
+      className={game.status === 'inactive' ? 'button button--primary' : ''}
+      disabled={statusAction.gameId === game.id}
+      onClick={() => void changeGameStatus(game, game.status === 'active' ? 'inactive' : 'active')}
+      type="button"
+    >
+      {statusAction.gameId === game.id ? '正在保存…' : game.status === 'active' ? '停用游戏' : '启用游戏'}
+    </button>
+  </>
   const handleSaved = (savedItem) => {
     const savedEditor = editing
     setEditing(undefined)
@@ -495,12 +575,24 @@ function AdminCatalogPage() {
     {editing?.type === 'game' && <CatalogEditor type="game" item={editing.item} onClose={() => setEditing(undefined)} onSaved={handleSaved} />}
     <State state={gamesState}>{gamesState.data && (gamesState.data.data.length ? <div className="admin-game-grid">
       {gamesState.data.data.map((game) => <article className="admin-game-card" key={game.id}>
-        <div className="admin-game-card__media">{game.icon_thumbnail_url || game.icon_url ? <img src={game.icon_thumbnail_url || game.icon_url} alt="" /> : <span aria-hidden="true">映</span>}</div>
-        <div className="admin-game-card__identity"><strong>{game.name_zh}</strong>{game.name_en && <small>{game.name_en}</small>}<span>{game.current_version || '未标注版本'}</span></div>
-        <div className="admin-game-card__meta"><span>{game.status}</span><span>{game.hero_count} 位英雄</span><span>{game.map_count} 张地图</span></div>
-        <div className="admin-game-card__actions"><button onClick={() => openEditor('game', game)}>编辑游戏</button><button className="button button--primary" onClick={() => openGame(game.id)}>管理章节</button></div>
+        <div className="admin-game-card__cover">{game.cover_thumbnail_url || game.cover_url ? <img src={game.cover_thumbnail_url || game.cover_url} alt={`${game.name_zh}封面`} /> : <span aria-hidden="true">游戏封面</span>}</div>
+        <div className="admin-game-card__content">
+          <div className="admin-game-card__heading">
+            <div className="admin-game-card__media">{game.icon_thumbnail_url || game.icon_url ? <img src={game.icon_thumbnail_url || game.icon_url} alt="" /> : <span aria-hidden="true">映</span>}</div>
+            <div className="admin-game-card__identity"><strong>{game.name_zh}</strong>{game.name_en && <small>{game.name_en}</small>}<span>{game.current_version || '未标注版本'}</span></div>
+            <span className={`admin-catalog-status admin-catalog-status--${game.status}`}>{game.status === 'active' ? '已启用' : '未启用'}</span>
+          </div>
+          <p className="admin-game-card__description">{game.description || '还没有填写游戏简介。'}</p>
+          <div className="admin-game-card__meta"><span>{game.active_hero_count ?? game.hero_count} 位英雄</span><span>{game.usable_map_count ?? game.map_count} 张地图</span><span>{game.guide_count || 0} 个点位</span></div>
+          <div className={`admin-catalog-readiness ${game.catalog_ready ? 'is-ready' : 'is-blocked'}`}>
+            <strong>{game.catalog_ready ? '目录已准备完成' : '目录尚未准备完成'}</strong>
+            {!game.catalog_ready && <ul>{(game.catalog_issues || []).map((issue) => <li key={issue}>{issue}</li>)}</ul>}
+          </div>
+          {statusAction.gameId === game.id && statusAction.messages.length > 0 && <div className="form-feedback form-feedback--error" role="alert">{statusAction.messages.map((message) => <p key={message}>{message}</p>)}</div>}
+          <div className="admin-game-card__actions"><button onClick={() => openEditor('game', game)} type="button">编辑游戏</button>{gameStatusControls(game)}<button className="button button--primary" onClick={() => openGame(game.id)} type="button">管理游戏目录</button></div>
+        </div>
       </article>)}
-    </div> : <p className="state-message">还没有游戏目录。创建第一款游戏后，再为它补充英雄和地图。</p>)}</State>
+    </div> : <p className="state-message">还没有游戏目录。创建第一款游戏后，再为它补充地图和英雄。</p>)}</State>
   </section>
 
   if (selectedGameState.loading) return <section className="admin-page admin-game-workspace"><p className="state-message">正在加载游戏目录…</p></section>
@@ -510,11 +602,15 @@ function AdminCatalogPage() {
   return <section className="admin-page admin-game-workspace">
     <button className="admin-game-workspace__back" onClick={closeWorkspace}>返回游戏目录</button>
     <header className="admin-game-header">
-      <div className="admin-game-header__identity">
-        <div className="admin-game-header__icon">{selectedGame.icon_thumbnail_url || selectedGame.icon_url ? <img src={selectedGame.icon_thumbnail_url || selectedGame.icon_url} alt="" /> : <span aria-hidden="true">映</span>}</div>
-        <div className="admin-game-header__meta"><p>当前正在管理：{selectedGame.name_zh}</p><h2>{selectedGame.name_zh}</h2>{selectedGame.name_en && <span>{selectedGame.name_en}</span>}<small>{selectedGame.current_version || '未标注版本'} · {selectedGame.status} · {selectedGame.hero_count} 位英雄 · {selectedGame.map_count} 张地图</small></div>
+      <div className="admin-game-header__cover">{selectedGame.cover_thumbnail_url || selectedGame.cover_url ? <img src={selectedGame.cover_thumbnail_url || selectedGame.cover_url} alt={`${selectedGame.name_zh}封面`} /> : <span aria-hidden="true">游戏目录</span>}</div>
+      <div className="admin-game-header__body">
+        <div className="admin-game-header__identity">
+          <div className="admin-game-header__icon">{selectedGame.icon_thumbnail_url || selectedGame.icon_url ? <img src={selectedGame.icon_thumbnail_url || selectedGame.icon_url} alt="" /> : <span aria-hidden="true">映</span>}</div>
+          <div className="admin-game-header__meta"><p>当前正在管理：{selectedGame.name_zh}</p><h2>{selectedGame.name_zh}</h2>{selectedGame.name_en && <span>{selectedGame.name_en}</span>}<small>{selectedGame.current_version || '未标注版本'} · {selectedGame.status === 'active' ? '已启用' : '未启用'} · {selectedGame.active_hero_count ?? selectedGame.hero_count} 位英雄 · {selectedGame.usable_map_count ?? selectedGame.map_count} 张地图 · {selectedGame.guide_count || 0} 个点位</small></div>
+        </div>
+        <div className="admin-game-header__actions"><button onClick={() => openEditor('game', selectedGame)} type="button">编辑游戏</button>{gameStatusControls(selectedGame)}</div>
+        {statusAction.gameId === selectedGame.id && statusAction.messages.length > 0 && <div className="form-feedback form-feedback--error" role="alert">{statusAction.messages.map((message) => <p key={message}>{message}</p>)}</div>}
       </div>
-      <button onClick={() => openEditor('game', selectedGame)}>编辑游戏</button>
     </header>
     <div className="admin-game-sections account-tabs" aria-label="游戏目录分类">
       <button aria-pressed={section === 'heroes'} onClick={() => { setEditing(undefined); updateSearch({ section: 'heroes' }) }}>英雄</button>
@@ -527,11 +623,11 @@ function AdminCatalogPage() {
       <State state={catalogState}>{catalogState.data && (catalogState.data.data.length ? <div className="admin-catalog-items">
         {catalogState.data.data.map((item) => <article className="admin-catalog-item" key={item.id}>
           <div className="admin-catalog-item__image">{(section === 'heroes' ? item.avatar_thumbnail_url || item.avatar_url : item.cover_thumbnail_url || item.cover_url) ? <img src={section === 'heroes' ? item.avatar_thumbnail_url || item.avatar_url : item.cover_thumbnail_url || item.cover_url} alt="" /> : <span aria-hidden="true">映</span>}</div>
-          <div className="admin-catalog-item__body"><strong>{item.name_zh}</strong>{item.name_en && <small>{item.name_en}</small>}<span>{section === 'heroes' ? item.role || '未标注定位' : item.map_type || '未标注类型'}</span></div>
+          <div className="admin-catalog-item__body"><strong>{item.name_zh}</strong>{item.name_en && <small>{item.name_en}</small>}<span>{section === 'heroes' ? item.role || '未标注定位' : item.map_type || '未标注类型'}</span><small>关联历史点位 {item.guide_count || 0} 个</small>{item.guide_count > 0 && (section === 'heroes' ? item.status === 'inactive' : item.current_status === 'retired') && <small className="admin-catalog-item__warning">历史点位仍保留，可在内容管理中批量标记可能失效。</small>}</div>
           <div className="admin-catalog-item__status"><span>{section === 'heroes' ? item.status : item.current_status}</span><span>{item.review_status}</span></div>
           <div className="admin-catalog-item__actions"><button onClick={() => openEditor(sectionType, item)}>编辑</button></div>
         </article>)}
-      </div> : <p className="state-message">{section === 'heroes' ? <>这款游戏还没有英雄。创建第一个英雄后，用户发布教材时就可以选择它。</> : <>这款游戏还没有地图。创建第一张地图后，用户发布教材时就可以选择它。</>}</p>)}</State>
+      </div> : <p className="state-message">{section === 'heroes' ? <>这款游戏还没有英雄。添加英雄后，玩家才能发布对应点位。</> : <>这款游戏还没有地图。添加地图后，玩家才能按地图查找点位。</>}</p>)}</State>
     </section>
   </section>
 }
@@ -560,4 +656,4 @@ function AdminLogsPage() {
   </section>
 }
 
-export { AdminCatalogPage, AdminChaptersPage, AdminContentPage, AdminDashboardPage, AdminLogsPage, AdminReportDetailPage, AdminReportsPage, AdminUserDetailPage, AdminUsersPage }
+export { AdminCatalogPage, AdminChaptersPage, AdminContentPage, AdminDashboardPage, AdminLogsPage, AdminReportDetailPage, AdminReportsPage, AdminUserDetailPage, AdminUsersPage, CatalogEditor }

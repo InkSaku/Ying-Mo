@@ -135,7 +135,11 @@
   color: var(--color-text-muted);
 }
 
-.life-images__grid,
+.life-images__grid {
+  display: grid;
+  gap: 1rem;
+}
+
 .chapter-list {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -151,18 +155,35 @@
   padding: .5rem;
 }
 
-.life-images__item img,
-.life-images__item .image-placeholder {
+.life-images__preview {
   width: 100%;
-  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
   border-radius: .5rem;
-  object-fit: cover;
+  background: var(--color-surface-muted);
 }
 
-.life-images__item div {
+.life-images__preview .image-placeholder {
+  display: grid;
+  width: 100%;
+  min-height: 10rem;
+  place-items: center;
+}
+
+.life-images__caption,
+.life-images__item-actions {
   display: flex;
   flex-wrap: wrap;
   gap: .25rem;
+}
+
+.life-images__caption {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.life-images__caption small {
+  color: var(--color-text-subtle);
 }
 
 .life-images__item button {
@@ -186,12 +207,10 @@
   transform: translateY(-2px);
 }
 
-.chapter-list__item img,
 .chapter-list__item > span {
   width: 6rem;
   height: 6rem;
   border-radius: .5rem;
-  object-fit: cover;
 }
 
 .chapter-list__item > span,
@@ -201,6 +220,21 @@
   background: var(--color-primary-soft);
   color: var(--color-primary-dark);
   font-size: 2rem;
+}
+
+.chapter-list__cover,
+.chapter-hero__media {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-muted);
+}
+
+.chapter-hero__media {
+  width: 100%;
+  min-height: 18rem;
+  aspect-ratio: 16 / 10;
+  border-radius: var(--radius-lg);
 }
 
 .chapter-list__item p {
@@ -221,12 +255,10 @@
   margin-bottom: var(--space-3);
 }
 
-.chapter-hero img,
 .chapter-hero__placeholder {
   width: 100%;
   min-height: 18rem;
   border-radius: var(--radius-lg);
-  object-fit: cover;
 }
 
 .life-facts {
@@ -265,67 +297,21 @@
   margin-bottom: var(--space-3);
 }
 
-.life-gallery__viewer {
-  position: relative;
+.life-gallery__flow {
   display: grid;
-  place-items: center;
+  gap: var(--space-2);
+}
+
+.life-gallery__photo {
+  display: block;
+  width: 100%;
+  min-height: 0;
   overflow: hidden;
-  min-height: min(68vh, 48rem);
+  padding: 0;
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-surface-muted);
 }
-
-.life-gallery__main {
-  display: grid;
-  width: 100%;
-  height: 100%;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-}
-
-.life-gallery__main img {
-  width: 100%;
-  height: min(68vh, 48rem);
-  object-fit: contain;
-}
-
-.life-gallery__previous,
-.life-gallery__next,
-.life-gallery__count {
-  position: absolute;
-  bottom: 1rem;
-}
-
-.life-gallery__previous { left: 1rem; }
-.life-gallery__next { right: 1rem; }
-.life-gallery__count {
-  left: 50%;
-  transform: translateX(-50%);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-text) 74%, transparent);
-  color: var(--color-surface);
-  padding: .35rem .65rem;
-}
-
-.life-gallery__thumbs {
-  display: flex;
-  gap: .5rem;
-  overflow-x: auto;
-  padding-top: .75rem;
-}
-
-.life-gallery__thumbs button {
-  flex: 0 0 4.5rem;
-  padding: 0;
-  border: 2px solid transparent;
-  border-radius: .5rem;
-  overflow: hidden;
-}
-
-.life-gallery__thumbs button.is-current { border-color: var(--color-primary); }
-.life-gallery__thumbs img { display: block; width: 100%; height: 4.5rem; object-fit: cover; }
 
 .life-gallery__overlay {
   position: fixed;
@@ -334,43 +320,69 @@
   display: grid;
   place-items: center;
   padding: 1rem;
-  background: color-mix(in srgb, #000 80%, transparent);
+  background: var(--color-overlay);
+  backdrop-filter: blur(8px);
 }
 
 .life-gallery__dialog {
-  position: relative;
+  display: grid;
   width: min(100%, 76rem);
+  max-height: calc(100dvh - 2rem);
+  gap: .75rem;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  padding: .75rem;
+  box-shadow: var(--shadow-hover);
 }
 
-.life-gallery__dialog > button {
-  position: absolute;
-  z-index: 1;
-  top: .75rem;
-  right: .75rem;
+.life-gallery__dialog-actions,
+.life-gallery__navigation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
 }
 
-.life-gallery__dialog .life-gallery__viewer { min-height: 0; }
-.life-gallery__dialog .life-gallery__main img { height: calc(100vh - 4rem); }
+.life-gallery__dialog-actions span {
+  color: var(--color-text-muted);
+}
+
+.life-gallery__lightbox-media {
+  height: min(78dvh, 52rem);
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-muted);
+}
+
+.life-gallery__navigation {
+  justify-content: center;
+}
 
 .life-detail__heading { max-width: 48rem; }
 .life-detail__body { max-width: 48rem; white-space: pre-wrap; font-size: 1.08rem; line-height: 1.9; }
 .button--danger { color: #9d3e36; }
 
 @media (max-width: 700px) {
-  .life-images__grid,
   .chapter-list { grid-template-columns: 1fr 1fr; }
   .life-form__pair,
   .chapter-hero { grid-template-columns: 1fr; }
-  .chapter-hero img,
+  .chapter-hero__media,
   .chapter-hero__placeholder { min-height: 13rem; }
-  .life-gallery__viewer,
-  .life-gallery__main img { min-height: 18rem; height: 52vh; }
+  .life-gallery__lightbox-media { height: min(72dvh, 42rem); }
 }
 
 @media (max-width: 460px) {
-  .life-images__grid,
   .chapter-list { grid-template-columns: 1fr; }
   .chapter-list__item { grid-template-columns: 5rem 1fr; }
-  .chapter-list__item img,
   .chapter-list__item > span { width: 5rem; height: 5rem; }
+  .life-gallery__overlay { padding: 0; }
+  .life-gallery__dialog {
+    min-height: 100dvh;
+    max-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+  }
+  .life-gallery__lightbox-media { height: calc(100dvh - 8.5rem); }
 }

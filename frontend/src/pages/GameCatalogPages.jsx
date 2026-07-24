@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { getGame, getGameHero, getGameHeroes, getGameMap, getGameMapHeroes, getGameMaps } from '../api/games.js'
 import { getGuides } from '../api/guides.js'
+import AdaptiveMedia from '../components/common/AdaptiveMedia.jsx'
 import { CatalogPlaceholder, HeroCard, MapCard, MapHeroCard } from '../components/games/CatalogCards.jsx'
 import GuideCard from '../components/guides/GuideCard.jsx'
 import Pagination from '../components/life/Pagination.jsx'
@@ -116,7 +117,7 @@ export function GameMapDetailPage() {
     <State state={mapState} resource="地图">
       {map && <>
         <header className="map-detail-hero">
-          <div className="map-detail-hero__media">{map.cover_url || map.cover_thumbnail_url ? <img src={map.cover_url || map.cover_thumbnail_url} alt={`${map.name_zh}封面`} /> : <CatalogPlaceholder label={map.name_zh} />}</div>
+          <div className="map-detail-hero__media">{map.cover_url || map.cover_thumbnail_url ? <AdaptiveMedia src={map.cover_url || map.cover_thumbnail_url} alt={`${map.name_zh}封面`} fit="contain" loading="eager" /> : <CatalogPlaceholder label={map.name_zh} />}</div>
           <div className="map-detail-hero__body">
             <p className="eyebrow">{map.game.name_zh} · {map.map_type || '未标注地图类型'}</p>
             <h1>{map.name_zh}</h1>
@@ -213,7 +214,7 @@ export function GamePointListPage() {
             <button type="submit">搜索</button>
           </form>
           <State state={state} empty="这个英雄在这张地图还没有点位，记录第一个实用位置吧。" resource="点位">
-            {state.data && <div className="guide-grid">{state.data.data.map((guide) => <GuideCard key={guide.id} guide={guide} />)}</div>}
+            {state.data && <div className="masonry-feed">{state.data.data.map((guide) => <GuideCard key={guide.id} guide={guide} className="masonry-feed__item" />)}</div>}
           </State>
           <Pagination pagination={state.loading ? null : state.data?.meta?.pagination} onPageChange={(next) => update({ page: String(next) })} />
         </>}

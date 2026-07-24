@@ -7,7 +7,7 @@ function ChapterCard({ chapter }) {
   return (
     <article className="chapter-card">
       <div className="chapter-card__media">
-        {chapter.cover_thumbnail_url ? <AdaptiveMedia src={chapter.cover_thumbnail_url} alt={`${chapter.name}章节封面`} /> : <span className="image-placeholder">等待一张封面照片</span>}
+        {chapter.cover_thumbnail_url ? <AdaptiveMedia src={chapter.cover_thumbnail_url} alt={`${chapter.name}章节封面`} fit="contain" /> : <span className="image-placeholder">等待一张封面照片</span>}
       </div>
       <div className="chapter-card__body">
         <p className="eyebrow">{chapter.chapter_type}</p>

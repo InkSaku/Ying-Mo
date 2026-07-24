@@ -4,10 +4,10 @@ import PageContainer from '../layout/PageContainer'
 import Reveal from '../motion/Reveal.jsx'
 import { cappedStagger } from '../../lib/motion.js'
 
-function ModuleMedia({ source, alt, fallback }) {
+function ModuleMedia({ source, alt, fallback, width, height }) {
   return (
     <span className="home-module-card__media">
-      {source ? <AdaptiveMedia src={source} alt={alt} /> : <span aria-hidden="true">{fallback}</span>}
+      {source ? <AdaptiveMedia src={source} alt={alt} fit="contain" width={width} height={height} /> : <span aria-hidden="true">{fallback}</span>}
     </span>
   )
 }
@@ -35,7 +35,7 @@ export default function ProductSpaceSection({ latestPost, latestGame }) {
                   <h3>让照片回到真实的时间和章节中</h3>
                   <p>浏览生活动态、城市与主题章节，也可以发布自己的照片记录。</p>
                 </div>
-                <ModuleMedia source={latestPost?.cover_image} alt="最新生活记录预览" fallback="生" />
+                <ModuleMedia source={latestPost?.cover_image} alt="最新生活记录预览" fallback="生" width={latestPost?.cover_width} height={latestPost?.cover_height} />
               </div>
               <div className="home-module-card__footer">
                 <span>生活动态</span><span>照片记录</span><span>主题章节</span><b aria-hidden="true">→</b>

@@ -6,6 +6,7 @@ import { createGame, createGameHero, createGameMap, updateGame, updateGameHero, 
 import { deleteUnboundImage } from '../api/uploads.js'
 import { useAuth } from '../auth/useAuth.js'
 import AdminActionDialog from '../components/admin/AdminActionDialog.jsx'
+import AdaptiveMedia from '../components/common/AdaptiveMedia.jsx'
 import ImageUploadField from '../components/upload/ImageUploadField.jsx'
 
 function useLoad(loader, deps = []) {
@@ -436,7 +437,7 @@ function CatalogEditor({ type, item, game, onClose, onSaved }) {
   const [error, setError] = useState(null)
   useEffect(() => () => { uploaded.current.forEach((publicId) => { void deleteUnboundImage(publicId).catch(() => {}) }) }, [])
   const image = (label, url, key) => <ImageUploadField
-    key={key} label={label} purpose="content" currentImageUrl={form[`${key}_url`] ?? (form[key] === undefined ? url : null)} disabled={saving}
+    key={key} label={label} purpose="content" variant={key === 'avatar_media_id' ? 'avatar' : key === 'icon_media_id' ? 'icon' : 'cover'} currentImageUrl={form[`${key}_url`] ?? (form[key] === undefined ? url : null)} disabled={saving}
     onUploaded={async (media) => {
       if (form[key] && uploaded.current.has(form[key])) { await deleteUnboundImage(uploaded.current.get(form[key])).catch(() => {}); uploaded.current.delete(form[key]) }
       uploaded.current.set(media.id, media.public_id)
@@ -575,10 +576,10 @@ function AdminCatalogPage() {
     {editing?.type === 'game' && <CatalogEditor type="game" item={editing.item} onClose={() => setEditing(undefined)} onSaved={handleSaved} />}
     <State state={gamesState}>{gamesState.data && (gamesState.data.data.length ? <div className="admin-game-grid">
       {gamesState.data.data.map((game) => <article className="admin-game-card" key={game.id}>
-        <div className="admin-game-card__cover">{game.cover_thumbnail_url || game.cover_url ? <img src={game.cover_thumbnail_url || game.cover_url} alt={`${game.name_zh}封面`} /> : <span aria-hidden="true">游戏封面</span>}</div>
+        <div className="admin-game-card__cover">{game.cover_thumbnail_url || game.cover_url ? <AdaptiveMedia src={game.cover_thumbnail_url || game.cover_url} alt={`${game.name_zh}封面`} fit="contain" /> : <span aria-hidden="true">游戏封面</span>}</div>
         <div className="admin-game-card__content">
           <div className="admin-game-card__heading">
-            <div className="admin-game-card__media">{game.icon_thumbnail_url || game.icon_url ? <img src={game.icon_thumbnail_url || game.icon_url} alt="" /> : <span aria-hidden="true">映</span>}</div>
+            <div className="admin-game-card__media">{game.icon_thumbnail_url || game.icon_url ? <AdaptiveMedia src={game.icon_thumbnail_url || game.icon_url} alt="" fit="contain" /> : <span aria-hidden="true">映</span>}</div>
             <div className="admin-game-card__identity"><strong>{game.name_zh}</strong>{game.name_en && <small>{game.name_en}</small>}<span>{game.current_version || '未标注版本'}</span></div>
             <span className={`admin-catalog-status admin-catalog-status--${game.status}`}>{game.status === 'active' ? '已启用' : '未启用'}</span>
           </div>
@@ -602,10 +603,10 @@ function AdminCatalogPage() {
   return <section className="admin-page admin-game-workspace">
     <button className="admin-game-workspace__back" onClick={closeWorkspace}>返回游戏目录</button>
     <header className="admin-game-header">
-      <div className="admin-game-header__cover">{selectedGame.cover_thumbnail_url || selectedGame.cover_url ? <img src={selectedGame.cover_thumbnail_url || selectedGame.cover_url} alt={`${selectedGame.name_zh}封面`} /> : <span aria-hidden="true">游戏目录</span>}</div>
+      <div className="admin-game-header__cover">{selectedGame.cover_thumbnail_url || selectedGame.cover_url ? <AdaptiveMedia src={selectedGame.cover_thumbnail_url || selectedGame.cover_url} alt={`${selectedGame.name_zh}封面`} fit="contain" /> : <span aria-hidden="true">游戏目录</span>}</div>
       <div className="admin-game-header__body">
         <div className="admin-game-header__identity">
-          <div className="admin-game-header__icon">{selectedGame.icon_thumbnail_url || selectedGame.icon_url ? <img src={selectedGame.icon_thumbnail_url || selectedGame.icon_url} alt="" /> : <span aria-hidden="true">映</span>}</div>
+          <div className="admin-game-header__icon">{selectedGame.icon_thumbnail_url || selectedGame.icon_url ? <AdaptiveMedia src={selectedGame.icon_thumbnail_url || selectedGame.icon_url} alt="" fit="contain" /> : <span aria-hidden="true">映</span>}</div>
           <div className="admin-game-header__meta"><p>当前正在管理：{selectedGame.name_zh}</p><h2>{selectedGame.name_zh}</h2>{selectedGame.name_en && <span>{selectedGame.name_en}</span>}<small>{selectedGame.current_version || '未标注版本'} · {selectedGame.status === 'active' ? '已启用' : '未启用'} · {selectedGame.active_hero_count ?? selectedGame.hero_count} 位英雄 · {selectedGame.usable_map_count ?? selectedGame.map_count} 张地图 · {selectedGame.guide_count || 0} 个点位</small></div>
         </div>
         <div className="admin-game-header__actions"><button onClick={() => openEditor('game', selectedGame)} type="button">编辑游戏</button>{gameStatusControls(selectedGame)}</div>
@@ -622,7 +623,7 @@ function AdminCatalogPage() {
       <form className="admin-catalog-toolbar" onSubmit={(event) => { event.preventDefault(); reloadCatalog() }}><input value={catalogQuery} onChange={(event) => setCatalogQuery(event.target.value)} placeholder={`搜索${sectionLabel}名称或别名`} /><button>筛选</button></form>
       <State state={catalogState}>{catalogState.data && (catalogState.data.data.length ? <div className="admin-catalog-items">
         {catalogState.data.data.map((item) => <article className="admin-catalog-item" key={item.id}>
-          <div className="admin-catalog-item__image">{(section === 'heroes' ? item.avatar_thumbnail_url || item.avatar_url : item.cover_thumbnail_url || item.cover_url) ? <img src={section === 'heroes' ? item.avatar_thumbnail_url || item.avatar_url : item.cover_thumbnail_url || item.cover_url} alt="" /> : <span aria-hidden="true">映</span>}</div>
+          <div className={`admin-catalog-item__image admin-catalog-item__image--${section === 'heroes' ? 'avatar' : 'cover'}`}>{(section === 'heroes' ? item.avatar_thumbnail_url || item.avatar_url : item.cover_thumbnail_url || item.cover_url) ? <AdaptiveMedia src={section === 'heroes' ? item.avatar_thumbnail_url || item.avatar_url : item.cover_thumbnail_url || item.cover_url} alt="" fit={section === 'heroes' ? 'cover' : 'contain'} /> : <span aria-hidden="true">映</span>}</div>
           <div className="admin-catalog-item__body"><strong>{item.name_zh}</strong>{item.name_en && <small>{item.name_en}</small>}<span>{section === 'heroes' ? item.role || '未标注定位' : item.map_type || '未标注类型'}</span><small>关联历史点位 {item.guide_count || 0} 个</small>{item.guide_count > 0 && (section === 'heroes' ? item.status === 'inactive' : item.current_status === 'retired') && <small className="admin-catalog-item__warning">历史点位仍保留，可在内容管理中批量标记可能失效。</small>}</div>
           <div className="admin-catalog-item__status"><span>{section === 'heroes' ? item.status : item.current_status}</span><span>{item.review_status}</span></div>
           <div className="admin-catalog-item__actions"><button onClick={() => openEditor(sectionType, item)}>编辑</button></div>

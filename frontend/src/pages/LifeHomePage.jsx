@@ -70,7 +70,7 @@ export default function LifeHomePage() {
         </div>
       )}
       {!loading && !error && posts.length === 0 && <p className="life-empty">这里还没有日常。把一张照片和今天的心情留下来吧。</p>}
-      {!loading && !error && posts.length > 0 && <div className="card-grid card-grid--three">{posts.map((post) => <LifePostCard key={post.id} post={post} />)}</div>}
+      {!loading && !error && posts.length > 0 && <div className="masonry-feed">{posts.map((post) => <LifePostCard key={post.id} post={post} className="masonry-feed__item" />)}</div>}
       <Pagination pagination={pagination} onPageChange={changePage} />
     </section>
   )

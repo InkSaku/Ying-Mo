@@ -102,7 +102,7 @@ function ChapterPreview({ chapter }) {
     <Link className="home-chapter-item" to={`/life/chapter/${chapter.slug}`}>
       <span className="home-chapter-item__cover">
         {chapter.cover_thumbnail_url
-          ? <AdaptiveMedia src={chapter.cover_thumbnail_url} alt="" />
+          ? <AdaptiveMedia src={chapter.cover_thumbnail_url} alt="" fit="contain" />
           : <span aria-hidden="true">章</span>}
       </span>
       <span className="home-chapter-item__copy">

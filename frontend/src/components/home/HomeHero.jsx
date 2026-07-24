@@ -25,7 +25,7 @@ function PostPreview({ post }) {
     <Link className="home-live-card" to={`/life/post/${post.id}`}>
       <span className="home-live-card__media">
         {post.cover_image
-          ? <AdaptiveMedia src={post.cover_image} alt={`最新生活记录：${post.title}`} loading="eager" />
+          ? <AdaptiveMedia src={post.cover_image} alt={`最新生活记录：${post.title}`} fit="contain" width={post.cover_width} height={post.cover_height} loading="eager" />
           : <span className="home-live-card__placeholder" aria-hidden="true">生</span>}
       </span>
       <span className="home-live-card__copy">

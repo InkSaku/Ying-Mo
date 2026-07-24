@@ -35,7 +35,9 @@ export default function HomeLifePostCard({ post, featured = false }) {
             <AdaptiveMedia
               src={post.cover_image}
               alt={`生活照片：${title}`}
-              fit="cover"
+              fit="contain"
+              width={post.cover_width}
+              height={post.cover_height}
               loading={featured ? 'eager' : 'lazy'}
             />
           ) : (

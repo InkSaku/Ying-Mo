@@ -1,13 +1,13 @@
 import { Link } from 'react-router-dom'
 import AdaptiveMedia from '../common/AdaptiveMedia.jsx'
 
-export default function LifePostCard({ post }) {
+export default function LifePostCard({ post, className = '' }) {
   return (
-    <article className="life-card">
+    <article className={['life-card', className].filter(Boolean).join(' ')}>
       <Link className="life-card__button" to={`/life/post/${post.id}`}>
         <span className="life-card__media">
           {post.cover_image
-            ? <AdaptiveMedia src={post.cover_image} alt={`生活照片：${post.title}`} />
+            ? <AdaptiveMedia src={post.cover_image} alt={`生活照片：${post.title}`} fit="natural" width={post.cover_width} height={post.cover_height} />
             : <span className="image-placeholder">尚未找到封面</span>}
         </span>
         <span className="life-card__body">

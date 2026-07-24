@@ -396,28 +396,10 @@
   background: var(--color-surface-muted);
 }
 
-.profile-life-card__media {
-  aspect-ratio: 4 / 3;
-}
-
 .profile-guide-card__media {
-  min-height: 11.5rem;
-  aspect-ratio: 16 / 9;
   background:
     linear-gradient(145deg, color-mix(in srgb, var(--color-game) 14%, transparent), transparent 62%),
     var(--color-game-soft);
-}
-
-.profile-guide-card__media img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 280ms ease;
-}
-
-.profile-life-card:hover .adaptive-media__image,
-.profile-guide-card:hover .profile-guide-card__media img {
-  transform: scale(1.02);
 }
 
 .profile-life-card__count,
@@ -894,8 +876,6 @@
     box-shadow: var(--shadow-card);
   }
 
-  .profile-life-card:hover .adaptive-media__image,
-  .profile-guide-card:hover .profile-guide-card__media img,
   .profile-life-card:hover .profile-life-card__footer > span:last-child,
   .profile-guide-card:hover .profile-guide-card__footer > span:last-child {
     transform: none;
@@ -910,8 +890,6 @@
 
   .profile-life-card,
   .profile-guide-card,
-  .profile-life-card .adaptive-media__image,
-  .profile-guide-card__media img,
   .profile-life-card__footer > span:last-child,
   .profile-guide-card__footer > span:last-child,
   .profile-content-discovery a span {

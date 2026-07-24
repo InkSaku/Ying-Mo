@@ -66,13 +66,8 @@
   background: var(--color-surface-muted);
 }
 
-.home-life-card__media .adaptive-media--cover > .adaptive-media__image {
+.home-life-card__media .adaptive-media--contain > .adaptive-media__image {
   object-position: center;
-  transition: transform 320ms ease;
-}
-
-.home-life-card:hover .adaptive-media--cover > .adaptive-media__image {
-  transform: scale(1.025);
 }
 
 .home-life-card__placeholder {
@@ -316,7 +311,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .home-life-card,
-  .home-life-card__media .adaptive-media--cover > .adaptive-media__image,
   .home-life-card__open {
     transition: none;
   }

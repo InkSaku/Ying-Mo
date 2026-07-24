@@ -12,7 +12,7 @@ function LifeImagePreview({ item, index }) {
 
   return (
     <div className="life-images__preview" aria-busy={loading || item.uploading}>
-      {url && <AdaptiveMedia src={url} alt={`第 ${index + 1} 张图片预览`} loading="eager" />}
+      {url && <AdaptiveMedia src={url} alt={`第 ${index + 1} 张图片预览`} fit="natural" width={item.width} height={item.height} loading="eager" />}
       {!url && <div className="image-placeholder">{error ? '预览暂时不可用' : loading ? '正在准备预览…' : '等待上传'}</div>}
     </div>
   )
@@ -117,7 +117,7 @@ export default function LifeImageManager({ value, onChange, existingIds = [], di
             </div>
             {item.uploading && <small>上传中…</small>}
             {item.error && <small className="form-feedback--error">{item.error}</small>}
-            <div>
+            <div className="life-images__item-actions">
               <button type="button" aria-label={`将第 ${index + 1} 张图片上移`} onClick={() => move(index, -1)} disabled={disabled || index === 0}>上移</button>
               <button type="button" aria-label={`将第 ${index + 1} 张图片下移`} onClick={() => move(index, 1)} disabled={disabled || index === value.length - 1}>下移</button>
               {item.error && item.file && <button type="button" disabled={disabled} onClick={() => retry(item)}>重试</button>}

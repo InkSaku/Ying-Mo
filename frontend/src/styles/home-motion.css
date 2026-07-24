@@ -69,13 +69,6 @@
   isolation: isolate;
 }
 
-.home-module-card__media img,
-.home-chapter-item__cover img,
-.home-game-grid .game-card__media img,
-.home-guide-list .guide-card__media img {
-  transition: transform 280ms var(--home-ease), filter 280ms ease;
-}
-
 .home-chapter-item {
   transition: background var(--motion-fast) ease, color var(--motion-fast) ease;
 }
@@ -276,20 +269,9 @@
     background: var(--color-primary-veil);
   }
 
-  .home-chapter-item:hover .home-chapter-item__cover img {
-    filter: saturate(1.06);
-    transform: scale(1.02);
-  }
-
   .home-chapter-item:hover .home-chapter-item__arrow,
   .home-subsection-heading > a:hover {
     transform: translateX(3px);
-  }
-
-  .home-module-card:hover .home-module-card__media img,
-  .home-game-grid .game-card:hover .game-card__media img,
-  .home-guide-list .guide-card:hover .guide-card__media img {
-    transform: scale(1.02);
   }
 
   .home-game-grid .game-card:hover {

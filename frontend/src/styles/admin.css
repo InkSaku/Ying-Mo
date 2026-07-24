@@ -632,13 +632,6 @@
   color: var(--color-text-subtle);
 }
 
-.admin-game-card__cover img,
-.admin-game-header__cover img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
 .admin-game-card__content {
   display: grid;
   gap: 0.8rem;
@@ -655,6 +648,7 @@
 .admin-game-card__media,
 .admin-game-header__icon,
 .admin-catalog-item__image {
+  position: relative;
   display: grid;
   flex: 0 0 auto;
   place-items: center;
@@ -668,14 +662,6 @@
   height: 3.25rem;
   border-radius: var(--radius-lg);
   font-size: 1.25rem;
-}
-
-.admin-game-card__media img,
-.admin-game-header__icon img,
-.admin-catalog-item__image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
 }
 
 .admin-game-card__identity {
@@ -917,6 +903,12 @@
   width: 2.8rem;
   height: 2.8rem;
   border-radius: var(--radius);
+}
+
+.admin-game-card__media,
+.admin-game-header__icon,
+.admin-catalog-item__image--cover {
+  padding: .2rem;
 }
 
 .admin-catalog-item__body {

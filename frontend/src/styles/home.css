@@ -257,12 +257,16 @@
 .life-card,
 .chapter-card,
 .guide-card {
-  overflow: hidden;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
   box-shadow: var(--shadow-card);
   transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.life-card,
+.chapter-card {
+  overflow: hidden;
 }
 
 .life-card:hover,
@@ -284,8 +288,13 @@
   text-align: left;
 }
 
-.life-card__media,
+.life-card__media {
+  display: block;
+  background: var(--color-surface-muted);
+}
+
 .chapter-card__media {
+  position: relative;
   display: grid;
   height: 14rem;
   place-items: center;
@@ -293,17 +302,8 @@
   background: var(--color-surface-muted);
 }
 
-.life-card__media img,
-.chapter-card__media img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 240ms ease;
-}
-
-.life-card:hover img,
-.chapter-card:hover img {
-  transform: scale(1.035);
+.life-card__media > .image-placeholder {
+  min-height: 10rem;
 }
 
 .life-card__body,

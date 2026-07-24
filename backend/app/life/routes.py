@@ -186,7 +186,14 @@ def post_dict(post, user=None, detail=False):
     if detail:
         data.update({"body": post.body, "images": images, "status": post.status, "moderation_reason": post.moderation_reason if user and post.author_id == user.id else None})
     else:
-        data.update({"excerpt": (post.body or "")[:160], "cover_image": images[0]["thumbnail_url"] if images else None, "image_count": len(images)})
+        cover = images[0] if images else None
+        data.update({
+            "excerpt": (post.body or "")[:160],
+            "cover_image": cover["thumbnail_url"] if cover else None,
+            "cover_width": cover["width"] if cover else None,
+            "cover_height": cover["height"] if cover else None,
+            "image_count": len(images),
+        })
     return data
 
 

@@ -1,0 +1,24 @@
+.masonry-feed {
+  columns: 3;
+  column-gap: var(--space-2);
+}
+
+.masonry-feed__item {
+  display: inline-block;
+  width: 100%;
+  margin: 0 0 var(--space-2);
+  break-inside: avoid;
+  vertical-align: top;
+}
+
+@media (max-width: 900px) {
+  .masonry-feed {
+    columns: 2;
+  }
+}
+
+@media (max-width: 640px) {
+  .masonry-feed {
+    columns: 1;
+  }
+}

@@ -6,6 +6,7 @@ import { createGuide, getGuide, updateGuide } from '../api/guides.js'
 import { createDraft, getDraft, updateDraft } from '../api/drafts.js'
 import { deleteUnboundImage, uploadImage } from '../api/uploads.js'
 import { useAuth } from '../auth/useAuth.js'
+import AdaptiveMedia from '../components/common/AdaptiveMedia.jsx'
 
 const categories = [['deployment_position', '炮台与部署点位'], ['skill_throw', '技能投掷'], ['timed_throw', '开局定时投掷'], ['hold_position', '架枪与站位'], ['movement_route', '位移与路线'], ['map_interaction', '地图机制与交互'], ['other', '其他点位']]
 const blank = { game_id: '', map_id: '', hero_id: '', guide_scope: 'hero_map', content_mode: 'simple', title: '', category: 'deployment_position', instructions: '', map_area: '', side: '', skill: '', aim_reference: '', timing: '', game_version: '', tags: [], notes: '', video_url: '', tested_at: '' }
@@ -14,6 +15,20 @@ const errorFields = new Set(['game_id', 'map_id', 'hero_id', 'title', 'category'
 function mergeOriginal(items, original) {
   if (!original || items.some((item) => item.id === original.id)) return items
   return [original, ...items]
+}
+
+function imageModel(step, media, existing) {
+  return {
+    media_id: step.media_id ?? media?.id,
+    public_id: step.public_id ?? media?.public_id,
+    url: step.url ?? media?.url,
+    thumbnail_url: step.thumbnail_url ?? media?.thumbnail_url,
+    width: step.width ?? media?.width,
+    height: step.height ?? media?.height,
+    title: step.title || '',
+    description: step.description || '',
+    existing,
+  }
 }
 
 function FieldError({ errors, field }) {
@@ -127,14 +142,7 @@ export default function GuideEditorPage({ edit = false }) {
       const steps = edit ? data.steps : (source.steps || [])
       setImages(steps.map((step) => {
         const savedMedia = media.get(step.media_id)
-        return {
-          media_id: step.media_id,
-          title: step.title || '',
-          description: step.description || '',
-          thumbnail_url: step.thumbnail_url || savedMedia?.thumbnail_url,
-          public_id: step.public_id || savedMedia?.public_id,
-          existing: true,
-        }
+        return imageModel(step, savedMedia, true)
       }))
     }).catch((reason) => setError(reason.message)).finally(() => {
       if (!cancelled) setSourceReady(true)
@@ -231,7 +239,7 @@ export default function GuideEditorPage({ edit = false }) {
       try {
         const media = await uploadImage(file)
         unboundUploads.current.add(media.public_id)
-        setImages((items) => [...items, { media_id: media.id, title: '', description: '', thumbnail_url: media.thumbnail_url, public_id: media.public_id, existing: false }])
+        setImages((items) => [...items, imageModel({ media_id: media.id }, media, false)])
         setFieldErrors((current) => {
           const next = { ...current }
           delete next.visualization
@@ -421,7 +429,7 @@ export default function GuideEditorPage({ edit = false }) {
         <FieldError errors={fieldErrors} field="visualization" />
         <FieldError errors={fieldErrors} field="steps" />
         {images.map((item, index) => <article className="guide-step-editor" key={item.media_id}>
-          {item.thumbnail_url && <img src={item.thumbnail_url} alt={`点位图片 ${index + 1}`} />}
+          {(item.thumbnail_url || item.url) && <AdaptiveMedia src={item.thumbnail_url || item.url} alt={`点位图片 ${index + 1}`} fit="natural" width={item.width} height={item.height} />}
           <input aria-label={`图片 ${index + 1} 标题`} placeholder={`图片标题${form.content_mode === 'steps' ? '（必填）' : '（可选）'}`} value={item.title} onChange={(event) => setImages((items) => items.map((value, itemIndex) => itemIndex === index ? { ...value, title: event.target.value } : value))} />
           <textarea aria-label={`图片 ${index + 1} 说明`} placeholder={`图片说明${form.content_mode === 'steps' ? '（必填）' : '（可选）'}`} value={item.description} onChange={(event) => setImages((items) => items.map((value, itemIndex) => itemIndex === index ? { ...value, description: event.target.value } : value))} />
           <div className="guide-step-editor__actions">

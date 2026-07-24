@@ -1,14 +1,15 @@
 import { Link } from 'react-router-dom'
+import AdaptiveMedia from '../common/AdaptiveMedia.jsx'
 import { categoryLabels, validityLabels } from './guideLabels.js'
 
 function sideLabel(side) {
   return side === 'attack' ? '进攻方' : side === 'defense' ? '防守方' : side === 'both' ? '攻防皆可' : ''
 }
 
-export default function GuideCard({ guide }) {
-  return <article className={`guide-card guide-card--${guide.validity_status}`}>
+export default function GuideCard({ guide, className = '' }) {
+  return <article className={['guide-card', `guide-card--${guide.validity_status}`, className].filter(Boolean).join(' ')}>
     <Link to={`/guide/${guide.id}`}>
-      <div className="guide-card__media">{guide.cover_image ? <img src={guide.cover_image} alt={`${guide.title}封面`} loading="lazy" /> : <span role="img" aria-label={`${guide.title}暂无图片`}>映</span>}</div>
+      <div className="guide-card__media">{guide.cover_image ? <AdaptiveMedia src={guide.cover_image} alt={`${guide.title}封面`} fit="natural" width={guide.cover_width} height={guide.cover_height} /> : <span className="guide-card__placeholder" role="img" aria-label={`${guide.title}暂无图片`}>映</span>}</div>
       <div className="guide-card__body">
         <p className="eyebrow">{categoryLabels[guide.category] || guide.category}</p>
         <h3>{guide.title}</h3>

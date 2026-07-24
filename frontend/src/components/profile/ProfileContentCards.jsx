@@ -43,7 +43,7 @@ export function ProfileLifeCard({ post, index, reducedMotion }) {
       <Link to={`/life/post/${post.id}`}>
         <span className="profile-life-card__media">
           {post.cover_image ? (
-            <AdaptiveMedia src={post.cover_image} alt={`生活照片：${post.title}`} fit="cover" />
+            <AdaptiveMedia src={post.cover_image} alt={`生活照片：${post.title}`} fit="natural" width={post.cover_width} height={post.cover_height} />
           ) : (
             <span className="profile-card-placeholder" aria-hidden="true">日</span>
           )}
@@ -75,7 +75,7 @@ export function ProfileGuideCard({ guide, index, reducedMotion }) {
       <Link to={`/guide/${guide.id}`}>
         <span className="profile-guide-card__media">
           {guide.cover_image ? (
-            <img src={guide.cover_image} alt={`${guide.title} 封面步骤`} loading="lazy" />
+            <AdaptiveMedia src={guide.cover_image} alt={`${guide.title} 封面步骤`} fit="natural" width={guide.cover_width} height={guide.cover_height} />
           ) : (
             <span className="profile-card-placeholder profile-card-placeholder--game" aria-hidden="true">技</span>
           )}

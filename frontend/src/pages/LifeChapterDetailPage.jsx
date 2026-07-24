@@ -47,7 +47,7 @@ export default function LifeChapterDetailPage() {
   return (
     <section className="life-page page-container">
       <div className="chapter-hero">
-        {chapter.cover_url ? <div className="chapter-hero__media"><AdaptiveMedia src={chapter.cover_url} alt={`${chapter.name} 的章节封面`} loading="eager" /></div> : <div className="chapter-hero__placeholder" aria-hidden="true">映</div>}
+        {chapter.cover_url ? <div className="chapter-hero__media"><AdaptiveMedia src={chapter.cover_url} alt={`${chapter.name} 的章节封面`} fit="contain" loading="eager" /></div> : <div className="chapter-hero__placeholder" aria-hidden="true">映</div>}
         <div>
           <p className="eyebrow">{typeLabels[chapter.chapter_type]}</p>
           <h1>{chapter.name}</h1>

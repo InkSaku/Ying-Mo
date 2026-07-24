@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { deleteGuide, getGuide, setGuideValidityFeedback } from '../api/guides.js'
 import InteractionPanel from '../components/interactions/InteractionPanel.jsx'
 import ReportButton from '../components/reports/ReportButton.jsx'
+import AdaptiveMedia from '../components/common/AdaptiveMedia.jsx'
 import { categoryLabels, validityLabels } from '../components/guides/guideLabels.js'
 
 function sideLabel(side) {
@@ -96,7 +97,7 @@ export default function GuideDetailPage() {
     {guide.steps.length > 0 && <section className="guide-detail__section">
       <h2>{guide.content_mode === 'steps' ? '分步说明' : '图片说明'}</h2>
       <div className="guide-detail__steps">{guide.steps.map((step, index) => <article className="guide-step-viewer" key={step.id}>
-        {step.url && <img src={step.url} alt={step.title || `${guide.title} 图片 ${index + 1}`} loading="lazy" />}
+        {step.url && <AdaptiveMedia src={step.url} alt={step.title || `${guide.title} 图片 ${index + 1}`} fit="natural" width={step.width} height={step.height} />}
         {step.title && <h3>{step.title}</h3>}
         {step.description && <p>{step.description}</p>}
       </article>)}</div>

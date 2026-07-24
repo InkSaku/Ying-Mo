@@ -6,17 +6,58 @@ from flask.cli import with_appcontext
 
 from app.auth.service import utcnow
 from app.extensions import db
-from app.models import Media
+from app.models import GameMap, Media
 from app.uploads.storage import file_exists, remove_media_files, upload_root
 
 
 def register_commands(app):
     app.cli.add_command(maintenance)
+    app.cli.add_command(repair_map_cover_bindings)
 
 
 @click.group()
 def maintenance():
     """Read-only audits and explicitly requested cleanup tasks."""
+
+
+@click.command("repair-map-cover-bindings")
+@click.option("--dry-run", is_flag=True, help="Report invalid bindings without changing data.")
+@with_appcontext
+def repair_map_cover_bindings(dry_run):
+    """Repair media bindings using GameMap.cover_media_id as the source of truth."""
+    try:
+        rows = db.session.execute(
+            db.select(GameMap, Media)
+            .join(Media, GameMap.cover_media_id == Media.id)
+            .where(GameMap.cover_media_id.is_not(None))
+            .order_by(GameMap.id)
+        ).all()
+        invalid = [
+            (game_map, media)
+            for game_map, media in rows
+            if media.bound_type != "game_map_cover" or media.bound_id != game_map.id
+        ]
+        click.echo(f"Scanned {len(rows)} map cover bindings.")
+        if dry_run:
+            for game_map, media in invalid:
+                click.echo(
+                    f"Map {game_map.id} ({game_map.name_zh}), media {media.id}: "
+                    f"bound_type={media.bound_type!r}, bound_id={media.bound_id!r} "
+                    f"-> bound_type='game_map_cover', bound_id={game_map.id}"
+                )
+            db.session.rollback()
+            click.echo(f"Would repair {len(invalid)} invalid map cover bindings.")
+            return
+
+        for game_map, media in invalid:
+            media.bound_type = "game_map_cover"
+            media.bound_id = game_map.id
+        db.session.commit()
+        click.echo(f"Repaired {len(invalid)} invalid map cover bindings.")
+    except Exception as error:
+        db.session.rollback()
+        current_app.logger.exception("Unable to repair map cover bindings")
+        raise click.ClickException("Failed to repair map cover bindings; no changes were committed.") from error
 
 
 @maintenance.command("audit-media")

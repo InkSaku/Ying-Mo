@@ -298,7 +298,12 @@ def write_entity(model, kind, entity=None, game=None):
         else:
             for field, value in updates.items(): setattr(entity, field, value)
             entity.normalized_name, entity.search_text, entity.aliases, entity.updated_at = normalize_name(name_zh), search_text(name_zh, name_en, aliases), aliases, utcnow()
-        bindings = {"icon_media_id": "game_icon", "cover_media_id": "game_cover", "avatar_media_id": "game_hero_avatar" if kind == "hero" else "game_map_cover"}
+        if kind == "game":
+            bindings = {"icon_media_id": "game_icon", "cover_media_id": "game_cover"}
+        elif kind == "hero":
+            bindings = {"avatar_media_id": "game_hero_avatar"}
+        else:
+            bindings = {"cover_media_id": "game_map_cover"}
         for field, item in media.items():
             previous = getattr(entity, field.replace("_id", ""), None)
             if previous and previous.id != (item.id if item else None): old_media.append(previous)

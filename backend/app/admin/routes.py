@@ -853,6 +853,102 @@ def catalog_heroes(actor):return _catalog_list(GameHero,actor)
 def catalog_maps(actor):return _catalog_list(GameMap,actor)
 
 
+@admin_bp.delete("/catalog/maps/<int:map_id>")
+@require_system_admin()
+def delete_catalog_map(actor, map_id):
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict): return _validation("请求体必须是 JSON 对象。")
+    reason = _reason(payload)
+    expected_confirmation = f"DELETE MAP {map_id}"
+    cascade_guides = payload.get("cascade_guides")
+    if not reason: return _validation("删除原因必填。")
+    if not _confirmed(payload, expected_confirmation): return _validation(f"确认词必须严格等于 {expected_confirmation}。")
+    if not isinstance(cascade_guides, bool): return _validation("cascade_guides 必须是布尔值。")
+
+    _, existing, key_error = _idempotency(actor)
+    if key_error: return key_error
+    if existing:
+        if existing.action != "catalog_map_deleted" or existing.target_type != "game_map" or existing.target_id != map_id:
+            return error_response("RESOURCE_CONFLICT", "该 Idempotency-Key 已用于其他管理员操作。", 409)
+        metadata = existing.metadata_json if isinstance(existing.metadata_json, dict) else {}
+        return success_response({"map_id": map_id, "deleted_guide_count": metadata.get("deleted_guide_count", 0)})
+
+    try:
+        game_map = db.session.scalar(
+            db.select(GameMap)
+            .where(GameMap.id == map_id)
+            .options(joinedload(GameMap.cover_media))
+        )
+        if not game_map: return _not_found()
+
+        guides = db.session.scalars(
+            db.select(GameGuide)
+            .where(GameGuide.map_id == map_id)
+            .options(*GUIDE_OPTIONS)
+            .order_by(GameGuide.id.asc())
+        ).unique().all()
+        guide_count = len(guides)
+        if guide_count and not cascade_guides:
+            return error_response(
+                "RESOURCE_CONFLICT",
+                "该地图仍有关联点位，确认级联删除后才能永久删除。",
+                409,
+                [{"field": "cascade_guides", "code": "guides_exist", "message": "地图存在关联点位。", "guide_count": guide_count}],
+            )
+
+        before = {
+            "id": game_map.id,
+            "game_id": game_map.game_id,
+            "name_zh": game_map.name_zh,
+            "name_en": game_map.name_en,
+            "slug": game_map.slug,
+            "current_status": game_map.current_status,
+            "review_status": game_map.review_status,
+            "guide_count": guide_count,
+        }
+        create_admin_log(
+            actor,
+            "catalog_map_deleted",
+            "game_map",
+            game_map.id,
+            game_map.name_zh,
+            before,
+            {"status": "deleted"},
+            {
+                "reason": reason,
+                "cascade_guides": cascade_guides,
+                "deleted_guide_count": guide_count,
+            },
+        )
+
+        guide_media = []
+        for guide in guides:
+            guide_media.extend(
+                _delete_content(
+                    "game_guide",
+                    guide,
+                    actor,
+                    action="guide_deleted_with_map",
+                    reason=reason,
+                )
+            )
+
+        cover_media = game_map.cover_media
+        db.session.delete(game_map)
+        db.session.flush()
+        if cover_media: db.session.delete(cover_media)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("Unable to permanently delete game map")
+        return error_response("INTERNAL_ERROR", "地图删除失败，请稍后重试。", 500)
+
+    for media in [*guide_media, *([cover_media] if cover_media else [])]:
+        try: remove_media_files(media)
+        except Exception: current_app.logger.exception("Unable to delete map cascade media")
+    return success_response({"map_id": map_id, "deleted_guide_count": guide_count})
+
+
 @admin_bp.get("/logs")
 @require_system_admin()
 def logs(actor):

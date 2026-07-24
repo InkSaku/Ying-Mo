@@ -376,11 +376,6 @@
   font-size: 0.83rem;
 }
 
-.guide-card {
-  display: grid;
-  grid-template-rows: 10rem 1fr;
-}
-
 .guide-card__visual--amber {
   background: linear-gradient(135deg, #65775c, #aeb98b);
 }

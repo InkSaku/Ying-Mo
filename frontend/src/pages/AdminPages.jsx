@@ -504,12 +504,14 @@ function CatalogEditor({ type, item, game, onClose, onSaved }) {
 }
 
 function AdminCatalogPage() {
+  const { user } = useAuth()
   const [search, setSearch] = useSearchParams()
   const selectedGameId = Number(search.get('game')) || null
   const section = search.get('section') === 'maps' ? 'maps' : 'heroes'
   const [gameQuery, setGameQuery] = useState('')
   const [catalogQuery, setCatalogQuery] = useState('')
   const [editing, setEditing] = useState(undefined)
+  const [deletingMap, setDeletingMap] = useState(null)
   const [statusAction, setStatusAction] = useState({ gameId: null, messages: [] })
   const [gamesState, reloadGames] = useLoad(() => admin.getAdminGames({ page_size: 50, query: gameQuery }), [gameQuery])
   const [selectedGameState, reloadSelectedGame] = useLoad(() => selectedGameId ? admin.getAdminGame(selectedGameId) : Promise.resolve(null), [String(selectedGameId || '')])
@@ -532,6 +534,7 @@ function AdminCatalogPage() {
   const selectedGame = selectedGameState.data
   const sectionLabel = section === 'heroes' ? '英雄' : '地图'
   const sectionType = section === 'heroes' ? 'hero' : 'map'
+  const deletingMapGuideCount = Number(deletingMap?.guide_count || 0)
   const openEditor = (type, item = null) => setEditing({ type, item })
   const changeGameStatus = async (game, nextStatus) => {
     setStatusAction({ gameId: game.id, messages: [] })
@@ -565,6 +568,20 @@ function AdminCatalogPage() {
       return
     }
     reloadCatalog(); reloadSelectedGame()
+  }
+  const deleteMap = async (values) => {
+    if (!deletingMap) return
+    const confirmation = `DELETE MAP ${deletingMap.id}`
+    if (values.confirm_text !== confirmation) throw new Error('确认词不匹配。')
+    await admin.deleteAdminMap(deletingMap.id, {
+      reason: values.reason,
+      confirmation,
+      cascade_guides: Number(deletingMap.guide_count || 0) > 0,
+    })
+    setDeletingMap(null)
+    setEditing((current) => current?.type === 'map' && current.item?.id === deletingMap.id ? undefined : current)
+    reloadCatalog()
+    reloadSelectedGame()
   }
 
   if (!selectedGameId) return <section className="admin-page admin-catalog-home">
@@ -626,10 +643,32 @@ function AdminCatalogPage() {
           <div className={`admin-catalog-item__image admin-catalog-item__image--${section === 'heroes' ? 'avatar' : 'cover'}`}>{(section === 'heroes' ? item.avatar_thumbnail_url || item.avatar_url : item.cover_thumbnail_url || item.cover_url) ? <AdaptiveMedia src={section === 'heroes' ? item.avatar_thumbnail_url || item.avatar_url : item.cover_thumbnail_url || item.cover_url} alt="" fit={section === 'heroes' ? 'cover' : 'contain'} /> : <span aria-hidden="true">映</span>}</div>
           <div className="admin-catalog-item__body"><strong>{item.name_zh}</strong>{item.name_en && <small>{item.name_en}</small>}<span>{section === 'heroes' ? item.role || '未标注定位' : item.map_type || '未标注类型'}</span><small>关联历史点位 {item.guide_count || 0} 个</small>{item.guide_count > 0 && (section === 'heroes' ? item.status === 'inactive' : item.current_status === 'retired') && <small className="admin-catalog-item__warning">历史点位仍保留，可在内容管理中批量标记可能失效。</small>}</div>
           <div className="admin-catalog-item__status"><span>{section === 'heroes' ? item.status : item.current_status}</span><span>{item.review_status}</span></div>
-          <div className="admin-catalog-item__actions"><button onClick={() => openEditor(sectionType, item)}>编辑</button></div>
+          <div className="admin-catalog-item__actions">
+            <button onClick={() => openEditor(sectionType, item)}>编辑</button>
+            {section === 'maps' && user?.role === 'system_admin' && <button className="button--danger" type="button" onClick={() => setDeletingMap(item)}>永久删除</button>}
+          </div>
         </article>)}
       </div> : <p className="state-message">{section === 'heroes' ? <>这款游戏还没有英雄。添加英雄后，玩家才能发布对应点位。</> : <>这款游戏还没有地图。添加地图后，玩家才能按地图查找点位。</>}</p>)}</State>
     </section>
+    <AdminActionDialog
+      open={Boolean(deletingMap)}
+      title={`永久删除地图：${deletingMap?.name_zh || ''}`}
+      description={deletingMapGuideCount > 0
+        ? `该地图关联 ${deletingMapGuideCount} 个点位。继续操作会永久删除地图、这 ${deletingMapGuideCount} 个点位、点位图片及相关互动记录，无法恢复。`
+        : '该操作会永久删除地图及其封面，无法恢复。'}
+      fields={[
+        reasonField,
+        {
+          name: 'confirm_text',
+          label: `输入 DELETE MAP ${deletingMap?.id || ''} 确认永久删除`,
+          required: true,
+        },
+      ]}
+      dangerous
+      submitLabel="永久删除"
+      onClose={() => setDeletingMap(null)}
+      onSubmit={deleteMap}
+    />
   </section>
 }
 

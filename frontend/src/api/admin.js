@@ -44,6 +44,7 @@ export const removeChapterCover = (id) => send('delete', `/admin/chapters/${id}/
 export const getAdminGames = (params) => get('/admin/catalog/games', params)
 export const getAdminHeroes = (params) => get('/admin/catalog/heroes', params)
 export const getAdminMaps = (params) => get('/admin/catalog/maps', params)
+export const deleteAdminMap = (id, payload) => send('delete', `/admin/catalog/maps/${id}`, payload)
 export const getAdminGame = async (gameId) => {
   const result = await getAdminGames({ game_id: gameId, page: 1, page_size: 1 })
   return result.data[0] || null

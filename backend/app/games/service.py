@@ -5,7 +5,7 @@ import uuid
 from sqlalchemy import or_
 
 from app.extensions import db
-from app.models import Game, GameHero, GameMap, Media, MediaPurpose, UserRole, UserStatus
+from app.models import Game, GameHero, GameMap, Media, MediaPurpose, MediaType, UserRole, UserStatus
 from app.uploads.storage import file_exists
 
 
@@ -81,7 +81,7 @@ def validate_media(user, media_id, allowed_bound_types=()):
     media = db.session.get(Media, media_id)
     if not media:
         raise LookupError("media")
-    if media.owner_id != user.id or media.purpose != MediaPurpose.CONTENT or (media.is_bound and media.bound_type not in allowed_bound_types):
+    if media.owner_id != user.id or media.purpose != MediaPurpose.CONTENT or media.media_type != MediaType.IMAGE or (media.is_bound and media.bound_type not in allowed_bound_types):
         raise PermissionError("media")
     if not file_exists(media.storage_key) or not file_exists(media.thumbnail_key):
         raise PermissionError("media")

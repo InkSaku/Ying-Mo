@@ -77,8 +77,8 @@ def create_draft():
         draft_type, payload, media_ids = _payload_and_media(request.get_json(silent=True))
         maximum = 9 if draft_type == "life_post" else 20
         if len(media_ids) > maximum:
-            raise ValueError("草稿图片数量超出限制。")
-        media = validate_draft_media(user, media_ids)
+            raise ValueError("草稿媒体数量超出限制。" if draft_type == "life_post" else "草稿图片数量超出限制。")
+        media = validate_draft_media(user, media_ids, draft_type=draft_type)
     except LookupError:
         return _error("请求的图片不存在。", 404, "RESOURCE_NOT_FOUND")
     except PermissionError:
@@ -122,9 +122,9 @@ def update_draft(draft_id):
         if draft_type != draft.draft_type:
             raise ValueError("不能修改草稿类型。")
         if len(media_ids) > (9 if draft_type == "life_post" else 20):
-            raise ValueError("草稿图片数量超出限制。")
+            raise ValueError("草稿媒体数量超出限制。" if draft_type == "life_post" else "草稿图片数量超出限制。")
         old = {link.media_id: link.media for link in draft.media_links}
-        media = validate_draft_media(user, media_ids, old)
+        media = validate_draft_media(user, media_ids, old, draft_type=draft_type)
     except LookupError:
         return _error("请求的图片不存在。", 404, "RESOURCE_NOT_FOUND")
     except PermissionError:
@@ -161,6 +161,9 @@ def remove_draft(draft_id):
     media = [link.media for link in draft.media_links]
     try:
         db.session.delete(draft)
+        db.session.flush()
+        for item in media:
+            db.session.delete(item)
         db.session.commit()
     except Exception:
         db.session.rollback()

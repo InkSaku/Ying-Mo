@@ -1,8 +1,9 @@
 import json
 
+from flask import current_app
 from app.auth.service import utcnow
 from app.extensions import db
-from app.models import ContentDraft, ContentDraftMedia, Media, MediaPurpose, UserStatus
+from app.models import ContentDraft, ContentDraftMedia, Media, MediaPurpose, MediaType, UserStatus
 from app.models.user import serialize_datetime
 from app.uploads.storage import file_exists, remove_media_files
 
@@ -33,7 +34,7 @@ def draft_dict(draft, detail=False):
         data.update({
             "payload": draft.payload or {},
             "media_ids": [link.media_id for link in draft.media_links],
-            "media": [link.media.to_dict() for link in draft.media_links],
+            "media": [{**link.media.to_dict(), "position": link.position} for link in draft.media_links],
         })
     return data
 
@@ -115,18 +116,27 @@ def validate_payload(draft_type, payload):
     return cleaned
 
 
-def validate_draft_media(user, media_ids, existing_ids=()):
+def validate_draft_media(user, media_ids, existing_ids=(), draft_type="life_post"):
     if not isinstance(media_ids, list) or len(media_ids) != len(set(media_ids)):
         raise ValueError("media")
     if any(not isinstance(item, int) or isinstance(item, bool) or item <= 0 for item in media_ids):
         raise ValueError("media")
-    media = db.session.scalars(db.select(Media).where(Media.id.in_(media_ids))).all() if media_ids else []
+    media = db.session.scalars(
+        db.select(Media)
+        .where(Media.id.in_(media_ids))
+        .order_by(Media.id)
+        .with_for_update()
+    ).all() if media_ids else []
     lookup = {item.id: item for item in media}
     if len(lookup) != len(media_ids):
         raise LookupError("media")
+    if draft_type == "life_post" and sum(item.media_type == MediaType.LIVE_VIDEO for item in media) > 3:
+        raise ValueError("每篇日常最多添加 3 个实况。")
+    if draft_type != "life_post" and any(item.media_type != MediaType.IMAGE for item in media):
+        raise PermissionError("media")
     for media_id in media_ids:
         item = lookup[media_id]
-        if item.owner_id != user.id or item.purpose != MediaPurpose.CONTENT or (item.is_bound and item.id not in existing_ids):
+        if item.owner_id != user.id or item.purpose != MediaPurpose.CONTENT or item.media_type not in MediaType.ALL or (item.is_bound and item.id not in existing_ids):
             raise PermissionError("media")
         if not file_exists(item.storage_key) or not file_exists(item.thumbnail_key):
             raise PermissionError("media")
@@ -138,7 +148,10 @@ def cleanup_media(items):
         try:
             remove_media_files(item)
         except Exception:
-            pass
+            current_app.logger.exception(
+                "Unable to remove draft media files media_id=%s",
+                item.id,
+            )
 
 
 def draft_media_ids(draft):
@@ -148,6 +161,9 @@ def draft_media_ids(draft):
 def delete_draft(draft):
     media = [link.media for link in draft.media_links]
     db.session.delete(draft)
+    db.session.flush()
+    for item in media:
+        db.session.delete(item)
     db.session.commit()
     cleanup_media(media)
 

@@ -37,4 +37,6 @@ def remove_file(storage_key):
 
 
 def remove_media_files(media):
-    return remove_file(media.storage_key) and remove_file(media.thumbnail_key)
+    storage_removed = remove_file(media.storage_key)
+    thumbnail_removed = remove_file(media.thumbnail_key)
+    return storage_removed and thumbnail_removed

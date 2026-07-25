@@ -14,11 +14,24 @@ from app.auth.service import utcnow
 from app.common.responses import error_response, success_response
 from app.common.search import escape_like, normalize_search_query
 from app.extensions import db
-from app.models import LifeChapter, LifePost, LifePostMedia, Media, MediaPurpose, User, UserStatus
+from app.models import LifeChapter, LifePost, LifePostMedia, Media, MediaPurpose, MediaType, User, UserStatus
 from app.models.user import serialize_datetime
 from app.uploads.storage import file_exists, remove_media_files
 from app.users.service import public_user_dict
 
+from .chapter_permissions import (
+    can_manage_chapter,
+    can_post_to_chapter,
+)
+from .chapter_serializers import chapter_dict, managed_chapter_dict
+from .chapter_service import (
+    CONTRIBUTION_POLICIES,
+    ChapterOperationError,
+    delete_or_merge_chapter,
+    preview_chapter_deletion,
+    resolve_chapter_cover,
+    update_chapter as update_chapter_service,
+)
 
 life_bp = Blueprint("life", __name__)
 CHAPTER_TYPES = {"city", "scenic", "travel", "campus", "event", "custom"}
@@ -79,12 +92,28 @@ def can_view_post(post, user):
 def can_read_media(media, user):
     if media.bound_type == "life_chapter_cover":
         chapter = db.session.get(LifeChapter, media.bound_id)
-        return bool(is_public_chapter(chapter) and chapter.cover_media_id == media.id)
+        return bool(
+            chapter
+            and chapter.cover_media_id == media.id
+            and (
+                is_public_chapter(chapter)
+                or can_manage_chapter(user, chapter)
+            )
+        )
     if media.bound_type == "life_post":
         link = db.session.scalar(
             db.select(LifePostMedia).options(joinedload(LifePostMedia.post)).where(LifePostMedia.media_id == media.id)
         )
-        return bool(link and can_view_post(link.post, user))
+        return bool(
+            link
+            and (
+                can_view_post(link.post, user)
+                or (
+                    user
+                    and user.role in {"content_admin", "system_admin"}
+                )
+            )
+        )
     return False
 
 
@@ -112,63 +141,27 @@ def pagination_meta(page, page_size, total):
     }
 
 
-def chapter_stats(chapter_ids, user):
+def chapter_stats(chapter_ids, user, *, include_all=False):
     if not chapter_ids:
         return {}
-    rows = db.session.execute(
+    stmt = (
         db.select(
             LifePost.chapter_id,
             func.count(LifePost.id).label("content_count"),
             func.count(func.distinct(LifePost.author_id)).label("contributor_count"),
         )
-        .where(LifePost.chapter_id.in_(chapter_ids), *visible_post_filters(user))
+        .where(LifePost.chapter_id.in_(chapter_ids))
         .group_by(LifePost.chapter_id)
-    ).all()
+    )
+    if not include_all:
+        stmt = stmt.where(*visible_post_filters(user))
+    rows = db.session.execute(stmt).all()
     return {row.chapter_id: {"content_count": row.content_count, "contributor_count": row.contributor_count} for row in rows}
-
-
-def chapter_dict(chapter, user=None, include_children=False, stats=None):
-    stats = stats or {}
-    counts = stats.get(chapter.id, {})
-    cover = chapter.cover_media
-    data = {
-        "id": chapter.id,
-        "name": chapter.name,
-        "slug": chapter.slug,
-        "chapter_type": chapter.chapter_type,
-        "description": chapter.description,
-        "country": chapter.country,
-        "province": chapter.province,
-        "city": chapter.city,
-        "cover_url": f"/api/v1/uploads/images/{cover.public_id}" if cover else None,
-        "cover_thumbnail_url": f"/api/v1/uploads/images/{cover.public_id}/thumbnail" if cover else None,
-        "parent": {"id": chapter.parent.id, "name": chapter.parent.name, "slug": chapter.parent.slug} if chapter.parent else None,
-        "content_count": counts.get("content_count", 0),
-        "contributor_count": counts.get("contributor_count", 0),
-        "creator": public_user_dict(chapter.creator),
-        "created_at": serialize_datetime(chapter.created_at),
-        "updated_at": serialize_datetime(chapter.updated_at),
-    }
-    if include_children:
-        children = [child for child in chapter.children if is_public_chapter(child)]
-        data["children"] = [chapter_dict(child, user, stats=stats) for child in children]
-    return data
 
 
 def post_dict(post, user=None, detail=False):
     links = post.media_links
-    images = [
-        {
-            "id": link.media.id,
-            "public_id": link.media.public_id,
-            "url": f"/api/v1/uploads/images/{link.media.public_id}",
-            "thumbnail_url": f"/api/v1/uploads/images/{link.media.public_id}/thumbnail",
-            "width": link.media.width,
-            "height": link.media.height,
-            "position": link.position,
-        }
-        for link in links
-    ]
+    images = [{**link.media.to_dict(), "position": link.position} for link in links]
     data = {
         "id": post.id,
         "title": post.title,
@@ -184,7 +177,7 @@ def post_dict(post, user=None, detail=False):
         "can_edit": bool(user and post.author_id == user.id),
     }
     if detail:
-        data.update({"body": post.body, "images": images, "status": post.status, "moderation_reason": post.moderation_reason if user and post.author_id == user.id else None})
+        data.update({"body": post.body, "images": images, "media": images, "status": post.status, "moderation_reason": post.moderation_reason if user and post.author_id == user.id else None})
     else:
         cover = images[0] if images else None
         data.update({
@@ -192,7 +185,11 @@ def post_dict(post, user=None, detail=False):
             "cover_image": cover["thumbnail_url"] if cover else None,
             "cover_width": cover["width"] if cover else None,
             "cover_height": cover["height"] if cover else None,
+            "cover_media_type": cover["media_type"] if cover else None,
+            "cover_duration_ms": cover["duration_ms"] if cover else None,
             "image_count": len(images),
+            "media_count": len(images),
+            "live_video_count": sum(item["media_type"] == MediaType.LIVE_VIDEO for item in images),
         })
     return data
 
@@ -216,7 +213,7 @@ def validate_post_payload(payload, creating=False):
         return None, validation_error([field_error(sorted(unknown)[0], "unknown_field", "不支持该字段。")])
     required = {"title", "chapter_id", "media_ids"}
     if creating and (required - set(payload)):
-        return None, validation_error([field_error("body", "required", "标题、章节和图片为必填项。")])
+        return None, validation_error([field_error("body", "required", "标题、章节和照片或实况为必填项。")])
     updates, errors = {}, []
     for field, maximum, label in (("title", 100, "标题"), ("body", 5000, "正文"), ("location", 100, "地点"), ("mood", 30, "心情")):
         if field not in payload:
@@ -263,25 +260,34 @@ def validate_post_payload(payload, creating=False):
         ids = payload["media_ids"]
         invalid = any(not isinstance(item, int) or isinstance(item, bool) or item <= 0 for item in ids) if isinstance(ids, list) else True
         if not isinstance(ids, list) or not 1 <= len(ids) <= 9 or invalid or len(set(ids)) != len(ids):
-            errors.append(field_error("media_ids", "invalid_format", "图片数量需为 1 至 9 张且不能重复。"))
+            errors.append(field_error("media_ids", "invalid_format", "媒体数量需为 1 至 9 个且不能重复。"))
         else:
             updates["media_ids"] = ids
     return updates, validation_error(errors) if errors else None
 
 
 def validate_media_ids(user, media_ids, existing_ids=(), draft_media_ids=()):
-    media = db.session.scalars(db.select(Media).where(Media.id.in_(media_ids))).all()
+    media = db.session.scalars(
+        db.select(Media)
+        .where(Media.id.in_(media_ids))
+        .order_by(Media.id)
+        .with_for_update()
+    ).all()
     lookup = {item.id: item for item in media}
     if len(lookup) != len(media_ids):
-        return None, error_response("RESOURCE_NOT_FOUND", "请求的图片不存在。", 404)
+        return None, error_response("RESOURCE_NOT_FOUND", "请求的媒体不存在。", 404)
+    if sum(item.media_type == MediaType.LIVE_VIDEO for item in media) > 3:
+        return None, validation_error([field_error("media_ids", "live_video_limit", "每篇日常最多添加 3 个实况。")])
     for media_id in media_ids:
         item = lookup[media_id]
         if item.owner_id != user.id:
-            return None, error_response("PERMISSION_DENIED", "无权使用该图片。", 403)
+            return None, error_response("PERMISSION_DENIED", "无权使用该媒体。", 403)
+        if item.media_type not in MediaType.ALL:
+            return None, error_response("RESOURCE_CONFLICT", "媒体类型不合法。", 409)
         if item.purpose != MediaPurpose.CONTENT or (item.id not in existing_ids and item.id not in draft_media_ids and item.is_bound):
-            return None, error_response("RESOURCE_CONFLICT", "图片不可用于当前日常。", 409)
+            return None, error_response("RESOURCE_CONFLICT", "媒体不可用于当前日常。", 409)
         if not file_exists(item.storage_key) or not file_exists(item.thumbnail_key):
-            return None, error_response("RESOURCE_CONFLICT", "图片文件不完整，无法使用。", 409)
+            return None, error_response("RESOURCE_CONFLICT", "媒体文件不完整，无法使用。", 409)
     return [lookup[item_id] for item_id in media_ids], None
 
 
@@ -397,7 +403,7 @@ def create_chapter():
         return error_response("PERMISSION_DENIED", "当前账号不能发布内容。", 403)
     if not isinstance(payload, dict):
         return validation_error([field_error("body", "invalid_format", "请求体必须是 JSON 对象。")])
-    allowed = {"name", "chapter_type", "parent_id", "country", "province", "city", "description", "cover_media_id"}
+    allowed = {"name", "chapter_type", "parent_id", "country", "province", "city", "description", "cover_media_id", "contribution_policy"}
     unknown = set(payload) - allowed
     if unknown:
         return validation_error([field_error(sorted(unknown)[0], "unknown_field", "不支持该字段。")])
@@ -405,33 +411,60 @@ def create_chapter():
     kind = payload.get("chapter_type")
     if not isinstance(name, str) or not 1 <= len(name.strip()) <= 80 or kind not in CHAPTER_TYPES:
         return validation_error([field_error("name", "invalid_format", "章节名称或类型不合法。")])
+    contribution_policy = payload.get("contribution_policy", "public")
+    if contribution_policy not in CONTRIBUTION_POLICIES:
+        return validation_error([
+            field_error(
+                "contribution_policy",
+                "invalid_choice",
+                "投稿权限只能是 public 或 private。",
+            )
+        ])
     parent_id = payload.get("parent_id")
     if parent_id is not None and (not isinstance(parent_id, int) or isinstance(parent_id, bool) or parent_id <= 0):
         return validation_error([field_error("parent_id", "invalid_type", "parent_id 必须是正整数或 null。")])
-    parent = db.session.get(LifeChapter, parent_id) if parent_id else None
+    parent = (
+        db.session.scalar(
+            db.select(LifeChapter)
+            .where(LifeChapter.id == parent_id)
+            .with_for_update()
+        )
+        if parent_id
+        else None
+    )
     if parent_id and (parent is None or parent.status != "active" or parent.review_status != "approved" or parent.parent_id is not None):
+        db.session.rollback()
         return validation_error([field_error("parent_id", "invalid_parent", "父章节必须是可用的一级章节。")])
     for field, maximum in (("country", 100), ("province", 100), ("city", 100), ("description", 500)):
         if payload.get(field) is not None and (not isinstance(payload[field], str) or len(payload[field]) > maximum):
+            db.session.rollback()
             return validation_error([field_error(field, "invalid_length", f"{field} 长度不合法。")])
     normalized = normalize_name(name)
     dedupe = f"root:{normalized}" if parent is None else f"{parent.id}:{normalized}"
     if db.session.scalar(db.select(LifeChapter.id).where(LifeChapter.dedupe_key == dedupe)):
+        db.session.rollback()
         return error_response("DUPLICATE_RESOURCE", "同层级已存在同名章节。", 409)
     cover_id = payload.get("cover_media_id")
     cover = None
     if cover_id is not None:
         if not isinstance(cover_id, int) or isinstance(cover_id, bool) or cover_id <= 0:
+            db.session.rollback()
             return validation_error([field_error("cover_media_id", "invalid_type", "cover_media_id 必须是正整数。")])
-        cover = db.session.get(Media, cover_id)
-        if cover is None:
-            return error_response("RESOURCE_NOT_FOUND", "请求的图片不存在。", 404)
-        if cover.owner_id != user.id or cover.purpose != MediaPurpose.CONTENT or cover.is_bound or not file_exists(cover.storage_key) or not file_exists(cover.thumbnail_key):
-            return error_response("RESOURCE_CONFLICT", "图片不可作为章节封面。", 409)
+        try:
+            cover = resolve_chapter_cover(user, cover_id)
+        except ChapterOperationError as error:
+            db.session.rollback()
+            return error_response(
+                error.code,
+                error.message,
+                error.status,
+                error.details,
+            )
     from app.models import UserRole
     chapter = LifeChapter(
         name=name.strip(), normalized_name=normalized, dedupe_key=dedupe, slug=chapter_slug(name), chapter_type=kind,
         parent_id=parent_id, creator_id=user.id,
+        contribution_policy=contribution_policy,
         review_status="approved" if user.role in {UserRole.CONTENT_ADMIN.value, UserRole.SYSTEM_ADMIN.value} else "pending",
         **{field: (payload.get(field) or None) for field in ("country", "province", "city", "description")},
     )
@@ -452,7 +485,12 @@ def create_chapter():
         current_app.logger.exception("Unable to create life chapter")
         return error_response("INTERNAL_ERROR", "章节创建失败，请稍后重试。", 500)
     stats = chapter_stats([chapter.id], user)
-    return success_response(chapter_dict(chapter, user, stats=stats), 201, {"location": url_for("life.get_chapter", slug=chapter.slug)})
+    data = chapter_dict(chapter, user, stats=stats)
+    data.update({
+        "status": chapter.status,
+        "review_status": chapter.review_status,
+    })
+    return success_response(data, 201, {"location": url_for("life.get_chapter", slug=chapter.slug)})
 
 
 @life_bp.get("/chapters/<slug>")
@@ -488,13 +526,16 @@ def resubmit_chapter_application(chapter_id):
     payload = request.get_json(silent=True)
     if not isinstance(payload, dict):
         return validation_error([field_error("body", "invalid_format", "请求体必须是 JSON 对象。")])
-    allowed = {"name", "chapter_type", "parent_id", "country", "province", "city", "description"}
+    allowed = {"name", "chapter_type", "parent_id", "country", "province", "city", "description", "contribution_policy"}
     if not payload or set(payload) - allowed:
         return validation_error([field_error("body", "invalid_format", "章节申请字段不合法。")])
     name = payload.get("name", chapter.name)
     kind = payload.get("chapter_type", chapter.chapter_type)
     if not isinstance(name, str) or not 1 <= len(name.strip()) <= 80 or kind not in CHAPTER_TYPES:
         return validation_error([field_error("name", "invalid_format", "章节名称或类型不合法。")])
+    contribution_policy = payload.get("contribution_policy", chapter.contribution_policy)
+    if contribution_policy not in CONTRIBUTION_POLICIES:
+        return validation_error([field_error("contribution_policy", "invalid_choice", "投稿权限只能是 public 或 private。")])
     parent_id = payload.get("parent_id", chapter.parent_id)
     if parent_id is not None and (not isinstance(parent_id, int) or isinstance(parent_id, bool) or parent_id <= 0):
         return validation_error([field_error("parent_id", "invalid_type", "父章节不合法。")])
@@ -507,7 +548,7 @@ def resubmit_chapter_application(chapter_id):
     normalized = normalize_name(name); dedupe = f"root:{normalized}" if parent_id is None else f"{parent_id}:{normalized}"
     conflict = db.session.scalar(db.select(LifeChapter.id).where(LifeChapter.dedupe_key == dedupe, LifeChapter.id != chapter.id))
     if conflict: return error_response("DUPLICATE_RESOURCE", "同层级已存在同名章节。", 409)
-    chapter.name, chapter.chapter_type, chapter.parent_id, chapter.normalized_name, chapter.dedupe_key = name.strip(), kind, parent_id, normalized, dedupe
+    chapter.name, chapter.chapter_type, chapter.parent_id, chapter.normalized_name, chapter.dedupe_key, chapter.contribution_policy = name.strip(), kind, parent_id, normalized, dedupe, contribution_policy
     for field in ("country", "province", "city", "description"):
         if field in payload: setattr(chapter, field, payload[field].strip() if isinstance(payload[field],str) and payload[field].strip() else None)
     chapter.review_status, chapter.review_note, chapter.reviewed_by_id, chapter.reviewed_at, chapter.updated_at = "pending", None, None, None, utcnow()
@@ -515,6 +556,104 @@ def resubmit_chapter_application(chapter_id):
     except IntegrityError:
         db.session.rollback(); return error_response("DUPLICATE_RESOURCE", "同层级已存在同名章节。", 409)
     return success_response(chapter_dict(chapter, user))
+
+
+def _chapter_operation_error(error):
+    db.session.rollback()
+    return error_response(error.code, error.message, error.status, error.details)
+
+
+@life_bp.get("/chapters/<int:chapter_id>/manage")
+@jwt_required(locations=["headers"])
+def get_managed_chapter(chapter_id):
+    user = _current_user()
+    chapter = db.session.scalar(
+        db.select(LifeChapter)
+        .where(LifeChapter.id == chapter_id)
+        .options(
+            *CHAPTER_OPTIONS,
+            joinedload(LifeChapter.reviewed_by),
+            joinedload(LifeChapter.merged_into),
+            selectinload(LifeChapter.children),
+        )
+    )
+    if not chapter:
+        return error_response("RESOURCE_NOT_FOUND", "请求的资源不存在。", 404)
+    if not can_manage_chapter(user, chapter):
+        return error_response("PERMISSION_DENIED", "无权管理该章节。", 403)
+    stats = chapter_stats([chapter.id], user, include_all=True)
+    return success_response(
+        managed_chapter_dict(
+            chapter,
+            user,
+            stats=stats,
+            child_count=sum(child.status != "merged" for child in chapter.children),
+        )
+    )
+
+
+@life_bp.patch("/chapters/<int:chapter_id>")
+@jwt_required(locations=["headers"])
+def update_chapter(chapter_id):
+    user = _current_user()
+    try:
+        chapter = update_chapter_service(
+            chapter_id,
+            user,
+            request.get_json(silent=True),
+            normalize_name,
+        )
+    except ChapterOperationError as error:
+        return _chapter_operation_error(error)
+    except Exception:
+        current_app.logger.exception("Unable to update life chapter")
+        return error_response("INTERNAL_ERROR", "章节保存失败，请稍后重试。", 500)
+    chapter = db.session.scalar(
+        db.select(LifeChapter)
+        .where(LifeChapter.id == chapter.id)
+        .options(
+            *CHAPTER_OPTIONS,
+            joinedload(LifeChapter.reviewed_by),
+            joinedload(LifeChapter.merged_into),
+        )
+    )
+    stats = chapter_stats([chapter.id], user, include_all=True)
+    return success_response(managed_chapter_dict(chapter, user, stats=stats))
+
+
+@life_bp.get("/chapters/<int:chapter_id>/deletion-preview")
+@jwt_required(locations=["headers"])
+def chapter_deletion_preview(chapter_id):
+    try:
+        return success_response(
+            preview_chapter_deletion(chapter_id, _current_user())
+        )
+    except ChapterOperationError as error:
+        return _chapter_operation_error(error)
+
+
+@life_bp.post("/chapters/<int:chapter_id>/delete")
+@jwt_required(locations=["headers"])
+def delete_chapter(chapter_id):
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return validation_error(
+            [field_error("body", "invalid_format", "请求体必须是 JSON 对象。")]
+        )
+    try:
+        result = delete_or_merge_chapter(
+            chapter_id,
+            _current_user(),
+            confirmation_name=payload.get("confirmation_name"),
+            target_chapter_id=payload.get("target_chapter_id"),
+            reason=payload.get("reason"),
+        )
+    except ChapterOperationError as error:
+        return _chapter_operation_error(error)
+    except Exception:
+        current_app.logger.exception("Unable to delete or merge life chapter")
+        return error_response("INTERNAL_ERROR", "章节删除失败，请稍后重试。", 500)
+    return success_response(result)
 
 
 @life_bp.get("/posts")
@@ -575,9 +714,23 @@ def create_post():
     updates, error = validate_post_payload(payload, True)
     if error:
         return error
-    chapter = db.session.get(LifeChapter, updates["chapter_id"])
+    chapter = db.session.scalar(
+        db.select(LifeChapter)
+        .where(LifeChapter.id == updates["chapter_id"])
+        .execution_options(populate_existing=True)
+        .with_for_update()
+    )
     if not chapter or chapter.status != "active" or chapter.review_status != "approved":
+        db.session.rollback()
         return error_response("RESOURCE_NOT_FOUND", "章节不存在或不可用。", 404)
+    if not can_post_to_chapter(user, chapter):
+        db.session.rollback()
+        return error_response(
+            "PERMISSION_DENIED",
+            "该章节仅允许创建者投稿。",
+            403,
+            [field_error("chapter_id", "contribution_forbidden", "请选择你有权投稿的章节。")],
+        )
     draft = None
     draft_media = ()
     unused_draft_media = []
@@ -590,6 +743,7 @@ def create_post():
         draft_media = {link.media_id for link in draft.media_links}
     media, error = validate_media_ids(user, updates.pop("media_ids"), draft_media_ids=draft_media)
     if error:
+        db.session.rollback()
         return error
     updates.pop("chapter_id", None)
     post = LifePost(author_id=user.id, chapter_id=chapter.id, title=updates.pop("title"), **updates)
@@ -641,10 +795,24 @@ def update_post(post_id):
     updates, error = validate_post_payload(payload)
     if error:
         return error
-    if "chapter_id" in updates:
-        chapter = db.session.get(LifeChapter, updates["chapter_id"])
+    if "chapter_id" in updates and updates["chapter_id"] != post.chapter_id:
+        chapter = db.session.scalar(
+            db.select(LifeChapter)
+            .where(LifeChapter.id == updates["chapter_id"])
+            .execution_options(populate_existing=True)
+            .with_for_update()
+        )
         if not chapter or chapter.status != "active" or chapter.review_status != "approved":
+            db.session.rollback()
             return error_response("RESOURCE_NOT_FOUND", "章节不存在或不可用。", 404)
+        if not can_post_to_chapter(user, chapter):
+            db.session.rollback()
+            return error_response(
+                "PERMISSION_DENIED",
+                "该章节仅允许创建者投稿。",
+                403,
+                [field_error("chapter_id", "contribution_forbidden", "不能把日常移动到该私有章节。")],
+            )
     removed = []
     requested_media = None
     if "media_ids" in updates:
@@ -652,6 +820,7 @@ def update_post(post_id):
         existing = {link.media_id: link for link in post.media_links}
         requested_media, error = validate_media_ids(user, target_ids, existing)
         if error:
+            db.session.rollback()
             return error
         removed = [link.media for media_id, link in existing.items() if media_id not in target_ids]
     try:

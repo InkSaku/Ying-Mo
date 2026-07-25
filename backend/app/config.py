@@ -52,8 +52,8 @@ class BaseConfig:
         "pool_pre_ping": True,
         "pool_recycle": 280,
     }
-    # multipart 需要为边界信息预留一点空间，图片本身仍由上传服务限制为 15 MB。
-    MAX_CONTENT_LENGTH = int(os.getenv("MAX_CONTENT_LENGTH", 16 * 1024 * 1024))
+    # multipart 需要为边界信息预留空间；图片和动态照片仍由各自服务执行更严格的业务限制。
+    MAX_CONTENT_LENGTH = int(os.getenv("MAX_CONTENT_LENGTH", 56 * 1024 * 1024))
     UPLOAD_ROOT = Path(os.getenv("UPLOAD_ROOT", BACKEND_ROOT / "uploads")).expanduser()
     IMAGE_MAX_BYTES = int(os.getenv("IMAGE_MAX_BYTES", 15 * 1024 * 1024))
     IMAGE_MAX_PIXELS = int(os.getenv("IMAGE_MAX_PIXELS", 40_000_000))
@@ -61,6 +61,20 @@ class BaseConfig:
     IMAGE_MAX_HEIGHT = int(os.getenv("IMAGE_MAX_HEIGHT", 12000))
     IMAGE_MAX_ASPECT_RATIO = float(os.getenv("IMAGE_MAX_ASPECT_RATIO", 20))
     IMAGE_THUMBNAIL_MAX_SIDE = int(os.getenv("IMAGE_THUMBNAIL_MAX_SIDE", 640))
+    LIVE_VIDEO_MAX_BYTES = int(os.getenv("LIVE_VIDEO_MAX_BYTES", 50 * 1024 * 1024))
+    LIVE_VIDEO_MAX_DURATION_MS = int(os.getenv("LIVE_VIDEO_MAX_DURATION_MS", 10_000))
+    LIVE_VIDEO_MAX_SIDE = int(os.getenv("LIVE_VIDEO_MAX_SIDE", 1920))
+    LIVE_VIDEO_MAX_FPS = float(os.getenv("LIVE_VIDEO_MAX_FPS", 30))
+    LIVE_VIDEO_CRF = int(os.getenv("LIVE_VIDEO_CRF", 23))
+    LIVE_VIDEO_PRESET = os.getenv("LIVE_VIDEO_PRESET", "medium")
+    LIVE_VIDEO_MAXRATE = os.getenv("LIVE_VIDEO_MAXRATE", "5M")
+    LIVE_VIDEO_BUFSIZE = os.getenv("LIVE_VIDEO_BUFSIZE", "10M")
+    LIVE_VIDEO_AUDIO_BITRATE = os.getenv("LIVE_VIDEO_AUDIO_BITRATE", "96k")
+    LIVE_VIDEO_PROCESS_TIMEOUT_SECONDS = int(os.getenv("LIVE_VIDEO_PROCESS_TIMEOUT_SECONDS", 60))
+    LIVE_VIDEO_POSTER_MAX_SIDE = int(os.getenv("LIVE_VIDEO_POSTER_MAX_SIDE", 1280))
+    MEDIA_PLAYBACK_URL_TTL_SECONDS = int(os.getenv("MEDIA_PLAYBACK_URL_TTL_SECONDS", 300))
+    FFMPEG_BINARY = os.getenv("FFMPEG_BINARY", "ffmpeg")
+    FFPROBE_BINARY = os.getenv("FFPROBE_BINARY", "ffprobe")
     UPLOAD_UNBOUND_LIMIT = int(os.getenv("UPLOAD_UNBOUND_LIMIT", 30))
     UPLOAD_USER_TOTAL_BYTES = int(os.getenv("UPLOAD_USER_TOTAL_BYTES", 2 * 1024 * 1024 * 1024))
     UPLOAD_USER_DAILY_BYTES = int(os.getenv("UPLOAD_USER_DAILY_BYTES", 200 * 1024 * 1024))

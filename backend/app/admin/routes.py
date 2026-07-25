@@ -3,6 +3,7 @@ import uuid
 
 from flask import current_app, g, request
 from sqlalchemy import func, or_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.auth.service import revoke_session, utcnow
@@ -12,13 +13,21 @@ from app.guides.routes import GUIDE_OPTIONS
 from app.guides.serializers import guide_dict
 from app.guides.service import remove_files
 from app.interactions.targets import cleanup_target_interactions
-from app.life.routes import CHAPTER_OPTIONS, POST_OPTIONS, chapter_dict, chapter_slug, normalize_name, post_dict
+from app.life.chapter_serializers import managed_chapter_dict
+from app.life.chapter_service import (
+    ChapterOperationError,
+    delete_or_merge_chapter,
+    force_delete_chapter as force_delete_chapter_service,
+    preview_chapter_deletion,
+    update_chapter as update_chapter_service,
+)
+from app.life.routes import CHAPTER_OPTIONS, POST_OPTIONS, chapter_slug, chapter_stats, normalize_name, post_dict
 from app.models import AdminLog, Comment, FeaturedContent, Game, GameGuide, GameGuideStep, GameHero, GameMap, GuideValidityFeedback, LifeChapter, LifePost, LifePostMedia, Media, Notification, RefreshSession, Report, User, UserRole, UserStatus
 from app.models.user import serialize_datetime
 from app.moderation.service import close_open_reports_for_target, report_result_notification
 from app.moderation.targets import CONTENT_TARGET_TYPES, resolve_admin_target, serialize_target_snapshot, target_author_id
 from app.notifications.service import create_like_notification
-from app.uploads.storage import file_exists, remove_media_files
+from app.uploads.storage import remove_media_files
 from app.users.service import public_user_dict
 from . import admin_bp
 from .audit import create_admin_log
@@ -43,6 +52,9 @@ def _page():
 def _meta(page, size, total): return {"pagination": {"page": page, "page_size": size, "total": total, "total_pages": (total + size - 1) // size, "has_next": page * size < total, "has_previous": page > 1}}
 def _validation(message): return error_response("VALIDATION_ERROR", message, 422)
 def _not_found(): return error_response("RESOURCE_NOT_FOUND", "请求的资源不存在。", 404)
+def _chapter_error(error):
+    db.session.rollback()
+    return error_response(error.code, error.message, error.status, error.details)
 def _commit(message="操作保存失败。"):
     try: db.session.commit(); return None
     except Exception:
@@ -55,7 +67,9 @@ def _idempotency(actor):
     value = request.headers.get("Idempotency-Key", "")
     try: normalized = str(uuid.UUID(value))
     except (ValueError, AttributeError): return None, None, _validation("高风险操作需要有效的 Idempotency-Key UUID。")
-    existing = db.session.scalar(db.select(AdminLog).where(AdminLog.admin_id == actor.id, AdminLog.idempotency_key == normalized))
+    existing = db.session.scalar(
+        db.select(AdminLog).where(AdminLog.idempotency_key == normalized)
+    )
     g.admin_idempotency_key = normalized
     return normalized, existing, None
 def _notify(recipient_id, kind, payload, actor=None, target_type=None, target_id=None, key=None):
@@ -601,42 +615,6 @@ def delete_comment(actor, comment_id):
     return failure or ("", 204)
 
 
-def _chapter_aliases(value, name):
-    if value is None: return []
-    if not isinstance(value, list) or len(value) > 20: raise ValueError
-    known, result = {normalize_name(name)}, []
-    for raw in value:
-        cleaned, token = (raw.strip() if isinstance(raw, str) else ""), normalize_name(raw) if isinstance(raw, str) else ""
-        if not cleaned or len(cleaned) > 80: raise ValueError
-        if token and token not in known: result.append(cleaned); known.add(token)
-    return result
-
-
-def _chapter_payload(payload, chapter=None):
-    if not isinstance(payload, dict): return None, _validation("请求体必须是 JSON 对象。")
-    allowed = {"name", "aliases", "chapter_type", "parent_id", "country", "province", "city", "description", "review_note"}; unknown = set(payload) - allowed
-    if unknown: return None, _validation("存在不支持的章节字段。")
-    updates = {}
-    if "name" in payload:
-        if not isinstance(payload["name"], str) or not 1 <= len(payload["name"].strip()) <= 80: return None, _validation("章节名称不合法。")
-        updates["name"] = payload["name"].strip()
-    if "chapter_type" in payload:
-        if payload["chapter_type"] not in {"city", "scenic", "travel", "campus", "event", "custom"}: return None, _validation("章节类型不合法。")
-        updates["chapter_type"] = payload["chapter_type"]
-    for field, maximum in (("country",100),("province",100),("city",100),("description",500),("review_note",1000)):
-        if field in payload:
-            if payload[field] is not None and (not isinstance(payload[field], str) or len(payload[field].strip()) > maximum): return None, _validation("章节字段长度不合法。")
-            updates[field] = payload[field].strip() if isinstance(payload[field], str) and payload[field].strip() else None
-    if "parent_id" in payload:
-        parent_id = payload["parent_id"]
-        if parent_id is not None and (not isinstance(parent_id, int) or isinstance(parent_id, bool) or parent_id <= 0): return None, _validation("父章节不合法。")
-        updates["parent_id"] = parent_id
-    try:
-        if "aliases" in payload: updates["aliases"] = _chapter_aliases(payload["aliases"], updates.get("name", chapter.name if chapter else ""))
-    except ValueError: return None, _validation("章节别名不合法。")
-    return updates, None
-
-
 def _validate_chapter_parent(chapter, parent_id):
     parent = db.session.get(LifeChapter, parent_id) if parent_id else None
     if parent_id and (not parent or parent.id == chapter.id or parent.status != "active" or parent.review_status != "approved" or parent.parent_id is not None): return None
@@ -654,7 +632,7 @@ def _validate_chapter_parent(chapter, parent_id):
 def chapters(actor):
     args = _page()
     if not args: return _validation("分页参数不合法。")
-    page, size = args; stmt = db.select(LifeChapter).options(*CHAPTER_OPTIONS)
+    page, size = args; stmt = db.select(LifeChapter).options(*CHAPTER_OPTIONS, selectinload(LifeChapter.children))
     for field, choices in (("review_status", {"pending","approved","rejected"}), ("status", {"active","disabled","merged"}), ("chapter_type", {"city", "scenic", "travel", "campus", "event", "custom"})):
         value = request.args.get(field)
         if value:
@@ -666,15 +644,30 @@ def chapters(actor):
     query = request.args.get("query", "").strip()
     if query: stmt = stmt.where(or_(LifeChapter.name.ilike(f"%{query}%"), LifeChapter.normalized_name.ilike(f"%{normalize_name(query)}%")))
     total = db.session.scalar(db.select(func.count()).select_from(stmt.subquery())); items = db.session.scalars(stmt.order_by(LifeChapter.updated_at.desc(), LifeChapter.id.desc()).offset((page-1)*size).limit(size)).unique().all()
-    return success_response([chapter_dict(item, actor) | {"aliases": item.aliases or [], "review_status": item.review_status, "review_note": item.review_note, "merged_into_id": item.merged_into_id} for item in items], meta=_meta(page,size,total))
+    stats = chapter_stats([item.id for item in items], actor, include_all=True)
+    return success_response([
+        managed_chapter_dict(
+            item,
+            actor,
+            stats=stats,
+            child_count=sum(child.status != "merged" for child in item.children),
+        )
+        for item in items
+    ], meta=_meta(page,size,total))
 
 
 @admin_bp.get("/chapters/<int:chapter_id>")
 @require_content_admin()
 def chapter_detail(actor, chapter_id):
-    chapter = db.session.scalar(db.select(LifeChapter).where(LifeChapter.id == chapter_id).options(*CHAPTER_OPTIONS))
+    chapter = db.session.scalar(db.select(LifeChapter).where(LifeChapter.id == chapter_id).options(*CHAPTER_OPTIONS, selectinload(LifeChapter.children)))
     if not chapter: return _not_found()
-    return success_response(chapter_dict(chapter, actor) | {"aliases": chapter.aliases or [], "review_status": chapter.review_status, "review_note": chapter.review_note, "reviewed_by": public_user_dict(chapter.reviewed_by) if chapter.reviewed_by else None, "reviewed_at": serialize_datetime(chapter.reviewed_at), "merged_into_id": chapter.merged_into_id})
+    stats = chapter_stats([chapter.id], actor, include_all=True)
+    return success_response(managed_chapter_dict(
+        chapter,
+        actor,
+        stats=stats,
+        child_count=sum(child.status != "merged" for child in chapter.children),
+    ))
 
 
 @admin_bp.post("/chapters/<int:chapter_id>/approve")
@@ -702,20 +695,107 @@ def reject_chapter(actor, chapter_id):
 @admin_bp.patch("/chapters/<int:chapter_id>")
 @require_content_admin()
 def update_chapter(actor, chapter_id):
-    chapter = db.session.get(LifeChapter, chapter_id)
-    if not chapter: return _not_found()
-    updates, error = _chapter_payload(request.get_json(silent=True), chapter)
-    if error: return error
-    if not updates: return _validation("至少提交一个字段。")
-    parent = _validate_chapter_parent(chapter, updates.get("parent_id", chapter.parent_id))
-    if updates.get("parent_id", chapter.parent_id) and not parent: return _validation("父章节不可用，或会造成循环/第三层。")
-    name, parent_id = updates.get("name", chapter.name), updates.get("parent_id", chapter.parent_id); dedupe = f"root:{normalize_name(name)}" if parent_id is None else f"{parent_id}:{normalize_name(name)}"
-    conflict = db.session.scalar(db.select(LifeChapter.id).where(LifeChapter.dedupe_key == dedupe, LifeChapter.id != chapter.id))
-    if conflict: return error_response("DUPLICATE_RESOURCE", "同层级已存在同名章节。", 409)
-    before = {field: getattr(chapter, field) for field in updates}
-    for key, value in updates.items(): setattr(chapter, key, value)
-    chapter.normalized_name, chapter.dedupe_key, chapter.updated_at = normalize_name(name), dedupe, utcnow(); create_admin_log(actor, "chapter_updated", "life_chapter", chapter.id, chapter.name, before, {field:getattr(chapter,field) for field in updates}); failure = _commit("章节保存失败。")
-    return failure or success_response({"id": chapter.id, "name": chapter.name})
+    payload = request.get_json(silent=True)
+    try:
+        chapter = update_chapter_service(chapter_id, actor, payload, normalize_name)
+    except ChapterOperationError as error:
+        return _chapter_error(error)
+    except Exception:
+        current_app.logger.exception("Unable to update life chapter")
+        return error_response("INTERNAL_ERROR", "章节保存失败，请稍后重试。", 500)
+    stats = chapter_stats([chapter.id], actor, include_all=True)
+    return success_response(managed_chapter_dict(chapter, actor, stats=stats))
+
+
+@admin_bp.get("/chapters/<int:chapter_id>/deletion-preview")
+@require_content_admin()
+def admin_chapter_deletion_preview(actor, chapter_id):
+    try:
+        return success_response(preview_chapter_deletion(chapter_id, actor))
+    except ChapterOperationError as error:
+        return _chapter_error(error)
+
+
+@admin_bp.post("/chapters/<int:chapter_id>/delete")
+@require_content_admin()
+def admin_delete_chapter(actor, chapter_id):
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict): return _validation("请求体必须是 JSON 对象。")
+    try:
+        result = delete_or_merge_chapter(
+            chapter_id,
+            actor,
+            confirmation_name=payload.get("confirmation_name"),
+            target_chapter_id=payload.get("target_chapter_id"),
+            reason=payload.get("reason"),
+        )
+    except ChapterOperationError as error:
+        return _chapter_error(error)
+    except Exception:
+        current_app.logger.exception("Unable to delete or merge life chapter")
+        return error_response("INTERNAL_ERROR", "章节删除失败，请稍后重试。", 500)
+    return success_response(result)
+
+
+@admin_bp.post("/chapters/<int:chapter_id>/force-delete")
+@require_system_admin()
+def force_delete_chapter(actor, chapter_id):
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict): return _validation("请求体必须是 JSON 对象。")
+    _, existing, key_error = _idempotency(actor)
+    if key_error: return key_error
+    if existing:
+        if existing.action != "chapter_force_deleted" or existing.target_type != "life_chapter" or existing.target_id != chapter_id:
+            return error_response("RESOURCE_CONFLICT", "该 Idempotency-Key 已用于其他管理员操作。", 409)
+        metadata = existing.metadata_json if isinstance(existing.metadata_json, dict) else {}
+        return success_response({
+            "chapter_id": chapter_id,
+            "deleted_post_count": metadata.get("post_count", 0),
+            "deleted_child_count": metadata.get("child_count", 0),
+            "deleted_image_count": metadata.get("image_count", 0),
+            "already_processed": True,
+        })
+    try:
+        result = force_delete_chapter_service(
+            chapter_id,
+            actor,
+            reason=payload.get("reason"),
+            confirmation=payload.get("confirmation"),
+            cascade_posts=payload.get("cascade_posts"),
+            cascade_children=payload.get("cascade_children"),
+        )
+    except ChapterOperationError as error:
+        return _chapter_error(error)
+    except IntegrityError:
+        db.session.rollback()
+        _, existing, _ = _idempotency(actor)
+        if (
+            existing
+            and existing.action == "chapter_force_deleted"
+            and existing.target_type == "life_chapter"
+            and existing.target_id == chapter_id
+        ):
+            metadata = (
+                existing.metadata_json
+                if isinstance(existing.metadata_json, dict)
+                else {}
+            )
+            return success_response({
+                "chapter_id": chapter_id,
+                "deleted_post_count": metadata.get("post_count", 0),
+                "deleted_child_count": metadata.get("child_count", 0),
+                "deleted_image_count": metadata.get("image_count", 0),
+                "already_processed": True,
+            })
+        return error_response(
+            "RESOURCE_CONFLICT",
+            "该 Idempotency-Key 已用于其他管理员操作。",
+            409,
+        )
+    except Exception:
+        current_app.logger.exception("Unable to force delete life chapter")
+        return error_response("INTERNAL_ERROR", "章节强制删除失败，请稍后重试。", 500)
+    return success_response(result)
 
 
 @admin_bp.post("/chapters/<int:chapter_id>/disable")
@@ -743,21 +823,22 @@ def enable_chapter(actor, chapter_id):
 @admin_bp.put("/chapters/<int:chapter_id>/cover")
 @require_content_admin()
 def chapter_cover(actor, chapter_id):
-    chapter, data = db.session.get(LifeChapter, chapter_id), request.get_json(silent=True) or {}
-    if not chapter: return _not_found()
+    data = request.get_json(silent=True) or {}
     media_id = data.get("media_id")
     if not isinstance(media_id, int) or media_id <= 0: return _validation("封面图片不合法。")
-    media = db.session.get(Media, media_id)
-    if not media: return _not_found()
-    if media.owner_id != actor.id or media.purpose != "content" or media.is_bound or not file_exists(media.storage_key) or not file_exists(media.thumbnail_key): return error_response("RESOURCE_CONFLICT", "图片不可作为章节封面。", 409)
-    old = chapter.cover_media; media.bound_type, media.bound_id, media.bound_at, chapter.cover_media_id = "life_chapter_cover", chapter.id, utcnow(), media.id
-    if old: db.session.delete(old)
-    create_admin_log(actor,"chapter_cover_set","life_chapter",chapter.id,chapter.name,{"cover_media_id":old.id if old else None},{"cover_media_id":media.id}); failure=_commit("章节封面保存失败。")
-    if failure:return failure
-    if old:
-        try: remove_media_files(old)
-        except Exception: current_app.logger.exception("Unable to remove chapter cover")
-    return success_response({"id":chapter.id,"cover_media_id":media.id})
+    try:
+        chapter = update_chapter_service(
+            chapter_id,
+            actor,
+            {"cover_media_id": media_id},
+            normalize_name,
+        )
+    except ChapterOperationError as error:
+        return _chapter_error(error)
+    except Exception:
+        current_app.logger.exception("Unable to set chapter cover")
+        return error_response("INTERNAL_ERROR", "章节封面保存失败。", 500)
+    return success_response({"id":chapter.id,"cover_media_id":chapter.cover_media_id})
 
 
 @admin_bp.delete("/chapters/<int:chapter_id>/cover")
@@ -765,12 +846,19 @@ def chapter_cover(actor, chapter_id):
 def remove_chapter_cover(actor, chapter_id):
     chapter=db.session.get(LifeChapter,chapter_id)
     if not chapter:return _not_found()
-    old=chapter.cover_media
-    if not old:return "",204
-    chapter.cover_media_id=None; db.session.delete(old); create_admin_log(actor,"chapter_cover_removed","life_chapter",chapter.id,chapter.name,{"cover_media_id":old.id},{"cover_media_id":None}); failure=_commit("章节封面移除失败。")
-    if failure:return failure
-    try:remove_media_files(old)
-    except Exception:current_app.logger.exception("Unable to remove chapter cover")
+    if not chapter.cover_media_id:return "",204
+    try:
+        update_chapter_service(
+            chapter_id,
+            actor,
+            {"cover_media_id": None},
+            normalize_name,
+        )
+    except ChapterOperationError as error:
+        return _chapter_error(error)
+    except Exception:
+        current_app.logger.exception("Unable to remove chapter cover")
+        return error_response("INTERNAL_ERROR", "章节封面移除失败。", 500)
     return "",204
 
 
@@ -779,37 +867,29 @@ def remove_chapter_cover(actor, chapter_id):
 def merge_chapter(actor, source_id):
     data=request.get_json(silent=True) or {}; target_id=data.get("target_chapter_id"); reason=_reason(data)
     if not isinstance(target_id,int) or target_id<=0 or not reason:return _validation("目标章节和合并原因必填。")
-    locked = db.session.scalars(db.select(LifeChapter).where(LifeChapter.id.in_((source_id, target_id))).order_by(LifeChapter.id).with_for_update()).all()
-    lookup = {item.id: item for item in locked}; source, target = lookup.get(source_id), lookup.get(target_id)
-    if not source or not target:
-        db.session.rollback(); return _not_found()
-    if source.id==target.id or source.status=="merged" or target.status!="active" or target.review_status!="approved":
-        db.session.rollback(); return error_response("RESOURCE_CONFLICT","章节当前不能合并。",409)
-    db.session.scalars(db.select(LifeChapter).where(LifeChapter.parent_id.in_((source.id, target.id))).with_for_update()).all()
-    if target.parent_id is not None and source.children:
-        db.session.rollback(); return error_response("RESOURCE_CONFLICT", "合并会产生第三层章节。", 409)
-    # Direct parent/child merges would otherwise make a cycle.
-    ancestor=target
-    while ancestor:
-        if ancestor.id==source.id:
-            db.session.rollback(); return _validation("不能合并祖先和子章节。")
-        ancestor=ancestor.parent
-    ancestor=source
-    while ancestor:
-        if ancestor.id==target.id:
-            db.session.rollback(); return _validation("不能合并祖先和子章节。")
-        ancestor=ancestor.parent
-    for post in db.session.scalars(db.select(LifePost).where(LifePost.chapter_id==source.id)).all(): post.chapter_id=target.id
-    aliases=_chapter_aliases([*(target.aliases or []),source.name,*(source.aliases or [])],target.name); target.aliases=aliases
-    for child in list(source.children):
-        duplicate=db.session.scalar(db.select(LifeChapter).where(LifeChapter.parent_id==target.id,LifeChapter.normalized_name==child.normalized_name,LifeChapter.id!=child.id))
-        if duplicate:
-            for post in db.session.scalars(db.select(LifePost).where(LifePost.chapter_id==child.id)).all():post.chapter_id=duplicate.id
-            child.status,child.merged_into_id="merged",duplicate.id
-        else:
-            child.parent_id=target.id; child.dedupe_key=f"{target.id}:{child.normalized_name}"
-    source.status,source.merged_into_id="merged",target.id; create_admin_log(actor,"chapter_merged","life_chapter",source.id,source.name,{"status":"active"},{"status":"merged","merged_into_id":target.id},{"reason":reason}); failure=_commit("章节合并失败。")
-    return failure or success_response({"source_id":source.id,"target_id":target.id,"canonical_slug":target.slug})
+    try:
+        result = delete_or_merge_chapter(
+            source_id,
+            actor,
+            confirmation_name=None,
+            target_chapter_id=target_id,
+            reason=reason,
+            merge_even_if_empty=True,
+            require_confirmation=False,
+            audit_action="chapter_merged",
+        )
+    except ChapterOperationError as error:
+        return _chapter_error(error)
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("Unable to merge life chapter")
+        return error_response("INTERNAL_ERROR", "章节合并失败。", 500)
+    return success_response({
+        "source_id": result["source_id"],
+        "target_id": result["target_chapter_id"],
+        "target_chapter_id": result["target_chapter_id"],
+        "canonical_slug": result["canonical_slug"],
+    })
 
 
 def _catalog_list(model, actor):

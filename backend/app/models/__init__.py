@@ -1,4 +1,4 @@
-from .media import Media, MediaPurpose
+from .media import Media, MediaPurpose, MediaType
 from .life_chapter import LifeChapter
 from .life_post import LifePost
 from .life_post_media import LifePostMedia
@@ -20,4 +20,4 @@ from .featured_content import FeaturedContent
 from .refresh_session import RefreshSession
 from .user import User, UserRole, UserStatus
 
-__all__ = ["AdminLog", "Comment", "ContentDraft", "ContentDraftMedia", "ContentFavorite", "ContentLike", "FeaturedContent", "Game", "GameGuide", "GameGuideStep", "GameHero", "GameMap", "GuideValidityFeedback", "LifeChapter", "LifePost", "LifePostMedia", "Media", "MediaPurpose", "Notification", "RefreshSession", "Report", "User", "UserRole", "UserStatus"]
+__all__ = ["AdminLog", "Comment", "ContentDraft", "ContentDraftMedia", "ContentFavorite", "ContentLike", "FeaturedContent", "Game", "GameGuide", "GameGuideStep", "GameHero", "GameMap", "GuideValidityFeedback", "LifeChapter", "LifePost", "LifePostMedia", "Media", "MediaPurpose", "MediaType", "Notification", "RefreshSession", "Report", "User", "UserRole", "UserStatus"]

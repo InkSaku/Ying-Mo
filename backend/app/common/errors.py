@@ -1,3 +1,4 @@
+from flask import request
 from werkzeug.exceptions import HTTPException
 
 from .responses import error_response
@@ -18,10 +19,13 @@ def register_error_handlers(app):
         if not _is_api_request():
             return error
 
-        code, message = HTTP_ERROR_CODES.get(
-            error.code,
-            ("HTTP_ERROR", "请求无法处理。"),
-        )
+        if error.code == 413 and request.path == "/api/v1/uploads/media":
+            code, message = "FILE_TOO_LARGE", "动态照片不能超过 50 MB。"
+        else:
+            code, message = HTTP_ERROR_CODES.get(
+                error.code,
+                ("HTTP_ERROR", "请求无法处理。"),
+            )
         return error_response(code, message, error.code)
 
     @app.errorhandler(Exception)

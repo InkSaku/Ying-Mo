@@ -10,6 +10,12 @@ def utcnow():
 
 class LifeChapter(db.Model):
     __tablename__ = "life_chapters"
+    __table_args__ = (
+        db.CheckConstraint(
+            "contribution_policy IN ('public', 'private')",
+            name="ck_life_chapters_contribution_policy",
+        ),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), nullable=False)
@@ -24,6 +30,13 @@ class LifeChapter(db.Model):
     description = db.Column(db.String(500), nullable=True)
     cover_media_id = db.Column(db.Integer, db.ForeignKey("media.id", ondelete="SET NULL"), nullable=True)
     creator_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True)
+    contribution_policy = db.Column(
+        db.String(20),
+        nullable=False,
+        default="public",
+        server_default="public",
+        index=True,
+    )
     status = db.Column(db.String(20), nullable=False, default="active", server_default="active", index=True)
     aliases = db.Column(db.JSON, nullable=False, default=list)
     review_status = db.Column(db.String(20), nullable=False, default="approved", server_default="approved", index=True)

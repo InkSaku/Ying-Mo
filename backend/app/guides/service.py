@@ -1,8 +1,10 @@
 from datetime import date
 from urllib.parse import urlparse
 
+from flask import current_app
+
 from app.extensions import db
-from app.models import Game, GameHero, GameMap, Media, MediaPurpose, UserStatus
+from app.models import Game, GameHero, GameMap, Media, MediaPurpose, MediaType, UserStatus
 from app.uploads.storage import file_exists, remove_media_files
 
 # Service helpers keep understanding legacy scopes so historical records and
@@ -80,10 +82,10 @@ def validate_steps(user, steps, content_mode="simple", existing_steps=(), draft_
         if not isinstance(item, dict) or not isinstance(item.get("media_id"), int) or item["media_id"] <= 0 or item["media_id"] in ids: raise ValueError("steps")
         ids.add(item["media_id"]); media = db.session.get(Media, item["media_id"])
         if not media: raise LookupError("media")
-        if media.owner_id != user.id or media.purpose != MediaPurpose.CONTENT or not file_exists(media.storage_key) or not file_exists(media.thumbnail_key) or (media.id not in existing and media.id not in draft_media_ids and media.is_bound): raise PermissionError("media")
+        if media.owner_id != user.id or media.purpose != MediaPurpose.CONTENT or media.media_type != MediaType.IMAGE or not file_exists(media.storage_key) or not file_exists(media.thumbnail_key) or (media.id not in existing and media.id not in draft_media_ids and media.is_bound): raise PermissionError("media")
         result.append((media, text(item.get("title"), 120, content_mode == "steps"), text(item.get("description"), 3000, content_mode == "steps")))
     return result
 def remove_files(items):
     for item in items:
         try: remove_media_files(item)
-        except Exception: pass
+        except Exception: current_app.logger.exception("Unable to remove guide media files media_id=%s", item.id)

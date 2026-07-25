@@ -8,7 +8,7 @@ from app.auth.routes import _current_user, normalized_username
 from app.auth.service import utcnow
 from app.common.responses import error_response, success_response
 from app.extensions import db
-from app.models import ContentFavorite, ContentLike, ContentDraft, GameGuide, GameGuideStep, LifePost, LifePostMedia, Media, MediaPurpose, User,  UserRole, UserStatus
+from app.models import ContentFavorite, ContentLike, ContentDraft, GameGuide, GameGuideStep, LifePost, LifePostMedia, Media, MediaPurpose, MediaType, User,  UserRole, UserStatus
 from app.admin.audit import create_admin_log
 from app.common.rate_limits import limiter, user_key
 from app.uploads.storage import file_exists, remove_media_files
@@ -258,7 +258,7 @@ def set_avatar():
         return error_response("RESOURCE_NOT_FOUND", "请求的资源不存在。", 404)
     if media.owner_id != user.id:
         return error_response("PERMISSION_DENIED", "无权使用该图片。", 403)
-    if media.purpose != MediaPurpose.AVATAR:
+    if media.purpose != MediaPurpose.AVATAR or media.media_type != MediaType.IMAGE:
         return _validation_error([_field_error("media_id", "invalid_purpose", "只能将头像用途的图片设为头像。")])
     if media.is_bound:
         return error_response("RESOURCE_CONFLICT", "该图片已绑定，不能重复使用。", 409)
@@ -428,6 +428,7 @@ def my_guides():
     return success_response([guide_dict(item, user, True) for item in items], meta=_pagination(page, page_size, total))
 
 
+@users_bp.get("/me/chapters")
 @users_bp.get("/me/chapter-submissions")
 @jwt_required(locations=["headers"])
 def my_chapter_submissions():
@@ -437,22 +438,64 @@ def my_chapter_submissions():
     review_status = request.args.get("review_status", "all")
     if review_status not in {"all", "pending", "approved", "rejected"}:
         return error_response("VALIDATION_ERROR", "审核状态不合法。", 422)
+    status = request.args.get("status", "all")
+    if status not in {"all", "active", "disabled", "merged"}:
+        return error_response("VALIDATION_ERROR", "启用状态不合法。", 422)
     from app.models import LifeChapter
-    from app.life.routes import CHAPTER_OPTIONS, chapter_dict
+    from app.life.routes import CHAPTER_OPTIONS, chapter_stats
+    from app.life.chapter_serializers import managed_chapter_dict
     stmt = db.select(LifeChapter).where(LifeChapter.creator_id == user.id)
     if review_status != "all": stmt = stmt.where(LifeChapter.review_status == review_status)
+    if status != "all": stmt = stmt.where(LifeChapter.status == status)
     total = db.session.scalar(db.select(func.count()).select_from(stmt.subquery()))
-    items = db.session.scalars(stmt.options(*CHAPTER_OPTIONS).order_by(LifeChapter.updated_at.desc(), LifeChapter.id.desc()).offset((page-1)*page_size).limit(page_size)).unique().all()
-    return success_response([chapter_dict(item, user) | {"review_status": item.review_status, "review_note": item.review_note, "reviewed_at": item.reviewed_at.isoformat().replace("+00:00", "Z") if item.reviewed_at else None} for item in items], meta=_pagination(page,page_size,total))
+    items = db.session.scalars(
+        stmt.options(
+            *CHAPTER_OPTIONS,
+            joinedload(LifeChapter.reviewed_by),
+            joinedload(LifeChapter.merged_into),
+            selectinload(LifeChapter.children),
+        )
+        .order_by(LifeChapter.updated_at.desc(), LifeChapter.id.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    ).unique().all()
+    stats = chapter_stats([item.id for item in items], user, include_all=True)
+    return success_response([
+        managed_chapter_dict(
+            item,
+            user,
+            stats=stats,
+            child_count=sum(child.status != "merged" for child in item.children),
+        )
+        for item in items
+    ], meta=_pagination(page,page_size,total))
 
 
+@users_bp.get("/me/chapters/<int:chapter_id>")
 @users_bp.get("/me/chapter-submissions/<int:chapter_id>")
 @jwt_required(locations=["headers"])
 def my_chapter_submission(chapter_id):
     user = _current_user()
     from app.models import LifeChapter
-    from app.life.routes import CHAPTER_OPTIONS, chapter_dict
-    item = db.session.scalar(db.select(LifeChapter).where(LifeChapter.id == chapter_id, LifeChapter.creator_id == user.id).options(*CHAPTER_OPTIONS))
+    from app.life.routes import CHAPTER_OPTIONS, chapter_stats
+    from app.life.chapter_serializers import managed_chapter_dict
+    item = db.session.scalar(
+        db.select(LifeChapter)
+        .where(LifeChapter.id == chapter_id, LifeChapter.creator_id == user.id)
+        .options(
+            *CHAPTER_OPTIONS,
+            joinedload(LifeChapter.reviewed_by),
+            joinedload(LifeChapter.merged_into),
+            selectinload(LifeChapter.children),
+        )
+    )
     if not item: return error_response("RESOURCE_NOT_FOUND", "请求的章节申请不存在。", 404)
-    if item.review_status not in {"pending", "rejected"}: return error_response("RESOURCE_CONFLICT", "该章节申请不能重新提交。", 409)
-    return success_response(chapter_dict(item, user) | {"review_status": item.review_status, "review_note": item.review_note})
+    stats = chapter_stats([item.id], user, include_all=True)
+    return success_response(
+        managed_chapter_dict(
+            item,
+            user,
+            stats=stats,
+            child_count=sum(child.status != "merged" for child in item.children),
+        )
+    )

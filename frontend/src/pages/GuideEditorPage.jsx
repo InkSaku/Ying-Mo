@@ -7,6 +7,7 @@ import { createDraft, getDraft, updateDraft } from '../api/drafts.js'
 import { deleteUnboundImage, uploadImage } from '../api/uploads.js'
 import { useAuth } from '../auth/useAuth.js'
 import AdaptiveMedia from '../components/common/AdaptiveMedia.jsx'
+import useAuthenticatedImageUrl from '../hooks/useAuthenticatedImageUrl.js'
 
 const categories = [['deployment_position', '炮台与部署点位'], ['skill_throw', '技能投掷'], ['timed_throw', '开局定时投掷'], ['hold_position', '架枪与站位'], ['movement_route', '位移与路线'], ['map_interaction', '地图机制与交互'], ['other', '其他点位']]
 const blank = { game_id: '', map_id: '', hero_id: '', guide_scope: 'hero_map', content_mode: 'simple', title: '', category: 'deployment_position', instructions: '', map_area: '', side: '', skill: '', aim_reference: '', timing: '', game_version: '', tags: [], notes: '', video_url: '', tested_at: '' }
@@ -33,6 +34,36 @@ function imageModel(step, media, existing) {
 
 function FieldError({ errors, field }) {
   return errors[field] ? <small className="guide-form__error" role="alert">{errors[field]}</small> : null
+}
+
+
+function GuideImagePreview({ item, index }) {
+  const source = item.thumbnail_url || item.url
+  const { url, loading, error } = useAuthenticatedImageUrl(source)
+
+  if (!source) return null
+
+  if (!url) {
+    return (
+      <div className="image-placeholder">
+        {loading
+          ? '正在加载图片…'
+          : error
+            ? '图片预览加载失败'
+            : ''}
+      </div>
+    )
+  }
+
+  return (
+    <AdaptiveMedia
+      src={url}
+      alt={`点位图片 ${index + 1}`}
+      fit="natural"
+      width={item.width}
+      height={item.height}
+    />
+  )
 }
 
 function validExternalUrl(value) {
@@ -429,7 +460,7 @@ export default function GuideEditorPage({ edit = false }) {
         <FieldError errors={fieldErrors} field="visualization" />
         <FieldError errors={fieldErrors} field="steps" />
         {images.map((item, index) => <article className="guide-step-editor" key={item.media_id}>
-          {(item.thumbnail_url || item.url) && <AdaptiveMedia src={item.thumbnail_url || item.url} alt={`点位图片 ${index + 1}`} fit="natural" width={item.width} height={item.height} />}
+          {(item.thumbnail_url || item.url) && <GuideImagePreview item={item} index={index} />}
           <input aria-label={`图片 ${index + 1} 标题`} placeholder={`图片标题${form.content_mode === 'steps' ? '（必填）' : '（可选）'}`} value={item.title} onChange={(event) => setImages((items) => items.map((value, itemIndex) => itemIndex === index ? { ...value, title: event.target.value } : value))} />
           <textarea aria-label={`图片 ${index + 1} 说明`} placeholder={`图片说明${form.content_mode === 'steps' ? '（必填）' : '（可选）'}`} value={item.description} onChange={(event) => setImages((items) => items.map((value, itemIndex) => itemIndex === index ? { ...value, description: event.target.value } : value))} />
           <div className="guide-step-editor__actions">

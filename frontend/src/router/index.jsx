@@ -13,6 +13,7 @@ import LifePostDetailPage from '../pages/LifePostDetailPage'
 import LifeChaptersPage from '../pages/LifeChaptersPage'
 import LifeChapterCreatePage from '../pages/LifeChapterCreatePage'
 import LifeChapterDetailPage from '../pages/LifeChapterDetailPage'
+import LifeChapterEditPage from '../pages/LifeChapterEditPage.jsx'
 import GamesPage from '../pages/GamesPage'
 import GameDetailPage from '../pages/GameDetailPage'
 import { GameHeroDetailPage, GameHeroesPage, GameMapDetailPage, GameMapsPage, GamePointListPage } from '../pages/GameCatalogPages'
@@ -32,6 +33,7 @@ import PersonalDashboardPage from '../pages/PersonalDashboardPage.jsx'
 import DraftsPage from '../pages/DraftsPage.jsx'
 import { HiddenContentPage, MyGuidesPage, MyLifePostsPage } from '../pages/MyContentPages.jsx'
 import ReviewingPage from '../pages/ReviewingPage.jsx'
+import MyChaptersPage from '../pages/MyChaptersPage.jsx'
 import AdminRoute, { SystemAdminRoute } from './AdminRoute.jsx'
 import AdminLayout from '../layouts/AdminLayout.jsx'
 import { AdminCatalogPage, AdminChaptersPage, AdminContentPage, AdminDashboardPage, AdminLogsPage, AdminReportDetailPage, AdminReportsPage, AdminUserDetailPage, AdminUsersPage } from '../pages/AdminPages.jsx'
@@ -47,6 +49,7 @@ export const router = createBrowserRouter([
       { path: '/life/post/:id/edit', element: <ProtectedRoute><LifePostEditorPage edit /></ProtectedRoute> },
       { path: '/life/chapters', element: <LifeChaptersPage /> },
       { path: '/life/chapters/create', element: <ProtectedRoute><LifeChapterCreatePage /></ProtectedRoute> },
+      { path: '/life/chapters/:id/edit', element: <ProtectedRoute><LifeChapterEditPage /></ProtectedRoute> },
       { path: '/life/chapter/:slug', element: <LifeChapterDetailPage /> },
       { path: '/games', element: <GamesPage /> },
       { path: '/game/:gameSlug', element: <GameDetailPage /> },
@@ -71,6 +74,7 @@ export const router = createBrowserRouter([
         { path: 'guides', element: <MyGuidesPage /> },
         { path: 'drafts', element: <DraftsPage /> },
         { path: 'reviewing', element: <ReviewingPage /> },
+        { path: 'chapters', element: <MyChaptersPage /> },
         { path: 'hidden', element: <HiddenContentPage /> },
         { path: 'favorites', element: <FavoritesPage /> },
         { path: 'comments', element: <MyCommentsPage /> },
@@ -84,6 +88,7 @@ export const router = createBrowserRouter([
         { path: 'users/:id', element: <AdminUserDetailPage /> },
         { path: 'content', element: <AdminContentPage /> },
         { path: 'chapters', element: <AdminChaptersPage /> },
+        { path: 'chapters/:id/edit', element: <LifeChapterEditPage admin /> },
         { path: 'catalog', element: <AdminCatalogPage /> },
         { path: 'logs', element: <SystemAdminRoute><AdminLogsPage /></SystemAdminRoute> },
       ] },

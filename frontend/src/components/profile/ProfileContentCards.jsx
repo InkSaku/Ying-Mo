@@ -1,6 +1,7 @@
 import { motion } from 'motion/react'
 import { Link } from 'react-router-dom'
 import AdaptiveMedia from '../common/AdaptiveMedia.jsx'
+import AuthenticatedMedia from '../common/AuthenticatedMedia.jsx'
 
 const categoryLabels = {
   deployment_position: '炮台与部署点位', skill_throw: '技能投掷', timed_throw: '开局定时投掷', hold_position: '架枪与站位', movement_route: '位移与路线', map_interaction: '地图机制与交互', other: '其他点位',
@@ -43,11 +44,12 @@ export function ProfileLifeCard({ post, index, reducedMotion }) {
       <Link to={`/life/post/${post.id}`}>
         <span className="profile-life-card__media">
           {post.cover_image ? (
-            <AdaptiveMedia src={post.cover_image} alt={`生活照片：${post.title}`} fit="natural" width={post.cover_width} height={post.cover_height} />
+            <AuthenticatedMedia src={post.cover_image} alt={`生活照片：${post.title}`} fit="natural" width={post.cover_width} height={post.cover_height} />
           ) : (
             <span className="profile-card-placeholder" aria-hidden="true">日</span>
           )}
-          <span className="profile-life-card__count">{post.image_count} 张</span>
+          {post.cover_media_type === 'live_video' && <span className="live-photo-badge">实况</span>}
+          <span className="profile-life-card__count">{post.live_video_count ? `${post.media_count ?? post.image_count} 个媒体` : `${post.image_count} 张`}</span>
         </span>
 
         <span className="profile-life-card__body">

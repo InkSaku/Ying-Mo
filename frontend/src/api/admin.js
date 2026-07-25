@@ -36,6 +36,12 @@ export const getAdminChapter = (id) => send('get', `/admin/chapters/${id}`)
 export const approveChapter = (id, payload) => send('post', `/admin/chapters/${id}/approve`, payload)
 export const rejectChapter = (id, payload) => send('post', `/admin/chapters/${id}/reject`, payload)
 export const updateAdminChapter = (id, payload) => send('patch', `/admin/chapters/${id}`, payload)
+export const getAdminChapterDeletionPreview = (id) => send('get', `/admin/chapters/${id}/deletion-preview`)
+export const deleteAdminChapter = (id, payload) => send('post', `/admin/chapters/${id}/delete`, payload)
+export const forceDeleteAdminChapter = async (id, payload, idempotencyKey = crypto.randomUUID()) => {
+  const { data } = await apiClient.post(`/admin/chapters/${id}/force-delete`, payload, { headers: { 'Idempotency-Key': idempotencyKey } })
+  return data.data
+}
 export const mergeChapter = (id, payload) => send('post', `/admin/chapters/${id}/merge`, payload)
 export const enableChapter = (id) => send('post', `/admin/chapters/${id}/enable`)
 export const disableChapter = (id) => send('post', `/admin/chapters/${id}/disable`)

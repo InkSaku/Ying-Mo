@@ -27,6 +27,7 @@ function PostPreview({ post }) {
         {post.cover_image
           ? <AdaptiveMedia src={post.cover_image} alt={`最新生活记录：${post.title}`} fit="contain" width={post.cover_width} height={post.cover_height} loading="eager" />
           : <span className="home-live-card__placeholder" aria-hidden="true">生</span>}
+        {post.cover_media_type === 'live_video' && <span className="live-photo-badge">实况</span>}
       </span>
       <span className="home-live-card__copy">
         <span className="home-live-card__meta">
@@ -35,7 +36,7 @@ function PostPreview({ post }) {
         </span>
         <strong>{post.title}</strong>
         <span>{post.excerpt || '把这一天留在这里。'}</span>
-        <small>{post.author?.nickname || '映墨用户'} · {post.image_count || 0} 张照片</small>
+        <small>{post.author?.nickname || '映墨用户'} · {post.live_video_count ? `${post.media_count ?? post.image_count ?? 0} 个媒体` : `${post.image_count || 0} 张照片`}</small>
       </span>
     </Link>
   )

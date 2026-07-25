@@ -7,6 +7,7 @@ import { deleteUnboundImage } from '../api/uploads.js'
 import { useAuth } from '../auth/useAuth.js'
 import AdminActionDialog from '../components/admin/AdminActionDialog.jsx'
 import AdaptiveMedia from '../components/common/AdaptiveMedia.jsx'
+import AuthenticatedMedia from '../components/common/AuthenticatedMedia.jsx'
 import ImageUploadField from '../components/upload/ImageUploadField.jsx'
 
 function useLoad(loader, deps = []) {
@@ -325,6 +326,7 @@ function AdminContentPage() {
     </form>}
     <State state={state}><div className="admin-list">
       {items.map((item) => <article key={item.id || `${item.target_type}-${item.target_id}`}>
+          {tab === 'life' && item.images?.[0]?.thumbnail_url && <span className="admin-content-media"><AuthenticatedMedia src={item.images[0].thumbnail_url} alt="" fit="cover" />{item.images[0].media_type === 'live_video' && <span className="live-photo-badge">实况</span>}</span>}
           <strong>{item.title || item.content?.title || item.body || `评论 #${item.id}`}</strong>
           {tab === 'guide' && <small>地图：{item.map?.name_zh || '—'} · 英雄：{item.hero?.name_zh || '—'} · 分类：{item.category} · 反馈：有效 {item.validity_feedback?.valid || 0} / 可能失效 {item.validity_feedback?.possibly_invalid || 0}</small>}
         <span>{item.status || item.content?.status || item.target_type}</span>
@@ -380,7 +382,6 @@ function AdminChaptersPage() {
   const submit = async (values) => {
     const { item, type } = dialog
     if (type === 'reject') await admin.rejectChapter(item.id, { review_note: values.resolution_message })
-    if (type === 'edit') await admin.updateAdminChapter(item.id, { name: values.name, aliases: values.aliases.split(',').map((value) => value.trim()).filter(Boolean) })
     if (type === 'merge') await admin.mergeChapter(item.id, { target_chapter_id: Number(values.target_chapter_id), reason: values.reason })
     load()
   }
@@ -403,14 +404,15 @@ function AdminChaptersPage() {
           {item.review_status === 'pending' && <><button onClick={() => void quick(item, 'approve')}>通过</button><button onClick={() => setDialog({ item, type: 'reject', title: '驳回章节' })}>驳回</button></>}
           {item.status === 'active' && <button onClick={() => void quick(item, 'disable')}>禁用</button>}
           {item.status === 'disabled' && <button onClick={() => void quick(item, 'enable')}>启用</button>}
-          <button onClick={() => setDialog({ item, type: 'edit', title: '编辑章节' })}>编辑</button>
+          <Link className="button" to={`/admin/chapters/${item.id}/edit`}>编辑</Link>
+          {item.can_delete && <Link className="button button--danger" to={`/admin/chapters/${item.id}/edit`}>删除</Link>}
           {item.status === 'active' && <button className="button--danger" onClick={() => setDialog({ item, type: 'merge', title: '合并章节', dangerous: true })}>合并</button>}
         </div>
       </article>)}
     </div>}</State>
     <AdminActionDialog
       open={Boolean(dialog)} title={dialog?.title} dangerous={dialog?.dangerous}
-      fields={dialog?.type === 'reject' ? [resolutionField] : dialog?.type === 'edit' ? [{ name: 'name', label: '章节名称', required: true, value: dialog.item.name }, { name: 'aliases', label: '别名（逗号分隔）', value: (dialog.item.aliases || []).join(',') }] : [{ name: 'target_chapter_id', label: '目标章节 ID', type: 'number', required: true }, reasonField, { name: 'confirm_text', label: '输入 MERGE 确认迁移', required: true }]}
+      fields={dialog?.type === 'reject' ? [resolutionField] : [{ name: 'target_chapter_id', label: '目标章节 ID', type: 'number', required: true }, reasonField, { name: 'confirm_text', label: '输入 MERGE 确认迁移', required: true }]}
       submitLabel="保存" onClose={() => setDialog(null)}
       onSubmit={async (values) => { if (dialog?.type === 'merge' && values.confirm_text !== 'MERGE') throw new Error('确认词不匹配。'); await submit(values) }}
     />

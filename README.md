@@ -537,6 +537,7 @@ python -m flask --app run.py import-overwatch-catalog \
 1. [`docs/product.md`](docs/product.md)：产品需求与业务边界
 2. [`AGENTS.md`](AGENTS.md)：技术栈、实现约定与任务汇报规范
 3. [`docs/ui-style.md`](docs/ui-style.md)：前端视觉语言与响应式规范
+4. [`docs/life-chapter-management.md`](docs/life-chapter-management.md)：生活章节所有权、投稿策略与删除事务
 
 基本原则：
 

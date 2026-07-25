@@ -37,7 +37,7 @@ export default function HomeLifePostCard({ post, featured = false }) {
   const title = post.title || '没有标题的日常'
   const excerpt = post.excerpt || '把这一天留在这里。'
   const context = [post.chapter?.name, post.mood].filter(Boolean).join(' · ') || '生活记录'
-  const imageCount = Math.max(0, Number(post.image_count) || 0)
+  const mediaCount = Math.max(0, Number(post.media_count ?? post.image_count) || 0)
   const orientation = coverOrientation(post)
   const cardClassName = [
     'home-life-card',
@@ -66,9 +66,10 @@ export default function HomeLifePostCard({ post, featured = false }) {
             <span className="home-life-card__placeholder">这一刻还没有封面</span>
           )}
 
-          {imageCount > 0 && (
+          {post.cover_media_type === 'live_video' && <span className="live-photo-badge">实况</span>}
+          {mediaCount > 0 && (
             <span className="home-life-card__image-count">
-              {imageCount} 张照片
+              {post.live_video_count ? `${mediaCount} 个媒体` : `${mediaCount} 张照片`}
             </span>
           )}
         </span>

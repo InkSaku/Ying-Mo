@@ -31,6 +31,10 @@ vi.mock('../api/uploads.js', () => ({
   fetchImageBlob: vi.fn(),
 }))
 
+vi.mock('../auth/useAuth.js', () => ({
+  useAuth: () => ({ user: { role: 'system_admin' } }),
+}))
+
 
 function game(overrides = {}) {
   return {

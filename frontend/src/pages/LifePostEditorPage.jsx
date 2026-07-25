@@ -9,6 +9,7 @@ function editorModel(post) {
     title: post.title || '',
     body: post.body || '',
     chapter_id: post.chapter?.id || '',
+    chapter: post.chapter || null,
     location: post.location || '',
     mood: post.mood || '',
     tags: post.tags || [],
@@ -81,9 +82,9 @@ export default function LifePostEditorPage({ edit = false }) {
     <section className="life-page page-container">
       <Link className="text-link" to="/life">返回日常</Link>
       <h1>{edit ? '编辑日常' : '发布日常'}</h1>
-      <p>{edit ? '修改后会保留没有移除的照片，并按当前顺序更新。' : '一张照片、一段文字，把今天留在这里。'}</p>
+      <p>{edit ? '修改后会保留没有移除的照片和实况，并按当前顺序更新。' : '照片、实况和一段文字，把今天留在这里。'}</p>
       {draftNotice && <p className="form-feedback form-feedback--success">{draftNotice}</p>}
-      <LifePostForm key={edit ? `edit-${id}` : initial ? `draft-${draftId}` : `new-${search.get('chapter') || ''}`} initial={initial} chapterId={search.get('chapter')} onSubmit={submit} onSaveDraft={edit ? null : saveDraft} protectedMediaIds={protectedMediaIds} pending={pending} requestError={submitError} />
+      <LifePostForm key={edit ? `edit-${id}` : initial ? `draft-${draftId}` : `new-${search.get('chapter') || ''}`} initial={initial} chapterId={search.get('chapter')} preserveCurrentChapterId={edit ? initial?.chapter_id : null} onSubmit={submit} onSaveDraft={edit ? null : saveDraft} protectedMediaIds={protectedMediaIds} pending={pending} requestError={submitError} />
     </section>
   )
 }

@@ -90,7 +90,7 @@ function LifeChaptersContent({ searchParams, setSearchParams, query, type, sort,
               <span className="chapter-list__cover">{chapter.cover_thumbnail_url ? <AdaptiveMedia src={chapter.cover_thumbnail_url} alt={`${chapter.name} 的封面`} fit="contain" /> : <span aria-hidden="true">映</span>}</span>
               <div>
                 <p className="chapter-list__meta">{chapter.parent ? `${chapter.parent.name} · ` : ''}{types[chapter.chapter_type]}</p>
-                <strong>{chapter.name}</strong>
+                <div className="chapter-list__title"><strong>{chapter.name}</strong><span className="chapter-policy-badge">{chapter.contribution_policy === 'private' ? '私有章节' : '公有章节'}</span></div>
                 <p>{chapter.description || '等待一段新的日常。'}</p>
                 <small>{[chapter.country, chapter.province, chapter.city].filter(Boolean).join(' · ') || '未标注地区'} · {chapter.content_count} 条日常 · {chapter.contributor_count} 位参与者</small>
               </div>

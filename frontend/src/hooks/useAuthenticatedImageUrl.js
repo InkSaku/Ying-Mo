@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react'
 import { fetchImageBlob } from '../api/uploads.js'
 
 function needsAuthenticatedFetch(source) {
-  return typeof source === 'string' && source.startsWith('/api/v1/uploads/images/')
+  return typeof source === 'string' && (
+    source.startsWith('/api/v1/uploads/images/')
+    || /^\/api\/v1\/uploads\/media\/[^/]+\/thumbnail$/.test(source)
+  )
 }
 
 export default function useAuthenticatedImageUrl(source) {

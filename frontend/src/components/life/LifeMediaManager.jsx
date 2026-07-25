@@ -76,11 +76,22 @@ export default function LifeMediaManager({ value, onChange, existingIds = [], di
 
   useEffect(() => { valueRef.current = value }, [value])
   useEffect(() => { existingIdsRef.current = existingIds }, [existingIds])
-  useEffect(() => () => {
-    mountedRef.current = false
-    previewsRef.current.forEach((url) => URL.revokeObjectURL(url))
-    const unbound = valueRef.current.filter((item) => !existingIdsRef.current.includes(item.id) && item.public_id)
-    Promise.allSettled(unbound.map((item) => deleteUnboundMedia(item.public_id)))
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      previewsRef.current.forEach((url) => {
+        URL.revokeObjectURL(url)
+      })
+      const unbound = valueRef.current.filter(
+        (item) =>
+          !existingIdsRef.current.includes(item.id)
+          && item.public_id,
+      )
+      void Promise.allSettled(
+        unbound.map((item) => deleteUnboundMedia(item.public_id)),
+      )
+    }
   }, [])
 
   function releasePreview(item) {

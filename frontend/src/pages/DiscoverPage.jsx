@@ -6,6 +6,7 @@ import AdaptiveMedia from '../components/common/AdaptiveMedia.jsx'
 import { GameCard } from '../components/games/CatalogCards.jsx'
 import GuideCard from '../components/guides/GuideCard.jsx'
 import LifePostCard from '../components/life/LifePostCard.jsx'
+import MasonryFeed from '../components/layout/MasonryFeed.jsx'
 
 function Section({ title, to, children, empty }) {
   return (
@@ -58,19 +59,19 @@ export default function DiscoverPage() {
       </header>
 
       <Section title="编辑精选" to="/discover" empty={!data.featured_content?.length}>
-        <div className="discover-card-grid">
+        <MasonryFeed ariaLabel="编辑精选内容">
           {data.featured_content?.map((item) => (
             <FeaturedCard key={`${item.target_type}-${item.content.id}`} item={item} />
           ))}
-        </div>
+        </MasonryFeed>
       </Section>
 
       <Section title="最新日常" to="/life" empty={!data.latest_life_posts.length}>
-        <div className="discover-card-grid">
+        <MasonryFeed ariaLabel="最新日常">
           {data.latest_life_posts.map((item) => (
             <LifePostCard key={item.id} post={item} />
           ))}
-        </div>
+        </MasonryFeed>
       </Section>
 
       <Section title="热门生活章节" to="/life/chapters" empty={!data.popular_life_chapters.length}>

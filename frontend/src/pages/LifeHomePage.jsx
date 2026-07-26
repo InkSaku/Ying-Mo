@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { getLifePosts } from '../api/life.js'
 import { useAuth } from '../auth/useAuth.js'
 import LifePostCard from '../components/life/LifePostCard.jsx'
+import MasonryFeed from '../components/layout/MasonryFeed.jsx'
 import Pagination from '../components/life/Pagination.jsx'
 
 function pageFrom(search) {
@@ -70,7 +71,11 @@ export default function LifeHomePage() {
         </div>
       )}
       {!loading && !error && posts.length === 0 && <p className="life-empty">这里还没有日常。把一张照片和今天的心情留下来吧。</p>}
-      {!loading && !error && posts.length > 0 && <div className="life-post-grid">{posts.map((post) => <LifePostCard key={post.id} post={post} />)}</div>}
+      {!loading && !error && posts.length > 0 && (
+        <MasonryFeed ariaLabel={scope === 'mine' ? '我的日常列表' : '最新日常列表'}>
+          {posts.map((post) => <LifePostCard key={post.id} post={post} />)}
+        </MasonryFeed>
+      )}
       <Pagination pagination={pagination} onPageChange={changePage} />
     </section>
   )

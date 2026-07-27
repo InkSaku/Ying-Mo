@@ -45,10 +45,10 @@ describe('chapter editor ownership fields', () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined)
     render(<ChapterEditorForm onSubmit={onSubmit} />)
 
-    expect(screen.getByRole('radio', { name: /公有章节/ })).toBeChecked()
-    expect(screen.getByText('公有与私有都可以被所有人浏览；私有只限制谁能向章节投稿。')).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /开放投稿/ })).toBeChecked()
+    expect(screen.getByText('两种合集都可以被所有人浏览；这里仅控制谁能投稿。')).toBeInTheDocument()
     await user.type(screen.getByLabelText('名称'), '夜航')
-    await user.click(screen.getByRole('radio', { name: /私有章节/ }))
+    await user.click(screen.getByRole('radio', { name: /仅自己投稿/ }))
     await user.click(screen.getByRole('button', { name: '保存章节' }))
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
@@ -115,45 +115,43 @@ describe('chapter editor ownership fields', () => {
 
 describe('chapter-aware post editor', () => {
   it('only offers chapters the current user may post to', async () => {
-    getLifeChapters.mockResolvedValue({
-      data: [
-        { id: 1, name: '公有', parent: null, can_post: true, contribution_policy: 'public' },
-        { id: 2, name: '他人的私有', parent: null, can_post: false, contribution_policy: 'private' },
-      ],
-      meta: { pagination },
-    })
+    const user = userEvent.setup()
     render(
       <LifePostForm
-        initial={{ title: '日常', body: '', chapter_id: '', tags: [], shot_at: '', visibility: 'public', images: [{ id: 9 }] }}
+        initial={{ title: '日常', body: '', chapter_id: 1, tags: [], shot_at: '', visibility: 'public', images: [{ id: 9 }] }}
+        selectedCollection={{ id: 1, name: '公有', can_post: true, is_owner: false }}
+        collections={{
+          owned: [],
+          contributing: [{ id: 1, name: '公有', can_post: true, is_owner: false }],
+        }}
+        onCollectionChange={() => {}}
         onSubmit={() => {}}
       />,
     )
 
-    expect(await screen.findByRole('option', { name: '公有' })).toBeInTheDocument()
-    expect(screen.queryByRole('option', { name: '他人的私有' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '重新选择' }))
+    expect(screen.getByRole('button', { name: /公有/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /他人的私有/ })).not.toBeInTheDocument()
   })
 
   it('preserves the current now-private chapter while editing an existing post', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
-    getLifeChapters.mockResolvedValue({
-      data: [
-        { id: 1, name: '公有', parent: null, can_post: true, contribution_policy: 'public' },
-        { id: 2, name: '原章节', parent: null, can_post: false, contribution_policy: 'private' },
-      ],
-      meta: { pagination },
-    })
     render(
       <LifePostForm
         initial={{ title: '已有日常', body: '', chapter_id: 2, tags: [], shot_at: '', visibility: 'public', images: [{ id: 9 }] }}
-        preserveCurrentChapterId={2}
+        selectedCollection={{ id: 2, name: '原合集', can_post: false, is_owner: true }}
+        collections={{
+          owned: [],
+          contributing: [{ id: 1, name: '公有', can_post: true, is_owner: false }],
+        }}
+        onCollectionChange={() => {}}
         onSubmit={onSubmit}
       />,
     )
 
-    expect(await screen.findByRole('option', { name: '原章节（当前章节，仅保留现有内容）' })).toBeInTheDocument()
-    expect(screen.getByText('当前章节已不再接受你的新投稿；不更换章节仍可保存这篇已有日常。')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: '发布日常' }))
+    expect(screen.getByText('原合集')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '发布内容' }))
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ chapter_id: 2 }))
   })
 })

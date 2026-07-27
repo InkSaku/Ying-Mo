@@ -109,7 +109,7 @@ describe('chapter creation and editing pages', () => {
     )
 
     await user.type(screen.getByLabelText('名称'), '待审核章节')
-    await user.click(screen.getByRole('button', { name: '创建章节' }))
+    await user.click(screen.getByRole('button', { name: '创建合集' }))
 
     await waitFor(() => expect(createLifeChapter).toHaveBeenCalledWith(expect.objectContaining({
       name: '待审核章节',
@@ -139,7 +139,7 @@ describe('chapter creation and editing pages', () => {
     )
 
     await user.type(screen.getByLabelText('名称'), '直接通过章节')
-    await user.click(screen.getByRole('button', { name: '创建章节' }))
+    await user.click(screen.getByRole('button', { name: '创建合集' }))
 
     expect(await screen.findByText('已进入公开详情')).toBeInTheDocument()
   })
@@ -159,7 +159,7 @@ describe('chapter creation and editing pages', () => {
       expect(screen.getByLabelText(label)).toBeInTheDocument()
     }
     expect(screen.getByAltText('章节封面预览')).toBeInTheDocument()
-    expect(screen.getByRole('radio', { name: /私有章节/ })).toBeChecked()
+    expect(screen.getByRole('radio', { name: /仅自己投稿/ })).toBeChecked()
     expect(screen.getByRole('heading', { name: '强制永久删除' })).toBeInTheDocument()
     expect(await screen.findByText('当前将永久删除 3 条日常、2 个子章节和 4 张图片。')).toBeInTheDocument()
     expect(screen.getByLabelText('输入 DELETE CHAPTER 7')).toBeInTheDocument()
@@ -187,8 +187,8 @@ describe('My Chapters', () => {
     for (const name of ['待审', '驳回', '禁用', '合并']) {
       expect(await screen.findByRole('heading', { name })).toBeInTheDocument()
     }
-    expect(screen.getAllByText('私有章节')).toHaveLength(3)
-    expect(screen.getByText('公有章节')).toBeInTheDocument()
+    expect(screen.getAllByText('仅自己投稿')).toHaveLength(3)
+    expect(screen.getByText('开放投稿')).toBeInTheDocument()
     expect(screen.getByText('审核意见：请补充说明')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '归档' })).toHaveAttribute('href', '/life/chapter/archive')
   })

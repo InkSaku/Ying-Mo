@@ -5,7 +5,7 @@ from app.common.responses import error_response, success_response
 from app.extensions import db
 from app.models import ContentFavorite, GameGuide, LifePost, User, UserStatus
 from app.guides.serializers import guide_dict
-from app.life.routes import POST_OPTIONS, post_dict
+from app.life.routes import POST_OPTIONS, post_dict, post_interaction_stats
 from app.guides.routes import GUIDE_OPTIONS
 from sqlalchemy import and_, exists, or_
 from .service import counts, set_favorite, set_like
@@ -75,9 +75,10 @@ def favorites():
     life_ids = [r.target_id for r in rows if r.target_type == "life_post"]
     guide_ids = [r.target_id for r in rows if r.target_type == "game_guide"]
     life = {x.id: x for x in db.session.scalars(db.select(LifePost).where(LifePost.id.in_(life_ids)).options(*POST_OPTIONS)).unique().all()} if life_ids else {}
+    life_stats = post_interaction_stats(life_ids)
     guides = {x.id: x for x in db.session.scalars(db.select(GameGuide).where(GameGuide.id.in_(guide_ids)).options(*GUIDE_OPTIONS)).unique().all()} if guide_ids else {}
     items = []
     for row in rows:
         target = life.get(row.target_id) if row.target_type == "life_post" else guides.get(row.target_id)
-        if target: items.append({"target_type": row.target_type, "favorited_at": row.created_at.isoformat(), "content": post_dict(target, actor) if row.target_type == "life_post" else guide_dict(target, actor)})
+        if target: items.append({"target_type": row.target_type, "favorited_at": row.created_at.isoformat(), "content": post_dict(target, actor, interaction_stats=life_stats) if row.target_type == "life_post" else guide_dict(target, actor)})
     return success_response(items, meta={"pagination": {"page": page, "page_size": size, "total": total, "total_pages": (total + size - 1) // size, "has_next": page * size < total, "has_previous": page > 1}})

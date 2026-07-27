@@ -49,6 +49,20 @@ def _payload_and_media(data, existing=None):
     return draft_type, validate_payload(draft_type, data["payload"]), data.get("media_ids", [link.media_id for link in existing.media_links] if existing else [])
 
 
+def _validate_life_references(draft_type, payload, media):
+    if draft_type != "life_post":
+        return
+    from app.life.post_content import life_media_reference_error
+
+    error = life_media_reference_error(
+        payload.get("body"),
+        payload.get("cover_media_id"),
+        media,
+    )
+    if error:
+        raise ValueError(error[2])
+
+
 @drafts_bp.get("")
 @jwt_required(locations=["headers"])
 def list_drafts():
@@ -79,6 +93,7 @@ def create_draft():
         if len(media_ids) > maximum:
             raise ValueError("草稿媒体数量超出限制。" if draft_type == "life_post" else "草稿图片数量超出限制。")
         media = validate_draft_media(user, media_ids, draft_type=draft_type)
+        _validate_life_references(draft_type, payload, media)
     except LookupError:
         return _error("请求的图片不存在。", 404, "RESOURCE_NOT_FOUND")
     except PermissionError:
@@ -125,6 +140,7 @@ def update_draft(draft_id):
             raise ValueError("草稿媒体数量超出限制。" if draft_type == "life_post" else "草稿图片数量超出限制。")
         old = {link.media_id: link.media for link in draft.media_links}
         media = validate_draft_media(user, media_ids, old, draft_type=draft_type)
+        _validate_life_references(draft_type, payload, media)
     except LookupError:
         return _error("请求的图片不存在。", 404, "RESOURCE_NOT_FOUND")
     except PermissionError:

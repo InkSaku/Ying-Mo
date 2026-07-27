@@ -87,7 +87,7 @@ def suggestions(query, viewer, limit):
         for item in items:
             content = item["content"]
             if scope == "life_chapter": label, subtitle = content["name"], "生活章节"
-            elif scope == "life_post": label, subtitle = content["title"], "日常"
+            elif scope == "life_post": label, subtitle = content["title"] or content["excerpt"] or "无标题内容", "日常"
             elif scope == "game": label, subtitle = content["name_zh"], content.get("name_en") or "游戏"
             elif scope in {"game_hero", "game_map"}: label, subtitle = content["name_zh"], content["game"]["name_zh"]
             elif scope == "game_guide": label, subtitle = content["title"], f"{content['map']['name_zh']} · {content['hero']['name_zh']} 点位"

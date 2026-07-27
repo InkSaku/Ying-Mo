@@ -39,26 +39,25 @@ function cardMotion(index, reducedMotion) {
 }
 
 export function ProfileLifeCard({ post, index, reducedMotion }) {
+  const hasMedia = Boolean(post.cover_image)
   return (
-    <motion.article className="profile-life-card" {...cardMotion(index, reducedMotion)}>
+    <motion.article className={`profile-life-card${hasMedia ? '' : ' profile-life-card--text'}`} {...cardMotion(index, reducedMotion)}>
       <Link to={`/life/post/${post.id}`}>
-        <span className="profile-life-card__media">
-          {post.cover_image ? (
+        {hasMedia && <span className="profile-life-card__media">
+          {(
             <AuthenticatedMedia src={post.cover_image} alt={`生活照片：${post.title}`} fit="natural" width={post.cover_width} height={post.cover_height} />
-          ) : (
-            <span className="profile-card-placeholder" aria-hidden="true">日</span>
           )}
           {post.cover_media_type === 'live_video' && <span className="live-photo-badge">实况</span>}
           <span className="profile-life-card__count">{post.live_video_count ? `${post.media_count ?? post.image_count} 个媒体` : `${post.image_count} 张`}</span>
-        </span>
+        </span>}
 
         <span className="profile-life-card__body">
           <span className="profile-life-card__topline">
             <span>{post.chapter?.name || '未归档章节'}</span>
             <time dateTime={post.created_at}>{formatDate(post.created_at)}</time>
           </span>
-          <strong>{post.title}</strong>
-          <span className="profile-life-card__excerpt">{post.excerpt || '把这一天留在这里。'}</span>
+          {post.title && <strong>{post.title}</strong>}
+          {post.excerpt && <span className="profile-life-card__excerpt">{post.excerpt}</span>}
           <span className="profile-life-card__footer">
             <span>{post.mood || '普通的一天'}</span>
             <span aria-hidden="true">→</span>

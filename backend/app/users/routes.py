@@ -330,13 +330,14 @@ def public_life_posts(username):
     sort = request.args.get("sort", "latest")
     if sort not in {"latest", "updated"}:
         return error_response("VALIDATION_ERROR", "排序方式不支持。", 422)
-    from app.life.routes import POST_OPTIONS, post_dict
+    from app.life.routes import POST_OPTIONS, post_dict, post_interaction_stats
     viewer = _optional_user()
     stmt = db.select(LifePost).where(*_visible_post_filters(viewer, profile.id))
     total = db.session.scalar(db.select(func.count()).select_from(stmt.subquery()))
     order = (LifePost.updated_at.desc(), LifePost.id.desc()) if sort == "updated" else (LifePost.created_at.desc(), LifePost.id.desc())
     items = db.session.scalars(stmt.options(*POST_OPTIONS).order_by(*order).offset((page - 1) * page_size).limit(page_size)).unique().all()
-    return success_response([post_dict(item, viewer) for item in items], meta=_pagination(page, page_size, total))
+    stats = post_interaction_stats([item.id for item in items])
+    return success_response([post_dict(item, viewer, interaction_stats=stats) for item in items], meta=_pagination(page, page_size, total))
 
 
 @users_bp.get("/<username>/guides")
@@ -367,7 +368,7 @@ def my_summary():
     from app.drafts.service import draft_dict
     from app.guides.routes import GUIDE_OPTIONS
     from app.guides.serializers import guide_dict
-    from app.life.routes import POST_OPTIONS, post_dict
+    from app.life.routes import POST_OPTIONS, post_dict, post_interaction_stats
     life_total = db.session.scalar(db.select(func.count(LifePost.id)).where(LifePost.author_id == user.id, LifePost.status == "published")) or 0
     guide_total = db.session.scalar(db.select(func.count(GameGuide.id)).where(GameGuide.author_id == user.id, GameGuide.status == "published")) or 0
     draft_total = db.session.scalar(db.select(func.count(ContentDraft.id)).where(ContentDraft.owner_id == user.id)) or 0
@@ -381,7 +382,8 @@ def my_summary():
     recent_posts = db.session.scalars(db.select(LifePost).where(LifePost.author_id == user.id, LifePost.status == "published").options(*POST_OPTIONS).order_by(LifePost.updated_at.desc(), LifePost.id.desc()).limit(3)).unique().all()
     recent_guides = db.session.scalars(db.select(GameGuide).where(GameGuide.author_id == user.id, GameGuide.status == "published").options(*GUIDE_OPTIONS).order_by(GameGuide.updated_at.desc(), GameGuide.id.desc()).limit(3)).unique().all()
     drafts = db.session.scalars(db.select(ContentDraft).where(ContentDraft.owner_id == user.id).options(selectinload(ContentDraft.media_links)).order_by(ContentDraft.updated_at.desc(), ContentDraft.id.desc()).limit(3)).all()
-    return success_response({"life_post_count": life_total, "guide_count": guide_total, "draft_count": draft_total, "hidden_count": hidden_total, "favorite_count": favorite_total, "comment_count": comment_total, "received_like_count": received_likes, "recent_content": [*(post_dict(post, user) for post in recent_posts), *(guide_dict(guide) for guide in recent_guides)], "recent_drafts": [draft_dict(draft) for draft in drafts]})
+    recent_post_stats = post_interaction_stats([post.id for post in recent_posts])
+    return success_response({"life_post_count": life_total, "guide_count": guide_total, "draft_count": draft_total, "hidden_count": hidden_total, "favorite_count": favorite_total, "comment_count": comment_total, "received_like_count": received_likes, "recent_content": [*(post_dict(post, user, interaction_stats=recent_post_stats) for post in recent_posts), *(guide_dict(guide) for guide in recent_guides)], "recent_drafts": [draft_dict(draft) for draft in drafts]})
 
 
 @users_bp.get("/me/life-posts")
@@ -394,14 +396,15 @@ def my_life_posts():
     status, visibility, sort = request.args.get("status", "all"), request.args.get("visibility", "all"), request.args.get("sort", "latest")
     if status not in {"all", "published", "hidden"} or visibility not in {"all", "public", "login_only", "private"} or sort not in {"latest", "updated"}:
         return error_response("VALIDATION_ERROR", "筛选条件不合法。", 422)
-    from app.life.routes import POST_OPTIONS, post_dict
+    from app.life.routes import POST_OPTIONS, post_dict, post_interaction_stats
     stmt = db.select(LifePost).where(LifePost.author_id == user.id)
     if status != "all": stmt = stmt.where(LifePost.status == status)
     if visibility != "all": stmt = stmt.where(LifePost.visibility == visibility)
     total = db.session.scalar(db.select(func.count()).select_from(stmt.subquery()))
     order = (LifePost.updated_at.desc(), LifePost.id.desc()) if sort == "updated" else (LifePost.created_at.desc(), LifePost.id.desc())
     items = db.session.scalars(stmt.options(*POST_OPTIONS).order_by(*order).offset((page - 1) * page_size).limit(page_size)).unique().all()
-    return success_response([post_dict(item, user, item.status != "published") for item in items], meta=_pagination(page, page_size, total))
+    stats = post_interaction_stats([item.id for item in items])
+    return success_response([post_dict(item, user, item.status != "published", stats) for item in items], meta=_pagination(page, page_size, total))
 
 
 @users_bp.get("/me/guides")

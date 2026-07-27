@@ -37,7 +37,7 @@ export default function LifeChapterEditPage({ admin = false }) {
     return () => { cancelled = true }
   }, [admin, id, user?.role])
 
-  if (state.loading) return <section className={admin ? 'admin-page' : 'life-page page-container'}><p>正在加载章节…</p></section>
+  if (state.loading) return <section className={admin ? 'admin-page' : 'life-page page-container'}><p>正在加载合集…</p></section>
   if (state.error) return <section className={admin ? 'admin-page' : 'life-page page-container'}><p className="form-feedback form-feedback--error">{state.error.message}</p></section>
   const chapter = state.chapter
   const back = admin ? '/admin/chapters' : '/me/chapters'
@@ -75,15 +75,15 @@ export default function LifeChapterEditPage({ admin = false }) {
 
   return (
     <section className={admin ? 'admin-page chapter-editor-page' : 'life-page page-container chapter-editor-page'}>
-      <Link className="text-link" to={back}>返回{admin ? '章节管理' : '我的章节'}</Link>
-      <p className="eyebrow">{admin ? '后台章节编辑' : '章节管理'}</p>
+      <Link className="text-link" to={back}>返回{admin ? '合集管理' : '我的合集'}</Link>
+      <p className="eyebrow">{admin ? '后台合集编辑' : '合集管理'}</p>
       <h1>编辑「{chapter.name}」</h1>
-      {chapter.status === 'merged' ? <div className="state-message"><p>这个章节已经合并，不能继续编辑。</p>{chapter.merged_into && <Link to={`/life/chapter/${chapter.merged_into.slug}`}>查看合并目标「{chapter.merged_into.name}」</Link>}</div> : <>
+      {chapter.status === 'merged' ? <div className="state-message"><p>这个合集已经合并，不能继续编辑。</p>{chapter.merged_into && <Link to={`/life/chapter/${chapter.merged_into.slug}`}>查看合并目标「{chapter.merged_into.name}」</Link>}</div> : <>
         <ChapterEditorForm key={`${chapter.id}:${chapter.updated_at}`} initial={chapter} admin={admin} pending={saving} requestError={saveError} onSubmit={save} />
         <section className="chapter-danger-zone">
-          <h2>删除章节</h2>
-          <p>系统会先检查日常、子章节和封面。有关联日常时必须迁移，不会直接误删其他用户内容。</p>
-          <button className="button button--danger" type="button" onClick={() => setDeleting(true)}>删除章节</button>
+          <h2>删除合集</h2>
+          <p>系统会先检查内容、子合集和封面。有关联内容时必须迁移，不会直接误删其他用户内容。</p>
+          <button className="button button--danger" type="button" onClick={() => setDeleting(true)}>删除合集</button>
         </section>
         {admin && user?.role === 'system_admin' && <form className="chapter-danger-zone chapter-danger-zone--force" onSubmit={forceDelete}>
           <h2>强制永久删除</h2>

@@ -458,6 +458,24 @@
   padding: 1rem 1.05rem 1.1rem;
 }
 
+.profile-life-card--text > a {
+  background:
+    radial-gradient(circle at 100% 0, var(--color-primary-veil), transparent 42%),
+    var(--color-surface);
+}
+
+.profile-life-card--text .profile-life-card__body {
+  min-height: 12rem;
+  align-content: start;
+  padding: 1.25rem;
+}
+
+.profile-life-card--text .profile-life-card__excerpt {
+  color: var(--color-text);
+  font-size: .96rem;
+  -webkit-line-clamp: 5;
+}
+
 .profile-life-card__topline,
 .profile-guide-card__topline,
 .profile-life-card__footer,

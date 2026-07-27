@@ -117,7 +117,8 @@ def mine():
         if row.target_type == "life_post":
             target = posts.get(row.target_id)
             visible = target and can_view_post(target, actor)
-            summary = {"target_type": "life_post", "target_id": target.id, "title": target.title, "target_url": f"/life/post/{target.id}"} if visible else None
+            from app.life.post_content import post_display_title
+            summary = {"target_type": "life_post", "target_id": target.id, "title": post_display_title(target), "target_url": f"/life/post/{target.id}"} if visible else None
         else:
             target = guides.get(row.target_id)
             visible = target and (target.status == "published" or target.author_id == actor.id)

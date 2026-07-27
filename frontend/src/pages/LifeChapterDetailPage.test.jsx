@@ -82,10 +82,10 @@ describe('life chapter detail permissions', () => {
     renderDetail('private')
 
     expect(await screen.findByRole('heading', { name: '私人记录' })).toBeInTheDocument()
-    expect(screen.getByText('所有人可浏览，仅章节创建者可投稿。')).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: '发布到此章节' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: '编辑章节' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: '删除章节' })).not.toBeInTheDocument()
+    expect(screen.getByText('所有人可浏览，仅合集创建者可投稿。')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: '在此记录' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: '编辑合集' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '删除合集' })).not.toBeInTheDocument()
   })
 
   it('shows posting and ownership controls when the DTO grants them', async () => {
@@ -107,8 +107,8 @@ describe('life chapter detail permissions', () => {
     })
     renderDetail('mine')
 
-    expect(await screen.findByRole('link', { name: '发布到此章节' })).toHaveAttribute('href', '/life/create?chapter=5')
-    expect(screen.getByRole('link', { name: '编辑章节' })).toHaveAttribute('href', '/life/chapters/5/edit')
-    expect(screen.getByRole('button', { name: '删除章节' })).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: '在此记录' })).toHaveAttribute('href', '/life/create?chapter_id=5')
+    expect(screen.getByRole('link', { name: '编辑合集' })).toHaveAttribute('href', '/life/chapters/5/edit')
+    expect(screen.getByRole('button', { name: '删除合集' })).toBeInTheDocument()
   })
 })

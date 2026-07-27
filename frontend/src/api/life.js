@@ -2,6 +2,7 @@ import { apiClient } from './client.js'
 
 function params(config) { return { params: Object.fromEntries(Object.entries(config || {}).filter(([, value]) => value !== '' && value != null)) } }
 export async function getLifeChapters(query) { const { data } = await apiClient.get('/life/chapters', params(query)); return data }
+export async function getPostableLifeChapters() { const { data } = await apiClient.get('/life/chapters/postable'); return data.data }
 export async function checkLifeChapterName(query) { const { data } = await apiClient.get('/life/chapters/check-name', params(query)); return data.data }
 export async function createLifeChapter(payload) { const { data } = await apiClient.post('/life/chapters', payload); return data.data }
 export async function resubmitLifeChapter(id, payload) { const { data } = await apiClient.patch(`/life/chapters/${id}/application`, payload); return data.data }

@@ -9,7 +9,10 @@ from app.uploads.storage import file_exists, remove_media_files
 
 
 DRAFT_TYPES = {"life_post", "game_guide"}
-LIFE_FIELDS = {"title", "body", "chapter_id", "location", "mood", "tags", "shot_at", "visibility"}
+LIFE_FIELDS = {
+    "title", "body", "content_format", "external_video_url", "chapter_id",
+    "cover_media_id", "location", "mood", "tags", "shot_at", "visibility",
+}
 GUIDE_FIELDS = {
     "game_id", "hero_id", "map_id", "guide_scope", "content_mode", "title", "category", "instructions",
     "map_area", "side", "skill", "aim_reference", "timing", "game_version",
@@ -58,9 +61,29 @@ def validate_payload(draft_type, payload):
         raise ValueError("unknown_field")
     cleaned = dict(payload)
     if draft_type == "life_post":
-        for field, maximum in (("title", 100), ("body", 5000), ("location", 100), ("mood", 30)):
+        from app.life.post_content import (
+            BODY_MAX_LENGTH,
+            CONTENT_FORMATS,
+            normalize_external_video_url,
+        )
+        for field, maximum in (("title", 100), ("body", BODY_MAX_LENGTH), ("location", 100), ("mood", 30)):
             if field in cleaned:
                 cleaned[field] = _clean_text(cleaned[field], maximum)
+        if "content_format" in cleaned and cleaned["content_format"] not in CONTENT_FORMATS:
+            raise ValueError("content_format")
+        if "external_video_url" in cleaned:
+            try:
+                cleaned["external_video_url"] = normalize_external_video_url(
+                    cleaned["external_video_url"]
+                )
+            except (TypeError, ValueError) as error:
+                raise ValueError("external_video_url") from error
+        if "cover_media_id" in cleaned and cleaned["cover_media_id"] is not None and (
+            not isinstance(cleaned["cover_media_id"], int)
+            or isinstance(cleaned["cover_media_id"], bool)
+            or cleaned["cover_media_id"] <= 0
+        ):
+            raise ValueError("cover_media_id")
         if "chapter_id" in cleaned and cleaned["chapter_id"] is not None and (not isinstance(cleaned["chapter_id"], int) or isinstance(cleaned["chapter_id"], bool) or cleaned["chapter_id"] <= 0):
             raise ValueError("chapter_id")
         if "visibility" in cleaned and cleaned["visibility"] not in {"public", "login_only", "private"}:

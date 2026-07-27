@@ -1,6 +1,7 @@
 from app.extensions import db
 from app.models import Comment, GameGuide, LifePost, User, UserStatus
 from app.life.routes import can_view_post
+from app.life.post_content import post_display_title
 
 
 REPORT_TARGET_TYPES = {"life_post", "game_guide", "comment", "user"}
@@ -40,7 +41,7 @@ def target_public_url(target_type, target):
 
 
 def serialize_target_snapshot(target_type, target):
-    if target_type == "life_post": return {"id": target.id, "title": target.title[:100], "author_id": target.author_id, "visibility": target.visibility, "url": target_public_url(target_type, target)}
+    if target_type == "life_post": return {"id": target.id, "title": post_display_title(target), "author_id": target.author_id, "visibility": target.visibility, "url": target_public_url(target_type, target)}
     if target_type == "game_guide": return {"id": target.id, "title": target.title[:120], "author_id": target.author_id, "url": target_public_url(target_type, target)}
     if target_type == "comment": return {"id": target.id, "target_type": target.target_type, "target_id": target.target_id, "author_id": target.author_id, "excerpt": (target.body or "")[:160], "url": target_public_url(target_type, target)}
     return {"id": target.id, "username": target.username, "nickname": target.nickname, "url": target_public_url(target_type, target)}

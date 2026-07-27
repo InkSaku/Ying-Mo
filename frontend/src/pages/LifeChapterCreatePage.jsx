@@ -43,17 +43,17 @@ export default function LifeChapterCreatePage() {
     }
   }
 
-  if (invalidResubmitId) return <section className="life-page page-container"><p className="form-feedback form-feedback--error">章节编号不合法。</p></section>
-  if (resubmitId && !initial && !loadError) return <section className="life-page page-container"><p>正在加载章节…</p></section>
+  if (invalidResubmitId) return <section className="life-page page-container"><p className="form-feedback form-feedback--error">合集编号不合法。</p></section>
+  if (resubmitId && !initial && !loadError) return <section className="life-page page-container"><p>正在加载合集…</p></section>
   if (loadError) return <section className="life-page page-container"><p className="form-feedback form-feedback--error">{loadError.message}</p></section>
 
   return (
     <section className="life-page page-container">
-      <Link className="text-link" to={resubmitId ? '/me/chapters' : '/life/chapters'}>返回{resubmitId ? '我的章节' : '章节列表'}</Link>
-      <p className="eyebrow">生活章节</p>
-      <h1>{resubmitId ? `编辑「${initial.name}」` : '创建生活章节'}</h1>
-      <p>章节可以公开浏览。选择“私有”只限制投稿者，不会把章节藏起来。</p>
-      <ChapterEditorForm initial={initial} pending={pending} requestError={error} submitLabel={resubmitId ? '保存并重新提交' : '创建章节'} onSubmit={submit} />
+      <Link className="text-link" to={resubmitId ? '/me/chapters' : '/life/chapters'}>返回{resubmitId ? '我的合集' : '合集列表'}</Link>
+      <p className="eyebrow">生活合集</p>
+      <h1>{resubmitId ? `编辑「${initial.name}」` : '创建生活合集'}</h1>
+      <p>合集可以公开浏览；投稿设置只控制谁能向其中发布内容。</p>
+      <ChapterEditorForm initial={initial} pending={pending} requestError={error} submitLabel={resubmitId ? '保存并重新提交' : '创建合集'} onSubmit={submit} />
     </section>
   )
 }

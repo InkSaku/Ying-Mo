@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import {
   deleteUnboundMedia,
   uploadImage,
@@ -19,6 +19,14 @@ function isLive(item) {
 function validVideoFile(file) {
   return VIDEO_TYPES.has(file.type)
     || /\.(?:mov|mp4)$/i.test(file.name || '')
+}
+
+function fileDescription(file, fallback) {
+  const name = String(file?.name || '')
+    .replace(/\.[^.]+$/, '')
+    .replace(/[-_]+/g, ' ')
+    .trim()
+  return (name || fallback).slice(0, 160)
 }
 
 function MediaPreview({ item, index }) {
@@ -63,9 +71,22 @@ function UploadGuide({ onClose, onContinue }) {
   )
 }
 
-export default function LifeMediaManager({ value, onChange, existingIds = [], disabled = false }) {
+const LifeMediaManager = forwardRef(function LifeMediaManager({
+  value,
+  onChange,
+  existingIds = [],
+  disabled = false,
+  coverMediaId = null,
+  onChoose,
+  onQueued,
+  onResolved,
+  onRemoved,
+  inlineMediaDetails = {},
+  onDescriptionChange,
+}, ref) {
   const imageInputRef = useRef(null)
   const videoInputRef = useRef(null)
+  const uploadModeRef = useRef('inline')
   const previewsRef = useRef(new Set())
   const valueRef = useRef(value)
   const existingIdsRef = useRef(existingIds)
@@ -77,10 +98,11 @@ export default function LifeMediaManager({ value, onChange, existingIds = [], di
   useEffect(() => { valueRef.current = value }, [value])
   useEffect(() => { existingIdsRef.current = existingIds }, [existingIds])
   useEffect(() => {
+    const previews = previewsRef.current
     mountedRef.current = true
     return () => {
       mountedRef.current = false
-      previewsRef.current.forEach((url) => {
+      previews.forEach((url) => {
         URL.revokeObjectURL(url)
       })
       const unbound = valueRef.current.filter(
@@ -93,6 +115,30 @@ export default function LifeMediaManager({ value, onChange, existingIds = [], di
       )
     }
   }, [])
+
+  useImperativeHandle(ref, () => ({
+    chooseImages(mode = 'inline') {
+      if (disabled || valueRef.current.length >= 9) return
+      onChoose?.()
+      uploadModeRef.current = mode
+      imageInputRef.current?.click()
+    },
+    chooseLivePhoto() {
+      if (
+        disabled
+        || valueRef.current.length >= 9
+        || valueRef.current.filter(isLive).length >= 3
+      ) return
+      onChoose?.()
+      setShowGuide(true)
+    },
+    addImageFiles(files) {
+      if (disabled || valueRef.current.length >= 9) return
+      onChoose?.()
+      uploadModeRef.current = 'inline'
+      addImages(files)
+    },
+  }))
 
   function releasePreview(item) {
     if (!item.preview) return
@@ -132,6 +178,7 @@ export default function LifeMediaManager({ value, onChange, existingIds = [], di
           file: null,
         }
       }))
+      onResolved?.(tempId, media)
     } catch (requestError) {
       if (!mountedRef.current || removedUploadsRef.current.has(tempId)) return
       onChange((current) => current.map((item) => item.id === tempId
@@ -146,10 +193,15 @@ export default function LifeMediaManager({ value, onChange, existingIds = [], di
   }
 
   function addImages(files) {
+    const mode = uploadModeRef.current
+    uploadModeRef.current = 'inline'
     const available = 9 - valueRef.current.length
     const selected = Array.from(files || [])
-    if (selected.length > available) setError(`每篇日常最多保留 9 个媒体，已选择前 ${Math.max(available, 0)} 个。`)
-    const accepted = selected.slice(0, Math.max(available, 0)).flatMap((file) => {
+    const maximum = mode === 'cover' ? Math.min(1, available) : available
+    if (selected.length > maximum) {
+      setError(mode === 'cover' ? '一次请选择一张封面图片。' : `每篇日常最多保留 9 个媒体，已选择前 ${Math.max(available, 0)} 个。`)
+    }
+    const accepted = selected.slice(0, Math.max(maximum, 0)).flatMap((file) => {
       if (!IMAGE_TYPES.has(file.type) || file.size > IMAGE_MAX_BYTES) {
         setError('照片仅支持 15 MB 以内的 JPEG、PNG 或 WebP。')
         return []
@@ -161,6 +213,8 @@ export default function LifeMediaManager({ value, onChange, existingIds = [], di
         media_type: 'image',
         preview,
         file,
+        editor_role: mode,
+        alt_text: fileDescription(file, '正文图片'),
         uploading: true,
         error: null,
       }]
@@ -168,6 +222,7 @@ export default function LifeMediaManager({ value, onChange, existingIds = [], di
     if (!accepted.length) return
     setError(null)
     onChange((current) => [...current, ...accepted])
+    onQueued?.(accepted, mode)
     accepted.forEach((item) => void upload(item.id, item.file, 'image'))
   }
 
@@ -195,6 +250,7 @@ export default function LifeMediaManager({ value, onChange, existingIds = [], di
         media_type: 'live_video',
         preview,
         file,
+        alt_text: fileDescription(file, 'Live Photo'),
         uploading: true,
         upload_progress: 0,
         processing: false,
@@ -204,12 +260,14 @@ export default function LifeMediaManager({ value, onChange, existingIds = [], di
     if (!accepted.length) return
     setError(null)
     onChange((current) => [...current, ...accepted])
+    onQueued?.(accepted, 'inline')
     accepted.forEach((item) => void upload(item.id, item.file, 'live_video'))
   }
 
   async function remove(item) {
     if (!Number.isInteger(item.id)) removedUploadsRef.current.add(item.id)
     onChange((current) => current.filter((entry) => entry.id !== item.id))
+    onRemoved?.(item)
     releasePreview(item)
     if (!existingIds.includes(item.id) && item.public_id) {
       try {
@@ -245,10 +303,10 @@ export default function LifeMediaManager({ value, onChange, existingIds = [], di
         <input ref={imageInputRef} className="sr-only" type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(event) => { addImages(event.target.files); event.target.value = '' }} />
         <input ref={videoInputRef} className="sr-only" type="file" accept="video/mp4,video/quicktime,.mp4,.mov" multiple onChange={(event) => { addLiveVideos(event.target.files); event.target.value = '' }} />
         <div className="life-media-actions">
-          <button type="button" onClick={() => imageInputRef.current?.click()} disabled={disabled || value.length >= 9}>添加照片</button>
-          <button type="button" onClick={() => setShowGuide(true)} disabled={disabled || value.length >= 9 || liveCount >= 3}>添加实况</button>
+          <button type="button" onClick={() => { onChoose?.(); uploadModeRef.current = 'inline'; imageInputRef.current?.click() }} disabled={disabled || value.length >= 9}>插入正文图片</button>
+          <button type="button" onClick={() => { onChoose?.(); setShowGuide(true) }} disabled={disabled || value.length >= 9 || liveCount >= 3}>插入正文实况</button>
         </div>
-        <small>照片与实况合计最多 9 个，其中实况最多 3 个。首项会作为列表封面，列表不会自动播放。</small>
+        <small>照片与实况合计最多 9 个，其中实况最多 3 个；列表中的封面由上方单独设置。</small>
       </div>
       {error && <p className="form-feedback form-feedback--error" role="alert">{error}</p>}
       <div className="life-images__grid">
@@ -256,7 +314,7 @@ export default function LifeMediaManager({ value, onChange, existingIds = [], di
           <article key={item.id} className="life-images__item">
             <MediaPreview item={{ media_type: item.media_type || 'image', ...item }} index={index} />
             <div className="life-images__caption">
-              <span>{index === 0 ? '列表封面' : `第 ${index + 1} 个`} · {isLive(item) ? '实况' : '照片'}</span>
+              <span>{String(coverMediaId) === String(item.id) ? '当前封面' : `第 ${index + 1} 个正文媒体`} · {isLive(item) ? '实况' : '照片'}</span>
               {item.width && item.height ? <small>{item.width} × {item.height}</small> : null}
             </div>
             {item.uploading && (
@@ -269,6 +327,19 @@ export default function LifeMediaManager({ value, onChange, existingIds = [], di
               </small>
             )}
             {item.error && <small className="form-feedback--error">{item.error}</small>}
+            {Object.hasOwn(inlineMediaDetails, String(item.public_id || item.id).toLowerCase()) && (
+              <label className="life-images__description">
+                {isLive(item) ? '实况说明' : '图片说明 / Alt 文本'}
+                <input
+                  type="text"
+                  maxLength="160"
+                  value={inlineMediaDetails[String(item.public_id || item.id).toLowerCase()] || ''}
+                  placeholder={isLive(item) ? '简要说明这段实况' : '描述图片内容，便于理解和无障碍访问'}
+                  disabled={disabled}
+                  onChange={(event) => onDescriptionChange?.(item, event.target.value)}
+                />
+              </label>
+            )}
             <div className="life-images__item-actions">
               <button type="button" aria-label={`将第 ${index + 1} 个媒体上移`} onClick={() => move(index, -1)} disabled={disabled || index === 0}>上移</button>
               <button type="button" aria-label={`将第 ${index + 1} 个媒体下移`} onClick={() => move(index, 1)} disabled={disabled || index === value.length - 1}>下移</button>
@@ -278,7 +349,9 @@ export default function LifeMediaManager({ value, onChange, existingIds = [], di
           </article>
         ))}
       </div>
-      {showGuide && <UploadGuide onClose={() => setShowGuide(false)} onContinue={() => { setShowGuide(false); videoInputRef.current?.click() }} />}
+      {showGuide && <UploadGuide onClose={() => setShowGuide(false)} onContinue={() => { setShowGuide(false); uploadModeRef.current = 'inline'; videoInputRef.current?.click() }} />}
     </section>
   )
-}
+})
+
+export default LifeMediaManager

@@ -70,7 +70,7 @@ function NotificationCard({ item, busy, onOpen, onRead }) {
         <strong><b>{actorName}</b>{content.title}</strong>
         <span className="notification-card__body">{content.body}</span>
       </span>
-      {!item.is_read && <span className="notification-card__unread" aria-label="未读" />}
+      {!item.is_read && <span className="notification-card__unread">未读</span>}
     </>
   )
 

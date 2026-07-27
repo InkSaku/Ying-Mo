@@ -5,7 +5,7 @@ import { formatNotification, notificationActorName } from './formatNotification.
 import { NOTIFICATION_COUNT_EVENT } from './notificationCount.js'
 
 const POLL_INTERVAL = 20_000
-const NOTICE_DURATION = 6_000
+const NOTICE_DURATION = 8_000
 
 function BellIcon() {
   return (
@@ -59,9 +59,11 @@ export default function NotificationBell() {
       const formatted = latest ? formatNotification(latest) : null
       setNotice({
         id: latest?.id || Date.now(),
-        title: delta > 1 ? `你有 ${delta} 条新通知` : '你有一条新通知',
+        title: delta > 1
+          ? `收到 ${delta} 条新通知`
+          : formatted?.label || '收到一条新通知',
         body: latest
-          ? `${notificationActorName(latest)} · ${formatted.title}`
+          ? `${notificationActorName(latest)}${formatted.title}${formatted.body ? `：${formatted.body}` : ''}`
           : '打开通知中心查看新消息。',
       })
       setRinging(true)
@@ -143,6 +145,7 @@ export default function NotificationBell() {
         aria-label={count ? `${count} 条未读通知` : '通知中心，没有未读消息'}
       >
         <BellIcon />
+        {count > 0 && <span className="notification-bell__label">新消息</span>}
         {count > 0 && <span className="notification-bell__count">{count > 99 ? '99+' : count}</span>}
       </Link>
 

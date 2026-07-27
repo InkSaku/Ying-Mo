@@ -35,15 +35,15 @@ export default function MyChaptersPage() {
 
   return (
     <section>
-      <div className="life-section__heading"><div><p className="eyebrow">章节所有权</p><h2>我的章节</h2></div><Link className="button button--primary" to="/life/chapters/create">创建章节</Link></div>
+      <div className="life-section__heading"><div><p className="eyebrow">合集所有权</p><h2>我的合集</h2></div><Link className="button button--primary" to="/life/chapters/create">创建合集</Link></div>
       <div className="account-tabs">{filters.map(([key, label]) => <button key={key} aria-pressed={filter === key} onClick={() => setSearch(key === 'all' ? {} : { filter: key })}>{label}</button>)}</div>
-      {state.loading && <p>正在加载章节…</p>}
+      {state.loading && <p>正在加载合集…</p>}
       {state.error && <div className="form-feedback form-feedback--error"><p>{state.error.message}</p><button onClick={() => setRetry((value) => value + 1)}>重试</button></div>}
-      {!state.loading && !state.error && !state.items.length && <p className="life-empty">这里还没有对应状态的章节。</p>}
+      {!state.loading && !state.error && !state.items.length && <p className="life-empty">这里还没有对应状态的合集。</p>}
       <div className="my-chapter-list">{state.items.map((chapter) => <article key={chapter.id}>
         <div className="my-chapter-list__cover">{chapter.cover_thumbnail_url ? <AdaptiveMedia src={chapter.cover_thumbnail_url} alt={`${chapter.name} 的封面`} fit="cover" /> : <span aria-hidden="true">映</span>}</div>
         <div className="my-chapter-list__body">
-          <div className="tag-row"><span>{chapter.contribution_policy === 'private' ? '私有章节' : '公有章节'}</span><span>{reviewLabels[chapter.review_status] || chapter.review_status}</span><span>{statusLabels[chapter.status] || chapter.status}</span></div>
+          <div className="tag-row"><span>{chapter.contribution_policy === 'private' ? '仅自己投稿' : '开放投稿'}</span><span>{reviewLabels[chapter.review_status] || chapter.review_status}</span><span>{statusLabels[chapter.status] || chapter.status}</span></div>
           <h3>{chapter.name}</h3>
           <p>{chapter.content_count} 条日常 · {chapter.contributor_count} 位参与者 · {chapter.child_count} 个子章节</p>
           <small>更新于 {new Date(chapter.updated_at).toLocaleString()}</small>
@@ -52,7 +52,7 @@ export default function MyChaptersPage() {
           <div className="life-toolbar">
             {chapter.status !== 'merged' && <Link className="button" to={`/life/chapters/${chapter.id}/edit`}>编辑</Link>}
             {chapter.can_delete && <button className="button button--danger" onClick={() => setDeleting(chapter)}>删除</button>}
-            {chapter.review_status === 'approved' && chapter.status === 'active' && <Link className="button" to={`/life/chapter/${chapter.slug}`}>查看章节</Link>}
+            {chapter.review_status === 'approved' && chapter.status === 'active' && <Link className="button" to={`/life/chapter/${chapter.slug}`}>查看合集</Link>}
           </div>
         </div>
       </article>)}</div>

@@ -267,6 +267,23 @@
   font-size: 1.18rem;
 }
 
+.home-life-card--text .home-life-card__link {
+  display: block;
+  background:
+    radial-gradient(circle at 100% 0, var(--color-primary-veil), transparent 42%),
+    var(--color-surface);
+}
+
+.home-life-card--text .home-life-card__body {
+  min-height: 13rem;
+}
+
+.home-life-card--text .home-life-card__excerpt {
+  color: var(--color-text);
+  font-size: 1rem;
+  -webkit-line-clamp: 6;
+}
+
 .home-life-showcase__secondary
   > .home-motion-card:only-child
   > .home-life-card--landscape

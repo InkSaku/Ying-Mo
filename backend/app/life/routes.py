@@ -32,6 +32,15 @@ from .chapter_service import (
     resolve_chapter_cover,
     update_chapter as update_chapter_service,
 )
+from .post_content import (
+    BODY_MAX_LENGTH,
+    CONTENT_FORMATS,
+    content_excerpt,
+    has_publishable_content,
+    life_media_reference_error,
+    normalize_external_video_url,
+    normalize_optional_text,
+)
 
 life_bp = Blueprint("life", __name__)
 CHAPTER_TYPES = {"city", "scenic", "travel", "campus", "event", "custom"}
@@ -159,14 +168,52 @@ def chapter_stats(chapter_ids, user, *, include_all=False):
     return {row.chapter_id: {"content_count": row.content_count, "contributor_count": row.contributor_count} for row in rows}
 
 
-def post_dict(post, user=None, detail=False):
+def post_interaction_stats(post_ids):
+    if not post_ids:
+        return {}
+    from app.models import Comment, ContentLike
+    likes = db.session.execute(
+        db.select(ContentLike.target_id, func.count(ContentLike.id))
+        .where(
+            ContentLike.target_type == "life_post",
+            ContentLike.target_id.in_(post_ids),
+        )
+        .group_by(ContentLike.target_id)
+    ).all()
+    comments = db.session.execute(
+        db.select(Comment.target_id, func.count(Comment.id))
+        .where(
+            Comment.target_type == "life_post",
+            Comment.target_id.in_(post_ids),
+            Comment.status == "active",
+        )
+        .group_by(Comment.target_id)
+    ).all()
+    stats = {post_id: {"like_count": count, "comment_count": 0} for post_id, count in likes}
+    for post_id, count in comments:
+        stats.setdefault(post_id, {"like_count": 0, "comment_count": 0})["comment_count"] = count
+    return stats
+
+
+def post_dict(post, user=None, detail=False, interaction_stats=None):
     links = post.media_links
     images = [{**link.media.to_dict(), "position": link.position} for link in links]
     data = {
         "id": post.id,
         "title": post.title,
+        "content_format": post.content_format or "plain",
+        "external_video_url": post.external_video_url,
+        "has_external_video": bool(post.external_video_url),
+        "cover_media_id": post.cover_media_id,
         "author": public_user_dict(post.author),
-        "chapter": {"id": post.chapter.id, "name": post.chapter.name, "slug": post.chapter.slug, "type": post.chapter.chapter_type},
+        "chapter": {
+            "id": post.chapter.id,
+            "name": post.chapter.name,
+            "slug": post.chapter.slug,
+            "type": post.chapter.chapter_type,
+            "contribution_policy": post.chapter.contribution_policy,
+            "is_owner": bool(user and post.chapter.creator_id == user.id),
+        },
         "location": post.location,
         "mood": post.mood,
         "tags": post.tags or [],
@@ -176,12 +223,25 @@ def post_dict(post, user=None, detail=False):
         "updated_at": serialize_datetime(post.updated_at),
         "can_edit": bool(user and post.author_id == user.id),
     }
-    if detail:
-        data.update({"body": post.body, "images": images, "media": images, "status": post.status, "moderation_reason": post.moderation_reason if user and post.author_id == user.id else None})
-    else:
-        cover = images[0] if images else None
+    if interaction_stats is not None:
+        counts = interaction_stats.get(post.id, {})
         data.update({
-            "excerpt": (post.body or "")[:160],
+            "like_count": counts.get("like_count", 0),
+            "comment_count": counts.get("comment_count", 0),
+        })
+    if detail:
+        data.update({
+            "body": post.body,
+            "images": images,
+            "media": images,
+            "cover_media": post.cover_media.to_dict() if post.cover_media else None,
+            "status": post.status,
+            "moderation_reason": post.moderation_reason if user and post.author_id == user.id else None,
+        })
+    else:
+        cover = post.cover_media.to_dict() if post.cover_media else (images[0] if images else None)
+        data.update({
+            "excerpt": content_excerpt(post.body),
             "cover_image": cover["thumbnail_url"] if cover else None,
             "cover_width": cover["width"] if cover else None,
             "cover_height": cover["height"] if cover else None,
@@ -197,6 +257,7 @@ def post_dict(post, user=None, detail=False):
 POST_OPTIONS = (
     selectinload(LifePost.author),
     joinedload(LifePost.chapter),
+    joinedload(LifePost.cover_media),
     selectinload(LifePost.media_links).joinedload(LifePostMedia.media),
 )
 CHAPTER_OPTIONS = (
@@ -207,27 +268,47 @@ CHAPTER_OPTIONS = (
 
 
 def validate_post_payload(payload, creating=False):
-    allowed = {"chapter_id", "title", "body", "location", "mood", "tags", "shot_at", "visibility", "media_ids"}
+    allowed = {
+        "chapter_id", "title", "body", "content_format",
+        "external_video_url", "cover_media_id", "location", "mood", "tags", "shot_at",
+        "visibility", "media_ids",
+    }
     unknown = set(payload) - allowed
     if unknown:
         return None, validation_error([field_error(sorted(unknown)[0], "unknown_field", "不支持该字段。")])
-    required = {"title", "chapter_id", "media_ids"}
+    required = {"chapter_id"}
     if creating and (required - set(payload)):
-        return None, validation_error([field_error("body", "required", "标题、章节和照片或实况为必填项。")])
+        return None, validation_error([field_error("chapter_id", "required", "请选择要发布到的合集。")])
     updates, errors = {}, []
-    for field, maximum, label in (("title", 100, "标题"), ("body", 5000, "正文"), ("location", 100, "地点"), ("mood", 30, "心情")):
+    for field, maximum, label in (("title", 100, "标题"), ("body", BODY_MAX_LENGTH, "正文"), ("location", 100, "地点"), ("mood", 30, "心情")):
         if field not in payload:
             continue
-        value = payload[field]
-        if field == "title":
-            value = value.strip() if isinstance(value, str) else value
-            if not isinstance(value, str) or not value or len(value) > maximum:
-                errors.append(field_error(field, "invalid_length", "标题长度需为 1 至 100 个字符。"))
-        elif value is not None and (not isinstance(value, str) or len(value) > maximum):
+        try:
+            updates[field] = normalize_optional_text(payload[field], maximum)
+        except (TypeError, ValueError):
             errors.append(field_error(field, "invalid_length", f"{label}长度不合法。"))
+    if "content_format" in payload:
+        if payload["content_format"] not in CONTENT_FORMATS:
+            errors.append(field_error("content_format", "invalid_choice", "正文格式只能是 plain 或 markdown。"))
         else:
-            value = value or None
-        updates[field] = value
+            updates["content_format"] = payload["content_format"]
+    elif creating:
+        updates["content_format"] = "plain"
+    if "external_video_url" in payload:
+        try:
+            updates["external_video_url"] = normalize_external_video_url(payload["external_video_url"])
+        except (TypeError, ValueError):
+            errors.append(field_error("external_video_url", "invalid_url", "外部视频链接必须是有效的 HTTP 或 HTTPS 地址。"))
+    if "cover_media_id" in payload:
+        cover_media_id = payload["cover_media_id"]
+        if cover_media_id is not None and (
+            not isinstance(cover_media_id, int)
+            or isinstance(cover_media_id, bool)
+            or cover_media_id <= 0
+        ):
+            errors.append(field_error("cover_media_id", "invalid_type", "cover_media_id 必须是正整数或 null。"))
+        else:
+            updates["cover_media_id"] = cover_media_id
     if "chapter_id" in payload and (not isinstance(payload["chapter_id"], int) or isinstance(payload["chapter_id"], bool) or payload["chapter_id"] <= 0):
         errors.append(field_error("chapter_id", "invalid_type", "chapter_id 必须是正整数。"))
     elif "chapter_id" in payload:
@@ -259,10 +340,12 @@ def validate_post_payload(payload, creating=False):
     if "media_ids" in payload:
         ids = payload["media_ids"]
         invalid = any(not isinstance(item, int) or isinstance(item, bool) or item <= 0 for item in ids) if isinstance(ids, list) else True
-        if not isinstance(ids, list) or not 1 <= len(ids) <= 9 or invalid or len(set(ids)) != len(ids):
-            errors.append(field_error("media_ids", "invalid_format", "媒体数量需为 1 至 9 个且不能重复。"))
+        if not isinstance(ids, list) or len(ids) > 9 or invalid or len(set(ids)) != len(ids):
+            errors.append(field_error("media_ids", "invalid_format", "媒体数量最多 9 个且不能重复。"))
         else:
             updates["media_ids"] = ids
+    elif creating:
+        updates["media_ids"] = []
     return updates, validation_error(errors) if errors else None
 
 
@@ -358,6 +441,44 @@ def list_chapters():
     ).unique().all()
     stats = chapter_stats([chapter.id for chapter in chapters], user)
     return success_response([chapter_dict(chapter, user, stats=stats) for chapter in chapters], meta=pagination_meta(page, page_size, total))
+
+
+@life_bp.get("/chapters/postable")
+@jwt_required(locations=["headers"])
+def list_postable_chapters():
+    user = _current_user()
+    if user is None or user.status != UserStatus.ACTIVE.value:
+        return error_response("ACCOUNT_RESTRICTED", "当前账号无法继续使用。", 403)
+    if not user.can_publish:
+        return error_response("PERMISSION_DENIED", "当前账号不能发布内容。", 403)
+    chapters = db.session.scalars(
+        db.select(LifeChapter)
+        .where(
+            *public_chapter_filters(),
+            or_(
+                LifeChapter.creator_id == user.id,
+                LifeChapter.contribution_policy == "public",
+            ),
+        )
+        .options(*CHAPTER_OPTIONS)
+        .order_by(
+            (LifeChapter.creator_id == user.id).desc(),
+            LifeChapter.updated_at.desc(),
+            LifeChapter.id.desc(),
+        )
+    ).unique().all()
+    stats = chapter_stats([chapter.id for chapter in chapters], user)
+    owned = []
+    contributing = []
+    for chapter in chapters:
+        if not can_post_to_chapter(user, chapter):
+            continue
+        serialized = chapter_dict(chapter, user, stats=stats)
+        (owned if chapter.creator_id == user.id else contributing).append(serialized)
+    return success_response({
+        "owned": owned,
+        "contributing": contributing,
+    })
 
 
 @life_bp.get("/chapters/check-name")
@@ -691,7 +812,11 @@ def list_posts():
     posts = db.session.scalars(
         stmt.options(*POST_OPTIONS).order_by(LifePost.created_at.desc(), LifePost.id.desc()).offset((page - 1) * page_size).limit(page_size)
     ).unique().all()
-    return success_response([post_dict(post, user) for post in posts], meta=pagination_meta(page, page_size, total))
+    interaction_stats = post_interaction_stats([post.id for post in posts])
+    return success_response(
+        [post_dict(post, user, interaction_stats=interaction_stats) for post in posts],
+        meta=pagination_meta(page, page_size, total),
+    )
 
 
 @life_bp.post("/posts")
@@ -741,12 +866,39 @@ def create_post():
         if not draft:
             return error_response("RESOURCE_NOT_FOUND", "请求的草稿不存在。", 404)
         draft_media = {link.media_id for link in draft.media_links}
-    media, error = validate_media_ids(user, updates.pop("media_ids"), draft_media_ids=draft_media)
+    media_ids = updates.pop("media_ids")
+    if not has_publishable_content(
+        updates.get("body"),
+        media_ids,
+        updates.get("external_video_url"),
+    ):
+        db.session.rollback()
+        return validation_error([
+            field_error(
+                "content",
+                "content_required",
+                "正文、媒体或外部视频链接至少填写一项。",
+            )
+        ])
+    media, error = validate_media_ids(user, media_ids, draft_media_ids=draft_media)
     if error:
         db.session.rollback()
         return error
+    reference_error = life_media_reference_error(
+        updates.get("body"),
+        updates.get("cover_media_id"),
+        media,
+    )
+    if reference_error:
+        db.session.rollback()
+        return validation_error([field_error(*reference_error)])
     updates.pop("chapter_id", None)
-    post = LifePost(author_id=user.id, chapter_id=chapter.id, title=updates.pop("title"), **updates)
+    post = LifePost(
+        author_id=user.id,
+        chapter_id=chapter.id,
+        title=updates.pop("title", None),
+        **updates,
+    )
     try:
         db.session.add(post)
         db.session.flush()
@@ -815,6 +967,7 @@ def update_post(post_id):
             )
     removed = []
     requested_media = None
+    target_ids = [link.media_id for link in post.media_links]
     if "media_ids" in updates:
         target_ids = updates["media_ids"]
         existing = {link.media_id: link for link in post.media_links}
@@ -823,7 +976,32 @@ def update_post(post_id):
             db.session.rollback()
             return error
         removed = [link.media for media_id, link in existing.items() if media_id not in target_ids]
+    effective_body = updates.get("body", post.body)
+    effective_video_url = updates.get("external_video_url", post.external_video_url)
+    if not has_publishable_content(effective_body, target_ids, effective_video_url):
+        db.session.rollback()
+        return validation_error([
+            field_error(
+                "content",
+                "content_required",
+                "正文、媒体或外部视频链接至少填写一项。",
+            )
+        ])
+    effective_media = requested_media if requested_media is not None else [
+        link.media for link in post.media_links
+    ]
+    effective_cover_media_id = updates.get("cover_media_id", post.cover_media_id)
+    reference_error = life_media_reference_error(
+        effective_body,
+        effective_cover_media_id,
+        effective_media,
+    )
+    if reference_error:
+        db.session.rollback()
+        return validation_error([field_error(*reference_error)])
     try:
+        if "cover_media_id" in updates:
+            post.cover_media_id = updates.pop("cover_media_id")
         if "media_ids" in updates:
             updates.pop("media_ids")
             for link in list(post.media_links):

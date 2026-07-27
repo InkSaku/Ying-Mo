@@ -37,12 +37,18 @@ export default function LivePhotoPlayer({ media, title, eager = false }) {
     window.addEventListener(ACTIVE_EVENT, pauseOther)
     return () => {
       window.removeEventListener(ACTIVE_EVENT, pauseOther)
-      if (videoRef.current) {
-        videoRef.current.pause()
-        videoRef.current.removeAttribute('src')
-      }
     }
   }, [playerId])
+
+  useEffect(() => {
+    if (!playbackUrl) return undefined
+    const video = videoRef.current
+    return () => {
+      if (!video) return
+      video.pause()
+      video.removeAttribute('src')
+    }
+  }, [playbackUrl])
 
   useEffect(() => {
     if (!playbackUrl || !playing || !videoRef.current) return

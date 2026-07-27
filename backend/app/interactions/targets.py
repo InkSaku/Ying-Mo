@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from app.extensions import db
 from app.models import GameGuide, LifePost
+from app.life.post_content import post_display_title
 
 TARGET_LIFE_POST = "life_post"
 TARGET_GAME_GUIDE = "game_guide"
@@ -34,7 +35,8 @@ def resolve_target(target_type, target_id, viewer=None):
         url = f"/guide/{target_id}"
     if not visible:
         return None
-    return TargetInfo(target_type, target, target.author_id, target.title, url)
+    title = post_display_title(target) if target_type == TARGET_LIFE_POST else target.title
+    return TargetInfo(target_type, target, target.author_id, title, url)
 
 
 def target_summary(info):
@@ -47,4 +49,3 @@ def cleanup_target_interactions(target_type, target_id):
     db.session.execute(db.delete(Comment).where(Comment.target_type == target_type, Comment.target_id == target_id))
     db.session.execute(db.delete(ContentFavorite).where(ContentFavorite.target_type == target_type, ContentFavorite.target_id == target_id))
     db.session.execute(db.delete(ContentLike).where(ContentLike.target_type == target_type, ContentLike.target_id == target_id))
-

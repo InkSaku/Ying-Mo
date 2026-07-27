@@ -9,7 +9,7 @@ from app.extensions import db
 from app.games.routes import game_counts, game_dict
 from app.guides.routes import GUIDE_OPTIONS
 from app.guides.serializers import guide_dict
-from app.life.routes import CHAPTER_OPTIONS, POST_OPTIONS, chapter_dict, chapter_stats, post_dict, public_chapter_filters, visible_post_filters
+from app.life.routes import CHAPTER_OPTIONS, POST_OPTIONS, chapter_dict, chapter_stats, post_dict, post_interaction_stats, public_chapter_filters, visible_post_filters
 from app.models import ContentLike, FeaturedContent, Game, GameGuide, LifeChapter, LifePost, User, UserStatus
 from app.users.service import public_user_dict
 
@@ -28,6 +28,7 @@ def discover():
     posts = db.session.scalars(
         db.select(LifePost).where(*visible_post_filters(viewer)).options(*POST_OPTIONS).order_by(LifePost.created_at.desc(), LifePost.id.desc()).limit(6)
     ).unique().all()
+    life_post_stats = post_interaction_stats([post.id for post in posts])
 
     chapter_stats_query = (
         db.select(
@@ -110,7 +111,7 @@ def discover():
         if len(featured) == 6: break
     return success_response({
         "featured_content": featured,
-        "latest_life_posts": [post_dict(post, viewer) for post in posts],
+        "latest_life_posts": [post_dict(post, viewer, interaction_stats=life_post_stats) for post in posts],
         "popular_life_chapters": [chapter_dict(chapter, viewer, stats=chapter_counts) for chapter in chapters],
         "latest_guides": [guide_dict(guide) for guide in guides],
         "popular_games": [game_dict(game, game_counts_data) for game in games],

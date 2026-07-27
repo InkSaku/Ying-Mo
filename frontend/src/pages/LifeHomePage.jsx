@@ -52,10 +52,10 @@ export default function LifeHomePage() {
     <section className="life-page page-container">
       <p className="eyebrow">日常生活</p>
       <h1>把今天留下来</h1>
-      <p>照片、心情和一段普通的话，都可以慢慢收在这里。</p>
+      <p>短笔记、照片、长文和共同记忆，都可以慢慢收在这里。</p>
       <div className="life-toolbar">
-        <Link className="button button--primary" to="/life/create">发布日常</Link>
-        <Link className="button" to="/life/chapters">浏览章节</Link>
+        <Link className="button button--primary" to="/life/create">发布内容</Link>
+        <Link className="button" to="/life/chapters">浏览合集</Link>
         {isAuthenticated && (
           <div className="life-segmented" aria-label="日常范围">
             <button type="button" className={scope === 'latest' ? 'is-current' : ''} onClick={() => changeScope('latest')}>最新日常</button>
@@ -70,7 +70,7 @@ export default function LifeHomePage() {
           <button type="button" onClick={() => setRetry((value) => value + 1)}>重新加载</button>
         </div>
       )}
-      {!loading && !error && posts.length === 0 && <p className="life-empty">这里还没有日常。把一张照片和今天的心情留下来吧。</p>}
+      {!loading && !error && posts.length === 0 && <p className="life-empty">这里还没有内容。写下一句话，或留下一张照片吧。</p>}
       {!loading && !error && posts.length > 0 && (
         <MasonryFeed ariaLabel={scope === 'mine' ? '我的日常列表' : '最新日常列表'}>
           {posts.map((post) => <LifePostCard key={post.id} post={post} />)}

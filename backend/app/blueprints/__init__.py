@@ -13,6 +13,7 @@ from app.search import search_bp
 from app.discovery import discovery_bp
 from app.reports import reports_bp
 from app.admin import admin_bp
+from app.locations import locations_bp
 
 
 def register_blueprints(app):
@@ -31,3 +32,4 @@ def register_blueprints(app):
     app.register_blueprint(discovery_bp, url_prefix="/api/v1/discover")
     app.register_blueprint(reports_bp, url_prefix="/api/v1/reports")
     app.register_blueprint(admin_bp, url_prefix="/api/v1/admin")
+    app.register_blueprint(locations_bp, url_prefix="/api/v1/locations")

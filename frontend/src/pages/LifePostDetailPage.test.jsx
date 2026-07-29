@@ -119,7 +119,8 @@ describe('life post detail body formats', () => {
     )
     expect(screen.getByText('图片前')).toBeInTheDocument()
     expect(screen.getByText('图片后')).toBeInTheDocument()
-    expect(container.querySelector('.life-gallery')).not.toBeInTheDocument()
+    expect(container.querySelector('.life-gallery')).toBeInTheDocument()
+    expect(container.querySelector('.life-gallery__flow')).not.toBeInTheDocument()
   })
 
   it('uses the styled confirmation dialog and restores focus when cancelled', async () => {

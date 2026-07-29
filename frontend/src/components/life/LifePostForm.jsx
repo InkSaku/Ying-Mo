@@ -8,8 +8,10 @@ import {
   updateInlineMediaAlt,
 } from '../../utils/lifeMedia.js'
 import AuthenticatedMedia from '../common/AuthenticatedMedia.jsx'
+import DateTimePicker from './DateTimePicker.jsx'
 import LifeCollectionPicker from './LifeCollectionPicker.jsx'
 import LifeImageManager from './LifeImageManager.jsx'
+import LocationPicker from './LocationPicker.jsx'
 import MarkdownContent from './MarkdownContent.jsx'
 
 function localDateTime(value) {
@@ -59,6 +61,7 @@ export default function LifePostForm({
   const [tag, setTag] = useState('')
   const [localError, setLocalError] = useState(null)
   const [draggingMedia, setDraggingMedia] = useState(false)
+  const [locationPickerOpen, setLocationPickerOpen] = useState(false)
   const bodyRef = useRef(null)
   const mediaManagerRef = useRef(null)
   const mediaInsertionRef = useRef(null)
@@ -432,10 +435,23 @@ export default function LifePostForm({
         <summary>更多信息 <small>心情、地点、标签、发生时间与可见范围</small></summary>
         <div className="life-editor__more-fields">
           <div className="life-form__pair">
-            <label>地点<input value={form.location || ''} maxLength="100" onChange={(event) => update('location', event.target.value)} /></label>
+            <div className="life-location-field">
+              <label>
+                地点 <small>可选</small>
+                <input
+                  value={form.location || ''}
+                  maxLength="100"
+                  placeholder="手动填写，或从地图选择"
+                  aria-invalid={Boolean(fieldErrors.location)}
+                  onChange={(event) => update('location', event.target.value)}
+                />
+              </label>
+              <button type="button" onClick={() => setLocationPickerOpen(true)}>⌖ 从地图选择</button>
+            </div>
             <label>心情<input value={form.mood || ''} maxLength="30" onChange={(event) => update('mood', event.target.value)} /></label>
           </div>
-          <label>拍摄或发生时间<input type="datetime-local" value={localDateTime(form.shot_at)} onChange={(event) => update('shot_at', event.target.value)} /></label>
+          {fieldErrors.location && <p className="form-feedback form-feedback--error">{fieldErrors.location}</p>}
+          <DateTimePicker value={localDateTime(form.shot_at)} onChange={(value) => update('shot_at', value)} />
           <label>可见范围<select value={form.visibility} onChange={(event) => update('visibility', event.target.value)}><option value="public">公开</option><option value="login_only">仅登录用户</option><option value="private">仅自己</option></select></label>
           <div>
             <span className="life-editor__field-label">标签</span>
@@ -447,6 +463,14 @@ export default function LifePostForm({
           </div>
         </div>
       </details>
+
+      {locationPickerOpen && (
+        <LocationPicker
+          value={form.location}
+          onConfirm={(location) => update('location', location)}
+          onClose={() => setLocationPickerOpen(false)}
+        />
+      )}
 
       {(localError || fieldErrors.content || fieldErrors.media_ids || fieldErrors.chapter_id) && <p className="form-feedback form-feedback--error" role="alert">{localError || fieldErrors.content || fieldErrors.media_ids || fieldErrors.chapter_id}</p>}
       {requestError && !requestError.details?.length && <p className="form-feedback form-feedback--error" role="alert">{requestError.message}</p>}

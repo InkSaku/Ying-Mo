@@ -3,12 +3,16 @@ import { useEffect, useState } from 'react'
 const THEME_STORAGE_KEY = 'yingmo-theme'
 
 function getInitialTheme() {
-  const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY)
+  const savedTheme = typeof window.localStorage?.getItem === 'function'
+    ? window.localStorage.getItem(THEME_STORAGE_KEY)
+    : null
   if (savedTheme === 'light' || savedTheme === 'dark') {
     return savedTheme
   }
 
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: dark)').matches
+    ? 'dark'
+    : 'light'
 }
 
 export default function useTheme() {
@@ -21,7 +25,9 @@ export default function useTheme() {
       'content',
       theme === 'dark' ? '#171c18' : '#2f8373',
     )
-    window.localStorage.setItem(THEME_STORAGE_KEY, theme)
+    if (typeof window.localStorage?.setItem === 'function') {
+      window.localStorage.setItem(THEME_STORAGE_KEY, theme)
+    }
   }, [theme])
 
   const toggleTheme = () => {

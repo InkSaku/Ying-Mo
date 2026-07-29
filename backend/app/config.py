@@ -86,6 +86,10 @@ class BaseConfig:
     RATE_LIMIT_UPLOAD = os.getenv("RATE_LIMIT_UPLOAD", "20 per hour")
     RATE_LIMIT_SEARCH = os.getenv("RATE_LIMIT_SEARCH", "60 per minute")
     RATE_LIMIT_SEARCH_SUGGESTIONS = os.getenv("RATE_LIMIT_SEARCH_SUGGESTIONS", "120 per minute")
+    RATE_LIMIT_LOCATION_NEARBY = os.getenv("RATE_LIMIT_LOCATION_NEARBY", "60 per hour")
+    RATE_LIMIT_LOCATION_SUGGESTIONS = os.getenv("RATE_LIMIT_LOCATION_SUGGESTIONS", "30 per minute")
+    BAIDU_MAP_SERVER_AK = os.getenv("BAIDU_MAP_SERVER_AK", "").strip()
+    BAIDU_MAP_TIMEOUT_SECONDS = float(os.getenv("BAIDU_MAP_TIMEOUT_SECONDS", "5"))
     SYSTEM_ADMIN_INVITE_CODE = os.getenv(
         "SYSTEM_ADMIN_INVITE_CODE",
         "",

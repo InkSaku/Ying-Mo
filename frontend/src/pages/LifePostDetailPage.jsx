@@ -4,7 +4,6 @@ import { deleteLifePost, getLifePost } from '../api/life.js'
 import InteractionPanel from '../components/interactions/InteractionPanel.jsx'
 import LifePostDeleteDialog from '../components/life/LifePostDeleteDialog.jsx'
 import LifePostGallery from '../components/life/LifePostGallery.jsx'
-import LifePostCover from '../components/life/LifePostCover.jsx'
 import MarkdownContent from '../components/life/MarkdownContent.jsx'
 import ReportButton from '../components/reports/ReportButton.jsx'
 import { inlineMediaPublicIds } from '../utils/lifeMedia.js'
@@ -76,8 +75,7 @@ export default function LifePostDetailPage() {
   )
   return (
     <article className="life-detail page-container">
-      <LifePostCover media={post.cover_media} title={post.title} />
-      <LifePostGallery images={legacyMedia} title={mediaTitle} />
+      <LifePostGallery cover={post.cover_media} images={legacyMedia} title={mediaTitle} />
       <div className="life-detail__heading">
         <p className="eyebrow"><Link to={`/life/chapter/${post.chapter.slug}`}>{post.chapter.name}</Link></p>
         {post.title && <h1>{post.title}</h1>}
@@ -108,7 +106,7 @@ export default function LifePostDetailPage() {
         {post.can_edit && <><Link className="button" to={`/life/post/${post.id}/edit`}>编辑内容</Link><button type="button" className="button--danger" onClick={openDeleteDialog}>删除内容</button></>}
         <ReportButton targetType="life_post" targetId={post.id} />
       </div>
-      <InteractionPanel targetType="life_post" targetId={post.id} />
+      <InteractionPanel targetType="life_post" targetId={post.id} animated />
       <LifePostDeleteDialog
         post={post}
         open={deleteDialogOpen}

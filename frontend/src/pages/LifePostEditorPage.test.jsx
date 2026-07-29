@@ -102,9 +102,27 @@ describe('life post create flow', () => {
       title: null,
       body: '今天完成了项目部署。',
       content_format: 'markdown',
+      location: null,
       media_ids: [],
     })))
     expect(await screen.findByText('发布完成')).toBeInTheDocument()
+  })
+
+  it('keeps location optional and can confirm a manual value through the picker', async () => {
+    const user = userEvent.setup()
+    renderEditor('/life/create?chapter_id=11')
+
+    const body = await screen.findByPlaceholderText('写下想留下的内容，支持 Markdown…')
+    await user.type(body, '带地点的日记。')
+    await user.click(screen.getByRole('button', { name: '⌖ 从地图选择' }))
+    await user.type(screen.getByPlaceholderText('例如：回家的路上'), '回家的路上')
+    await user.click(screen.getByRole('button', { name: '确定' }))
+    await user.click(screen.getByRole('button', { name: '发布内容' }))
+
+    await waitFor(() => expect(createLifePost).toHaveBeenCalledWith(expect.objectContaining({
+      body: '带地点的日记。',
+      location: '回家的路上',
+    })))
   })
 
   it('uses one Markdown editor without mutually exclusive content modes', async () => {

@@ -349,6 +349,13 @@ http://127.0.0.1:5173
 | `IMAGE_MAX_BYTES` | 单张图片大小上限 |
 | `RATELIMIT_STORAGE_URI` | 限流存储；生产环境建议使用 Redis |
 | `REPORT_DAILY_LIMIT` | 单用户每日举报数量上限 |
+| `BAIDU_MAP_SERVER_AK` | 百度地图服务端 AK，用于逆地理编码和地点搜索 |
+| `BAIDU_MAP_TIMEOUT_SECONDS` | 后端调用百度地图的超时秒数 |
+| `VITE_BAIDU_MAP_BROWSER_AK` | 前端加载百度地图 JavaScript API 4.0 的浏览器端 AK |
+
+地点选择功能需要分别创建百度地图服务端应用和浏览器端应用。服务端 AK 建议配置生产服务器 IP 白名单；浏览器端 AK 必须配置开发与生产域名的 Referer 白名单。未配置 AK 时，创建日记仍可手动填写地点或不填写地点。
+
+本地前后端一起开发时，`VITE_BAIDU_MAP_BROWSER_AK` 可以和服务端 AK 一起写在 `backend/.env`；Vite 会在 `frontend/.env` 未配置该项时自动回退读取。前端独立构建或部署时，仍应将浏览器端 AK 配置在 `frontend/.env` 或部署平台的前端环境变量中。只有 `VITE_` 前缀的浏览器变量会被注入前端，`BAIDU_MAP_SERVER_AK` 不会被暴露。
 
 > 不要提交真实 `.env`、数据库密码、JWT 密钥、邀请码、上传文件、日志或本地数据库。
 
@@ -434,6 +441,7 @@ http://127.0.0.1:5173
 /api/v1/notifications
 /api/v1/drafts
 /api/v1/search
+/api/v1/locations
 /api/v1/discovery
 /api/v1/reports
 /api/v1/admin

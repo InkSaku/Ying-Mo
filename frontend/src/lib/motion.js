@@ -50,6 +50,31 @@ export function revealEntrance(reducedMotion, delay = 0) {
   }
 }
 
+export function routeTransition(reducedMotion) {
+  return {
+    initial: {
+      opacity: 0,
+      y: reducedMotion ? 0 : motionTokens.distance.small,
+    },
+    animate: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: reducedMotion ? motionTokens.duration.instant : motionTokens.duration.normal,
+        ease: motionTokens.ease.standard,
+      },
+    },
+    exit: {
+      opacity: 0,
+      y: reducedMotion ? 0 : -motionTokens.distance.small,
+      transition: {
+        duration: motionTokens.duration.instant,
+        ease: motionTokens.ease.exit,
+      },
+    },
+  }
+}
+
 export function heroMotion(reducedMotion) {
   return {
     container: {

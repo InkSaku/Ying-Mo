@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 
 import { useAuth } from '../auth/useAuth.js'
+import useTheme from '../hooks/useTheme.js'
 
 const primaryLinks = [
   { to: '/admin', label: '概览', description: '社区运行情况', icon: 'overview', end: true },
@@ -23,6 +24,13 @@ const systemLinks = [
   { to: '/admin/logs', label: '操作日志', description: '高风险操作记录', icon: 'logs' },
 ]
 
+const allLinks = [
+  ...primaryLinks,
+  ...contentLinks,
+  ...catalogLinks,
+  ...systemLinks,
+]
+
 function AdminIcon({ name }) {
   const paths = {
     overview: <><rect x="3" y="3" width="7" height="7" rx="2" /><rect x="14" y="3" width="7" height="7" rx="2" /><rect x="3" y="14" width="7" height="7" rx="2" /><rect x="14" y="14" width="7" height="7" rx="2" /></>,
@@ -35,6 +43,8 @@ function AdminIcon({ name }) {
     menu: <><path d="M4 7h16" /><path d="M4 12h16" /><path d="M4 17h16" /></>,
     close: <><path d="m6 6 12 12" /><path d="m18 6-12 12" /></>,
     arrow: <><path d="M5 12h14" /><path d="m13 6 6 6-6 6" /></>,
+    sun: <><circle cx="12" cy="12" r="3.5" /><path d="M12 2v2" /><path d="M12 20v2" /><path d="m4.93 4.93 1.42 1.42" /><path d="m17.66 17.66 1.41 1.41" /><path d="M2 12h2" /><path d="M20 12h2" /><path d="m4.93 19.07 1.42-1.42" /><path d="m17.66 6.34 1.41-1.41" /></>,
+    moon: <><path d="M20.7 15.2A8.5 8.5 0 0 1 8.8 3.3 8.5 8.5 0 1 0 20.7 15.2z" /></>,
   }
 
   return (
@@ -59,7 +69,10 @@ function NavigationGroup({ label, links }) {
             to={link.to}
           >
             <span className="admin-nav-item__icon"><AdminIcon name={link.icon} /></span>
-            <span className="admin-nav-item__text"><strong>{link.label}</strong></span>
+            <span className="admin-nav-item__text">
+              <strong>{link.label}</strong>
+              <small>{link.description}</small>
+            </span>
           </NavLink>
         ))}
       </div>
@@ -69,78 +82,102 @@ function NavigationGroup({ label, links }) {
 
 export default function AdminLayout() {
   const { user } = useAuth()
+  const { theme, toggleTheme } = useTheme()
   const location = useLocation()
   const [navOpen, setNavOpen] = useState(false)
   const roleLabel = user?.role === 'system_admin' ? '系统管理员' : '内容管理员'
   const displayName = user?.nickname || user?.username || '管理员'
   const displayInitial = displayName.trim().slice(0, 1) || '映'
+  const currentLink = [...allLinks]
+    .sort((left, right) => right.to.length - left.to.length)
+    .find((link) => (
+      link.end
+        ? location.pathname === link.to
+        : location.pathname.startsWith(link.to)
+    )) || primaryLinks[0]
+  const currentSection = primaryLinks.includes(currentLink)
+    ? '工作台'
+    : contentLinks.includes(currentLink)
+      ? '内容治理'
+      : catalogLinks.includes(currentLink)
+        ? '目录维护'
+        : '系统'
 
   useEffect(() => {
     setNavOpen(false)
   }, [location.pathname])
 
   return (
-    <section className={`admin-layout page-container ${navOpen ? 'is-nav-open' : ''}`}>
-      <header className="admin-layout__toolbar">
-        <button
-          aria-controls="admin-sidebar"
-          aria-expanded={navOpen}
-          aria-label="打开后台导航"
-          className="admin-layout__menu"
-          onClick={() => setNavOpen(true)}
-          type="button"
-        >
-          <AdminIcon name="menu" />
-        </button>
+    <section className={`admin-layout ${navOpen ? 'is-nav-open' : ''}`}>
+      <button
+        aria-label="关闭后台导航"
+        className="admin-sidebar__overlay"
+        onClick={() => setNavOpen(false)}
+        type="button"
+      />
 
-        <div className="admin-layout__brand" aria-label="映墨治理后台">
+      <aside className="admin-sidebar" id="admin-sidebar">
+        <div className="admin-sidebar__brand" aria-label="映墨治理后台">
           <span className="admin-layout__brand-mark" aria-hidden="true">映</span>
           <span className="admin-layout__brand-copy">
-            <small>映墨</small>
-            <strong>治理后台</strong>
+            <strong>映墨</strong>
+            <small>管理后台</small>
+          </span>
+          <button aria-label="关闭后台导航" className="admin-sidebar__close" onClick={() => setNavOpen(false)} type="button">
+            <AdminIcon name="close" />
+          </button>
+        </div>
+
+        <nav className="admin-layout__nav" aria-label="后台导航">
+          <NavigationGroup label="工作台" links={primaryLinks} />
+          <NavigationGroup label="内容治理" links={contentLinks} />
+          <NavigationGroup label="目录维护" links={catalogLinks} />
+          {user?.role === 'system_admin' && <NavigationGroup label="系统" links={systemLinks} />}
+        </nav>
+
+        <div className="admin-sidebar__footer">
+          <span className="admin-sidebar__avatar" aria-hidden="true">{displayInitial}</span>
+          <span className="admin-sidebar__identity-copy">
+            <strong>{displayName}</strong>
+            <small>{roleLabel}</small>
           </span>
         </div>
+      </aside>
 
-        <div className="admin-layout__toolbar-actions">
-          <span className="admin-layout__role">{roleLabel}</span>
-          <Link className="admin-layout__back" to="/">
-            <span>返回站点</span>
-            <AdminIcon name="arrow" />
-          </Link>
-        </div>
-      </header>
+      <div className="admin-workspace">
+        <header className="admin-layout__toolbar">
+          <button
+            aria-controls="admin-sidebar"
+            aria-expanded={navOpen}
+            aria-label="打开后台导航"
+            className="admin-layout__menu"
+            onClick={() => setNavOpen(true)}
+            type="button"
+          >
+            <AdminIcon name="menu" />
+          </button>
 
-      <div className="admin-layout__body">
-        <button
-          aria-label="关闭后台导航"
-          className="admin-sidebar__overlay"
-          onClick={() => setNavOpen(false)}
-          type="button"
-        />
+          <div className="admin-layout__context" aria-label="当前工作区">
+            <small>{currentSection}</small>
+            <strong>{currentLink.label}</strong>
+          </div>
 
-        <aside className="admin-sidebar" id="admin-sidebar">
-          <div className="admin-sidebar__mobile-header">
-            <strong>后台导航</strong>
-            <button aria-label="关闭后台导航" onClick={() => setNavOpen(false)} type="button">
-              <AdminIcon name="close" />
+          <div className="admin-layout__toolbar-actions">
+            <button
+              aria-label={theme === 'dark' ? '切换到浅色主题' : '切换到深色主题'}
+              className="admin-layout__theme"
+              onClick={toggleTheme}
+              title={theme === 'dark' ? '浅色主题' : '深色主题'}
+              type="button"
+            >
+              <AdminIcon name={theme === 'dark' ? 'sun' : 'moon'} />
             </button>
+            <Link className="admin-layout__back" to="/">
+              <span>返回站点</span>
+              <AdminIcon name="arrow" />
+            </Link>
           </div>
-
-          <nav className="admin-layout__nav" aria-label="后台导航">
-            <NavigationGroup label="工作台" links={primaryLinks} />
-            <NavigationGroup label="内容治理" links={contentLinks} />
-            <NavigationGroup label="目录维护" links={catalogLinks} />
-            {user?.role === 'system_admin' && <NavigationGroup label="系统" links={systemLinks} />}
-          </nav>
-
-          <div className="admin-sidebar__footer">
-            <span className="admin-sidebar__avatar" aria-hidden="true">{displayInitial}</span>
-            <span className="admin-sidebar__identity-copy">
-              <strong>{displayName}</strong>
-              <small>{roleLabel}</small>
-            </span>
-          </div>
-        </aside>
+        </header>
 
         <main className="admin-layout__content">
           <Outlet />

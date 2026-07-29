@@ -1,0 +1,194 @@
+/* Quiet, site-wide interaction layer. It adds depth without competing with content. */
+.app-shell {
+  position: relative;
+  isolation: isolate;
+  --ambient-x: 50vw;
+  --ambient-y: 18rem;
+}
+
+.immersive-ambient {
+  position: fixed;
+  z-index: 0;
+  inset: 0;
+  overflow: hidden;
+  contain: strict;
+  pointer-events: none;
+}
+
+.immersive-ambient::before {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 34rem;
+  height: 34rem;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--color-primary) 10%, transparent) 0%,
+    color-mix(in srgb, var(--color-primary) 5%, transparent) 42%,
+    transparent 72%
+  );
+  content: "";
+  opacity: 0.72;
+  transform: translate3d(
+    calc(var(--ambient-x) - 50%),
+    calc(var(--ambient-y) - 50%),
+    0
+  );
+  transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.app-shell > .site-header,
+.app-shell > .app-main,
+.app-shell > .site-footer {
+  position: relative;
+  z-index: 1;
+}
+
+.app-shell > .back-to-top {
+  z-index: 15;
+}
+
+.app-shell > .site-header {
+  position: sticky;
+  z-index: 20;
+}
+
+.route-transition {
+  min-width: 0;
+}
+
+.site-header {
+  transition:
+    background-color 220ms ease,
+    border-color 220ms ease,
+    box-shadow 220ms ease;
+}
+
+.site-header.is-scrolled {
+  border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border));
+  background: color-mix(in srgb, var(--color-bg) 96%, transparent);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--color-text) 7%, transparent);
+}
+
+.site-header__progress {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    var(--color-primary),
+    color-mix(in srgb, var(--color-primary) 58%, var(--color-game))
+  );
+  opacity: 0.72;
+  pointer-events: none;
+  transform: scaleX(0);
+  transform-origin: left center;
+  will-change: transform;
+}
+
+.brand__logo,
+.home-life-card__media .adaptive-media__image,
+.life-card__media .adaptive-media__image,
+.game-card__media .adaptive-media__image,
+.guide-card__media .adaptive-media__image,
+.chapter-list__cover .adaptive-media__image {
+  transition: transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+button,
+.button {
+  transition:
+    transform 150ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease;
+}
+
+input,
+textarea,
+select {
+  transition:
+    border-color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  box-shadow: 0 0 0 4px var(--color-primary-veil);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .brand:hover .brand__logo {
+    transform: translateY(-1px) rotate(-3deg) scale(1.025);
+  }
+
+  button:not(:disabled):hover,
+  .button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 9px 20px color-mix(in srgb, var(--color-text) 6%, transparent);
+  }
+
+  button:not(:disabled):active,
+  .button:active {
+    transform: translateY(0) scale(0.975);
+    transition-duration: 80ms;
+  }
+
+  button.life-gallery__featured-photo:hover,
+  button.life-gallery__featured-photo:active,
+  button.life-gallery__photo:hover,
+  button.life-gallery__photo:active,
+  button.live-photo-player__poster:hover,
+  button.live-photo-player__poster:active,
+  button.account-menu__item:hover,
+  button.account-menu__item:active {
+    box-shadow: none;
+    transform: none;
+  }
+
+  .home-life-card:hover .home-life-card__media .adaptive-media__image,
+  .life-card:hover .life-card__media .adaptive-media__image,
+  .game-card:hover .game-card__media .adaptive-media__image,
+  .guide-card:hover .guide-card__media .adaptive-media__image,
+  .chapter-list__item:hover .chapter-list__cover .adaptive-media__image {
+    transform: scale(1.018);
+  }
+}
+
+:root[data-theme="dark"] .immersive-ambient::before {
+  opacity: 0.5;
+}
+
+:root[data-theme="dark"] .site-header.is-scrolled {
+  box-shadow: 0 12px 34px rgba(3, 8, 5, 0.28);
+}
+
+@media (hover: none), (pointer: coarse) {
+  .immersive-ambient {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .immersive-ambient {
+    display: none;
+  }
+
+  .site-header__progress,
+  .brand__logo,
+  .home-life-card__media .adaptive-media__image,
+  .life-card__media .adaptive-media__image,
+  .game-card__media .adaptive-media__image,
+  .guide-card__media .adaptive-media__image,
+  .chapter-list__cover .adaptive-media__image {
+    transition: none;
+    will-change: auto;
+  }
+}

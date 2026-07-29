@@ -391,7 +391,22 @@ def _admin_content_list(kind, actor):
     query = request.args.get("query", "").strip()
     if query: stmt = stmt.where(model.title.ilike(f"%{query}%"))
     total = db.session.scalar(db.select(func.count()).select_from(stmt.subquery())); items = db.session.scalars(stmt.order_by(model.updated_at.desc(), model.id.desc()).offset((page-1)*size).limit(size)).unique().all()
-    return success_response([_content_data(kind, item, actor) for item in items], meta=_meta(page, size, total))
+    featured_ids = set()
+    if items:
+        featured_ids = set(
+            db.session.scalars(
+                db.select(FeaturedContent.target_id).where(
+                    FeaturedContent.target_type == kind,
+                    FeaturedContent.target_id.in_([item.id for item in items]),
+                )
+            ).all()
+        )
+    data = []
+    for item in items:
+        serialized = _content_data(kind, item, actor)
+        serialized["featured"] = item.id in featured_ids
+        data.append(serialized)
+    return success_response(data, meta=_meta(page, size, total))
 
 
 @admin_bp.get("/content/life-posts")

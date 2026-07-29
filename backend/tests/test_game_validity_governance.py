@@ -4,7 +4,7 @@ import pytest
 from flask_jwt_extended import create_access_token
 
 from app.extensions import db
-from app.models import AdminLog, Game, GameGuide, GameHero, GameMap, GuideValidityFeedback, Notification, Report, User
+from app.models import AdminLog, FeaturedContent, Game, GameGuide, GameHero, GameMap, GuideValidityFeedback, Notification, Report, User
 
 
 def _headers(token, idempotency_key=None):
@@ -62,6 +62,7 @@ def governance_context(app):
     with app.app_context():
         db.session.execute(db.delete(Notification).where(Notification.recipient_id.in_((context["author_id"], context["reporter_id"]))))
         db.session.execute(db.delete(AdminLog).where(AdminLog.admin_id == context["admin_id"]))
+        db.session.execute(db.delete(FeaturedContent).where(FeaturedContent.target_type == "game_guide", FeaturedContent.target_id.in_(context["guide_ids"])))
         db.session.execute(db.delete(Report).where(Report.target_type == "game_guide", Report.target_id.in_(context["guide_ids"])))
         db.session.execute(db.delete(GuideValidityFeedback).where(GuideValidityFeedback.guide_id.in_(context["guide_ids"])))
         db.session.execute(db.delete(GameGuide).where(GameGuide.id.in_(context["guide_ids"])))
@@ -70,6 +71,31 @@ def governance_context(app):
         db.session.execute(db.delete(Game).where(Game.id.in_(context["game_ids"])))
         db.session.execute(db.delete(User).where(User.id.in_((context["admin_id"], context["author_id"], context["reporter_id"]))))
         db.session.commit()
+
+
+def test_admin_content_list_exposes_real_featured_state(client, governance_context):
+    guide_id = governance_context["guide_ids"][0]
+    admin_headers = _headers(governance_context["admin_token"])
+
+    initial = client.get("/api/v1/admin/content/guides?page_size=50", headers=admin_headers)
+    initial_item = next(item for item in initial.json["data"] if item["id"] == guide_id)
+    unauthorized = client.get("/api/v1/admin/content/guides?page_size=50", headers=_headers(governance_context["reporter_token"]))
+    featured = client.post(f"/api/v1/admin/content/game_guide/{guide_id}/feature", headers=admin_headers, json={"note": "后台预览后精选"})
+    duplicate = client.post(f"/api/v1/admin/content/game_guide/{guide_id}/feature", headers=admin_headers, json={})
+    after_feature = client.get("/api/v1/admin/content/guides?page_size=50", headers=admin_headers)
+    featured_item = next(item for item in after_feature.json["data"] if item["id"] == guide_id)
+    removed = client.delete(f"/api/v1/admin/content/game_guide/{guide_id}/feature", headers=admin_headers)
+    after_remove = client.get("/api/v1/admin/content/guides?page_size=50", headers=admin_headers)
+    removed_item = next(item for item in after_remove.json["data"] if item["id"] == guide_id)
+
+    assert initial.status_code == 200
+    assert initial_item["featured"] is False
+    assert unauthorized.status_code == 403
+    assert featured.status_code == 200
+    assert duplicate.status_code == 200
+    assert featured_item["featured"] is True
+    assert removed.status_code == 204
+    assert removed_item["featured"] is False
 
 
 def test_user_feedback_rejects_same_type_and_allows_an_explicit_change(client, governance_context):

@@ -94,3 +94,14 @@ def test_valid_uuid_request_id_is_preserved():
     app.add_url_rule("/", view_func=lambda: "ok")
     request_id = "123e4567-e89b-42d3-a456-426614174000"
     assert app.test_client().get("/", headers={"X-Request-ID": request_id}).headers["X-Request-ID"] == request_id
+
+
+def test_permissions_policy_allows_same_origin_geolocation_only():
+    app = Flask(__name__)
+    app.config["APP_ENV"] = "testing"
+    _register_request_id(app)
+    app.add_url_rule("/", view_func=lambda: "ok")
+    policy = app.test_client().get("/").headers["Permissions-Policy"]
+    assert "geolocation=(self)" in policy
+    assert "camera=()" in policy
+    assert "microphone=()" in policy

@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 
 import { useAuth } from '../../auth/useAuth.js'
+import AccountMenu from './AccountMenu.jsx'
 import ThemeToggle from '../common/ThemeToggle'
 import NotificationBell from '../notifications/NotificationBell.jsx'
 import GlobalSearch from '../search/GlobalSearch.jsx'
@@ -13,7 +14,6 @@ const navigation = [
   { to: '/games', label: '游戏点位' },
   { to: '/discover', label: '发现' },
   { to: '/publish', label: '发布' },
-  { to: '/about', label: '关于' },
 ]
 
 const ADMIN_ROLES = new Set([
@@ -23,6 +23,8 @@ const ADMIN_ROLES = new Set([
 
 export default function SiteHeader({ theme, onThemeToggle }) {
   const { isAuthenticated, user, logout } = useAuth()
+  const headerRef = useRef(null)
+  const progressRef = useRef(null)
 
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
@@ -32,6 +34,35 @@ export default function SiteHeader({ theme, onThemeToggle }) {
     && user
     && ADMIN_ROLES.has(user.role),
   )
+
+  useEffect(() => {
+    let frame = 0
+
+    function updateScrollState() {
+      frame = 0
+      const scrollRange = Math.max(1, document.documentElement.scrollHeight - window.innerHeight)
+      const progress = Math.min(1, Math.max(0, window.scrollY / scrollRange))
+
+      headerRef.current?.classList.toggle('is-scrolled', window.scrollY > 12)
+      if (progressRef.current) {
+        progressRef.current.style.transform = `scaleX(${progress})`
+      }
+    }
+
+    function scheduleUpdate() {
+      if (!frame) frame = window.requestAnimationFrame(updateScrollState)
+    }
+
+    updateScrollState()
+    window.addEventListener('scroll', scheduleUpdate, { passive: true })
+    window.addEventListener('resize', scheduleUpdate)
+
+    return () => {
+      window.removeEventListener('scroll', scheduleUpdate)
+      window.removeEventListener('resize', scheduleUpdate)
+      if (frame) window.cancelAnimationFrame(frame)
+    }
+  }, [])
 
   function closeMenu() {
     setIsMenuOpen(false)
@@ -51,7 +82,7 @@ export default function SiteHeader({ theme, onThemeToggle }) {
   }
 
   return (
-    <header className="site-header">
+    <header className="site-header" ref={headerRef}>
       <PageContainer className="site-header__inner">
         <NavLink
           className="brand"
@@ -121,64 +152,13 @@ export default function SiteHeader({ theme, onThemeToggle }) {
             )}
 
             {isAuthenticated ? (
-              <>
-                <Link
-                  className="header-profile"
-                  to={`/user/${encodeURIComponent(
-                    user.username,
-                  )}`}
-                  onClick={closeMenu}
-                >
-                  {user.avatar_url ? (
-                    <img
-                      className="header-profile__avatar"
-                      src={user.avatar_url}
-                      alt=""
-                    />
-                  ) : (
-                    <span
-                      className="header-profile__avatar"
-                      aria-hidden="true"
-                    >
-                      {(user.nickname || user.username)
-                        .slice(0, 1)}
-                    </span>
-                  )}
-
-                  <span className="header-profile__name">
-                    {user.nickname || user.username}
-                  </span>
-                </Link>
-
-                <Link
-                  className="header-settings-link"
-                  to="/me"
-                  onClick={closeMenu}
-                >
-                  个人中心
-                </Link>
-
-                {isAdmin && (
-                  <Link
-                    className="header-settings-link"
-                    to="/admin"
-                    onClick={closeMenu}
-                  >
-                    管理后台
-                  </Link>
-                )}
-
-                <button
-                  className="header-logout"
-                  type="button"
-                  disabled={isLoggingOut}
-                  onClick={() => void handleLogout()}
-                >
-                  {isLoggingOut
-                    ? '退出中…'
-                    : '退出'}
-                </button>
-              </>
+              <AccountMenu
+                user={user}
+                isAdmin={isAdmin}
+                isLoggingOut={isLoggingOut}
+                onLogout={handleLogout}
+                onNavigate={closeMenu}
+              />
             ) : (
               <>
                 <Link
@@ -201,6 +181,7 @@ export default function SiteHeader({ theme, onThemeToggle }) {
           </div>
         </div>
       </PageContainer>
+      <span className="site-header__progress" ref={progressRef} aria-hidden="true" />
     </header>
   )
 }

@@ -3,6 +3,7 @@ import { AnimatePresence, m, useReducedMotion } from 'motion/react'
 import AdaptiveMedia from '../common/AdaptiveMedia.jsx'
 import PageContainer from '../layout/PageContainer'
 import { heroMotion, presenceTransition } from '../../lib/motion.js'
+import YingmoConstellationCanvas from './YingmoConstellationCanvas.jsx'
 
 function formatDate(value) {
   if (!value) return ''
@@ -69,12 +70,13 @@ function GamePreview({ game }) {
   )
 }
 
-export default function HomeHero({ latestPost, latestGame, loading }) {
+export default function HomeHero({ latestPost, latestGame, loading, visualData }) {
   const reducedMotion = useReducedMotion()
   const variants = heroMotion(reducedMotion)
 
   return (
     <section className="home-portal-hero" aria-labelledby="home-hero-title">
+      <YingmoConstellationCanvas data={visualData} reducedMotion={Boolean(reducedMotion)} />
       <PageContainer>
         <m.div
           className="home-portal-hero__inner"

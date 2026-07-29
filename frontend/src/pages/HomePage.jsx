@@ -158,6 +158,12 @@ export default function HomePage() {
         latestPost={home.posts[0]}
         latestGame={home.games[0]}
         loading={home.postsLoading || home.gamesLoading}
+        visualData={{
+          posts: home.posts,
+          chapters: home.chapters,
+          games: home.games,
+          guides: home.guides,
+        }}
       />
 
         <ProductSpaceSection latestPost={home.posts[0]} latestGame={home.games[0]} />

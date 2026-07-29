@@ -415,3 +415,55 @@
     will-change: auto;
   }
 }
+
+/* Hero constellation field: grouped, legible shapes instead of dust-like particles. */
+.home-portal-hero {
+  isolation: isolate;
+  overflow: clip;
+}
+
+.home-portal-hero::before,
+.home-portal-hero::after {
+  z-index: 0;
+}
+
+.home-portal-hero > .page-container {
+  position: relative;
+  z-index: 2;
+}
+
+.home-hero-constellations {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  overflow: hidden;
+  opacity: 0.96;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 6%, #000 92%, transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 6%, #000 92%, transparent 100%);
+}
+
+.home-hero-constellations canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: saturate(0.92);
+}
+
+:root[data-theme="dark"] .home-hero-constellations {
+  opacity: 0.9;
+}
+
+@media (max-width: 760px) {
+  .home-hero-constellations {
+    inset-inline: -24%;
+    opacity: 0.72;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-hero-constellations {
+    opacity: 0.72;
+  }
+}
+

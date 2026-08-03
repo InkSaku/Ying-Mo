@@ -98,7 +98,7 @@ export default function SiteHeader({ theme, onThemeToggle }) {
 
           <span className="brand__copy">
             <strong>映墨</strong>
-            <small>把日常映成墨色</small>
+            <small>记日常，也记路标</small>
           </span>
         </NavLink>
 

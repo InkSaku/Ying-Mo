@@ -407,8 +407,9 @@ export default function GuideEditorPage({ edit = false }) {
 
   return <section className="guides-page page-container">
     <Link className="text-link" to="/games">返回游戏区</Link>
-    <h1>{edit ? '编辑点位' : '发布点位'}</h1>
-    <p>按照游戏、地图、英雄的顺序确定上下文，再记录可快速复现的点位。</p>
+    <p className="eyebrow">实战路标 · {edit ? '添改' : '落笔'}</p>
+    <h1>{edit ? '把这处点位说得更清楚' : '留下一处点位'}</h1>
+    <p>先确定地图与英雄，再写清站位、朝向、操作和时机。别人能照着做出来，就是一处好点位。</p>
     {contextLabel && <p className="guide-context" aria-label="当前点位上下文">{contextLabel}</p>}
     {historical.game?.is_available === false || historical.map?.is_available === false || historical.hero?.is_available === false
       ? <p className="catalog-warning">原目录当前不可用于新发布，但历史点位可以保留原关联并继续编辑内容。</p>

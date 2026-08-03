@@ -92,8 +92,8 @@ describe('map-first public browsing', () => {
 
     const { container } = renderRoute('/game/overwatch/maps', '/game/:gameSlug/maps', <GameMapsPage />)
 
-    expect(await screen.findByRole('heading', { name: '选择当前地图' })).toBeInTheDocument()
-    expect(screen.getByText('守望先锋 · 地图优先')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '你现在，在哪张地图？' })).toBeInTheDocument()
+    expect(screen.getByText('守望先锋 · 从地图出发')).toBeInTheDocument()
     expect(screen.getByText('2 张可用地图')).toBeInTheDocument()
     expect(screen.getByText('7 个公开点位')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /国王大道/ })).toHaveAttribute('href', '/game/overwatch/map/kings-row')
@@ -119,7 +119,7 @@ describe('map-first public browsing', () => {
     expect(screen.getByText('2 位英雄已有点位')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /安娜/ })).toHaveAttribute('href', '/game/overwatch/map/kings-row/hero/ana')
     expect(screen.getByRole('link', { name: /温斯顿/ })).toHaveAttribute('href', '/game/overwatch/map/kings-row/hero/winston')
-    expect(screen.getByRole('link', { name: '发布该地图点位' })).toHaveAttribute('href', '/guide/create?game=overwatch&map=kings-row')
+    expect(screen.getByRole('link', { name: '为这张地图留个点位' })).toHaveAttribute('href', '/guide/create?game=overwatch&map=kings-row')
   })
 
   it('restores hero filters from the URL and writes changes back to requests', async () => {
@@ -180,7 +180,7 @@ describe('map-first public browsing', () => {
 
     expect(await screen.findByText('已退役')).toBeInTheDocument()
     expect(screen.getByText('这张地图已退役。历史点位仍可查看，但不能用于新建点位。')).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: '发布该地图点位' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: '为这张地图留个点位' })).not.toBeInTheDocument()
   })
 
   it('shows distinct empty states for no heroes and no points on a map', async () => {
@@ -189,7 +189,7 @@ describe('map-first public browsing', () => {
 
     renderRoute('/game/overwatch/map/kings-row', '/game/:gameSlug/map/:mapSlug', <GameMapDetailPage />)
 
-    expect(await screen.findByText('这张地图暂无点位。选择英雄后，可以发布第一个实用点位。')).toBeInTheDocument()
+    expect(await screen.findByText('这张地图还没有路标。选择英雄后，可以留下第一个实用点位。')).toBeInTheDocument()
     expect(screen.getByText('这款游戏还没有可用英雄。')).toBeInTheDocument()
   })
 
@@ -205,9 +205,9 @@ describe('map-first public browsing', () => {
     )
 
     expect(await screen.findByRole('heading', { name: '国王大道 · 安娜' })).toBeInTheDocument()
-    expect(screen.getByText('这个英雄在这张地图还没有点位，记录第一个实用位置吧。')).toBeInTheDocument()
+    expect(screen.getByText('这位英雄在这张地图上还没有路标。若你走通过一条路，不妨把它留下。')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '返回地图英雄选择' })).toHaveAttribute('href', '/game/overwatch/map/kings-row')
-    const publish = screen.getByRole('link', { name: '发布当前组合点位' })
+    const publish = screen.getByRole('link', { name: '在这里留个路标' })
     expect(publish).toHaveAttribute('href', '/guide/create?game=overwatch&map=kings-row&hero=ana')
     expect(within(publish).queryByText('选择英雄')).not.toBeInTheDocument()
   })

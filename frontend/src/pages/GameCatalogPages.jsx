@@ -52,10 +52,10 @@ export function GameHeroesPage() {
   const state = useData(() => getGameHeroes(gameSlug, { page_size: 100 }), [gameSlug])
   return <section className="games-page page-container">
     <Link className="text-link" to={`/game/${gameSlug}/maps`}>返回地图目录</Link>
-    <p className="eyebrow">辅助入口</p>
-    <h1>英雄目录</h1>
-    <p>英雄通用页只用于辅助浏览；查找点位时请先选择地图。</p>
-    <State state={state} empty="暂无可用英雄。" resource="英雄目录">{state.data && <div className="catalog-grid">{state.data.data.map((hero) => <HeroCard key={hero.id} hero={hero} />)}</div>}</State>
+    <p className="eyebrow">另一条小径</p>
+    <h1>按英雄翻看</h1>
+    <p>如果只是随意看看，可以从英雄出发；若正在寻找实战点位，从地图开始会更快。</p>
+    <State state={state} empty="英雄们还没有在这里亮相。" resource="英雄目录">{state.data && <div className="catalog-grid">{state.data.data.map((hero) => <HeroCard key={hero.id} hero={hero} />)}</div>}</State>
   </section>
 }
 
@@ -69,12 +69,12 @@ export function GameMapsPage() {
     <State state={gameState} resource="游戏">
       {gameState.data && <>
         <header className="catalog-page-header">
-          <p className="eyebrow">{gameState.data.name_zh} · 地图优先</p>
-          <h1>选择当前地图</h1>
-          <p>{gameState.data.description || '打开当前地图，再从这张地图中选择英雄。'}</p>
+          <p className="eyebrow">{gameState.data.name_zh} · 从地图出发</p>
+          <h1>你现在，在哪张地图？</h1>
+          <p>{gameState.data.description || '认出眼前的地图，再选择英雄。合适的点位，就在下一步。'}</p>
           <div className="catalog-page-header__stats"><span>{gameState.data.usable_map_count ?? gameState.data.map_count ?? 0} 张可用地图</span><span>{gameState.data.guide_count || 0} 个公开点位</span></div>
         </header>
-        <State state={mapsState} empty="这款游戏还没有公开地图。" resource="地图目录">
+        <State state={mapsState} empty="地图册还是空的，稍后再来看看。" resource="地图目录">
           {mapsState.data && <div className="catalog-grid catalog-grid--maps">{mapsState.data.data.map((map) => <MapCard key={map.id} map={map} />)}</div>}
         </State>
       </>}
@@ -124,17 +124,17 @@ export function GameMapDetailPage() {
             <h1>{map.name_zh}</h1>
             {map.name_en && <p className="game-card__english">{map.name_en}</p>}
             <span className={`map-status map-status--${map.current_status}`}>{MAP_STATUS[map.current_status] || map.current_status}</span>
-            <p>{map.description || '选择英雄，查看这张地图中可直接使用的点位。'}</p>
+            <p>{map.description || '选出这一局的英雄，看看这张地图上有哪些值得一试的位置。'}</p>
             <div className="game-point-summary"><span>{map.guide_count || 0} 个点位</span><span>{map.hero_with_guides_count || 0} 位英雄已有点位</span></div>
             {map.current_status !== 'retired'
-              ? <Link className="button button--primary" to={`/guide/create?game=${gameSlug}&map=${mapSlug}`}>发布该地图点位</Link>
+              ? <Link className="button button--primary" to={`/guide/create?game=${gameSlug}&map=${mapSlug}`}>为这张地图留个点位</Link>
               : <p className="catalog-warning">这张地图已退役。历史点位仍可查看，但不能用于新建点位。</p>}
           </div>
         </header>
         {map.current_status === 'rotated_out' && <p className="catalog-warning">这张地图暂时不在当前轮换中，已有点位仍可正常查看。</p>}
-        {!map.guide_count && <p className="catalog-notice">这张地图暂无点位。选择英雄后，可以发布第一个实用点位。</p>}
+        {!map.guide_count && <p className="catalog-notice">这张地图还没有路标。选择英雄后，可以留下第一个实用点位。</p>}
         <section className="catalog-section hero-picker">
-          <div className="catalog-section__heading"><div><h2>选择英雄</h2><p>已有点位的英雄优先；没有点位的英雄仍可选择。</p></div></div>
+          <div className="catalog-section__heading"><div><h2>这一局，你用谁？</h2><p>有现成点位的英雄排在前面；其他英雄也可以继续探索。</p></div></div>
           <form className="catalog-toolbar" onSubmit={(event) => { event.preventDefault(); update({ query }) }}>
             <label className="catalog-toolbar__search">搜索英雄<input aria-label="搜索英雄" value={query} placeholder="中文名、英文名或别名" onChange={(event) => setQuery(event.target.value)} /></label>
             <label>英雄定位<select aria-label="英雄定位" value={role} onChange={(event) => update({ role: event.target.value })}><option value="">全部定位</option><option value="tank">重装</option><option value="damage">输出</option><option value="support">支援</option></select></label>
@@ -156,7 +156,7 @@ export function GameHeroDetailPage() {
   const state = useData(() => getGameHero(gameSlug, heroSlug), [gameSlug, heroSlug])
   return <section className="games-page page-container">
     <Link className="text-link" to={`/game/${gameSlug}/heroes`}>返回英雄</Link>
-    <State state={state} resource="英雄">{state.data && <article className="catalog-detail"><p className="eyebrow">辅助英雄入口</p><h1>{state.data.name_zh}</h1><p>{state.data.description || '请从地图进入，查看该英雄在对应地图的点位。'}</p><Link className="button" to={`/game/${gameSlug}/maps`}>先选地图</Link></article>}</State>
+    <State state={state} resource="英雄">{state.data && <article className="catalog-detail"><p className="eyebrow">按英雄翻看</p><h1>{state.data.name_zh}</h1><p>{state.data.description || '先选地图，才能找到这位英雄在具体战场上的位置与走法。'}</p><Link className="button" to={`/game/${gameSlug}/maps`}>去选地图</Link></article>}</State>
   </section>
 }
 
@@ -198,11 +198,11 @@ export function GamePointListPage() {
       <State state={heroState} resource="英雄">
         {contextReady && <>
           <header className="guide-combination-header">
-            <p className="eyebrow">{mapState.data.game.name_zh} · 地图 + 英雄</p>
+            <p className="eyebrow">{mapState.data.game.name_zh} · 路标已就位</p>
             <h1>{mapState.data.name_zh} · {heroState.data.name_zh}</h1>
-            <p>只展示当前地图与当前英雄的点位，不需要再次选择目录。</p>
+            <p>地图和英雄已经替你选好。现在，只看这一组真正用得上的点位。</p>
             {canPublish
-              ? <Link className="button button--primary" to={`/guide/create?game=${gameSlug}&map=${mapSlug}&hero=${heroSlug}`}>发布当前组合点位</Link>
+              ? <Link className="button button--primary" to={`/guide/create?game=${gameSlug}&map=${mapSlug}&hero=${heroSlug}`}>在这里留个路标</Link>
               : <p className="catalog-warning">当前游戏、地图或英雄已停用；历史点位仍可查看，但不能为这个组合发布新点位。</p>}
           </header>
           <form className="guide-filters guide-combination-filters" onSubmit={(event) => { event.preventDefault(); update({ query, map_area: search.get('map_area') || '' }) }}>
@@ -214,7 +214,7 @@ export function GamePointListPage() {
             <label>排序<select aria-label="点位排序" value={search.get('sort') || 'updated'} onChange={(event) => update({ sort: event.target.value === 'updated' ? '' : event.target.value })}><option value="updated">最近更新</option><option value="latest">最新发布</option><option value="popular">热门</option></select></label>
             <button type="submit">搜索</button>
           </form>
-          <State state={state} empty="这个英雄在这张地图还没有点位，记录第一个实用位置吧。" resource="点位">
+          <State state={state} empty="这位英雄在这张地图上还没有路标。若你走通过一条路，不妨把它留下。" resource="点位">
             {state.data && <div className="masonry-feed">{state.data.data.map((guide) => <GuideCard key={guide.id} guide={guide} className="masonry-feed__item" />)}</div>}
           </State>
           <Pagination pagination={state.loading ? null : state.data?.meta?.pagination} onPageChange={(next) => update({ page: String(next) })} />

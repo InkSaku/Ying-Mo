@@ -8,7 +8,7 @@ export default function ProfileContentToolbar({
 }) {
   const tabs = [
     { key: 'posts', label: '日常', count: stats.life_post_count },
-    { key: 'guides', label: '游戏教材', count: stats.guide_count },
+    { key: 'guides', label: '游戏点位', count: stats.guide_count },
   ]
 
   return (

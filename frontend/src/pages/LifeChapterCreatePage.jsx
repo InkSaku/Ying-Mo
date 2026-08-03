@@ -50,9 +50,9 @@ export default function LifeChapterCreatePage() {
   return (
     <section className="life-page page-container">
       <Link className="text-link" to={resubmitId ? '/me/chapters' : '/life/chapters'}>返回{resubmitId ? '我的合集' : '合集列表'}</Link>
-      <p className="eyebrow">生活合集</p>
-      <h1>{resubmitId ? `编辑「${initial.name}」` : '创建生活合集'}</h1>
-      <p>合集可以公开浏览；投稿设置只控制谁能向其中发布内容。</p>
+      <p className="eyebrow">生活合集 · 给记忆一处归所</p>
+      <h1>{resubmitId ? `再写一写「${initial.name}」` : '为一段共同的日子取名'}</h1>
+      <p>合集可以被公开翻看；是否允许别人一同记录，则由你决定。</p>
       <ChapterEditorForm initial={initial} pending={pending} requestError={error} submitLabel={resubmitId ? '保存并重新提交' : '创建合集'} onSubmit={submit} />
     </section>
   )

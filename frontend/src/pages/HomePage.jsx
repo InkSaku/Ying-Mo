@@ -71,13 +71,13 @@ function HomeSkeleton({ variant }) {
   )
 }
 
-function HomeState({ loading, error, empty, variant = 'default', children }) {
+function HomeState({ loading, error, empty, emptyText = '这一页还在等第一笔。', variant = 'default', children }) {
   const stateKey = loading ? 'loading' : error ? 'error' : empty ? 'empty' : 'content'
   let content = children
 
   if (loading) content = <HomeSkeleton variant={variant} />
   if (error) content = <div className="home-state home-state--error" role="alert">{error}</div>
-  if (empty) content = <div className="home-state">这里还没有可以展示的内容。</div>
+  if (empty) content = <div className="home-state">{emptyText}</div>
 
   return (
     <div className="home-state-stage">
@@ -137,7 +137,7 @@ export default function HomePage() {
         postsError: getErrorMessage(posts, '生活内容暂时无法加载。'),
         chaptersError: getErrorMessage(chapters, '生活章节暂时无法加载。'),
         gamesError: getErrorMessage(games, '游戏目录暂时无法加载。'),
-        guidesError: getErrorMessage(guides, '游戏教材暂时无法加载。'),
+        guidesError: getErrorMessage(guides, '点位暂时无法加载。'),
         postsLoading: false,
         chaptersLoading: false,
         gamesLoading: false,
@@ -172,10 +172,10 @@ export default function HomePage() {
         <PageContainer>
           <Reveal>
             <HomeSectionHeading
-            eyebrow="生活区 · 最近更新"
-            title="真实发生的日常，正在这里慢慢积累"
-            description="首页只呈现社区中真实发布的内容。照片、时间、章节和作者信息都来自当前系统数据。"
-            actionLabel="查看全部生活记录"
+            eyebrow="日常 · 新近留下"
+            title="一些日子，正被轻轻留下"
+            description="照片记得光线，文字记得当时。这里是大家最近写下的生活。"
+            actionLabel="翻看更多日常"
             to="/life"
             titleId="home-life-title"
             />
@@ -183,7 +183,7 @@ export default function HomePage() {
 
           <div className="home-life-layout">
             <div className="home-life-feed">
-              <HomeState loading={home.postsLoading} error={home.postsError} empty={!home.posts.length} variant="life">
+              <HomeState loading={home.postsLoading} error={home.postsError} empty={!home.posts.length} emptyText="这里还空着，等一张照片或一句当时的话。" variant="life">
                 <div className="home-life-showcase">
                   {featuredPost && (
                     <Reveal className="home-motion-card">
@@ -207,12 +207,12 @@ export default function HomePage() {
             <aside className="home-chapter-rail" aria-labelledby="home-chapter-title">
               <div className="home-chapter-rail__heading">
                 <div>
-                  <p className="eyebrow">生活章节</p>
-                  <h3 id="home-chapter-title">沿着主题继续浏览</h3>
+                  <p className="eyebrow">城市与故事</p>
+                  <h3 id="home-chapter-title">沿着地名与记忆翻页</h3>
                 </div>
                 <Link to="/life/chapters" aria-label="查看全部生活章节">全部</Link>
               </div>
-              <HomeState loading={home.chaptersLoading} error={home.chaptersError} empty={!home.chapters.length} variant="chapters">
+              <HomeState loading={home.chaptersLoading} error={home.chaptersError} empty={!home.chapters.length} emptyText="还没有合集，等一些相近的日子在这里相遇。" variant="chapters">
                 <div className="home-chapter-list">
                   {home.chapters.map((chapter, index) => (
                     <Reveal delay={cappedStagger(index)} key={chapter.id}>
@@ -231,10 +231,10 @@ export default function HomePage() {
         <PageContainer>
           <Reveal>
             <HomeSectionHeading
-            eyebrow="游戏区 · 目录与教材"
-            title="先找到游戏，再进入结构化的实战经验"
-            description="游戏、英雄、地图与教材保持清晰关联，让每条经验都能被准确找到和反复使用。"
-            actionLabel="进入游戏区"
+            eyebrow="点位 · 地图与英雄"
+            title="地图之外，也有人替你留了路"
+            description="先选地图，再选英雄。站位、路线与投掷时机，都在一篇篇可以照着复现的点位里。"
+            actionLabel="去找点位"
             to="/games"
             titleId="home-game-title"
             />
@@ -244,12 +244,12 @@ export default function HomePage() {
             <div className="home-game-catalog">
               <div className="home-subsection-heading">
                 <div>
-                  <span>游戏目录</span>
-                  <strong>最近维护的游戏</strong>
+                  <span>游戏与地图</span>
+                  <strong>从下一张地图出发</strong>
                 </div>
                 <Link to="/games">查看目录</Link>
               </div>
-              <HomeState loading={home.gamesLoading} error={home.gamesError} empty={!home.games.length} variant="games">
+              <HomeState loading={home.gamesLoading} error={home.gamesError} empty={!home.games.length} emptyText="地图册还在展开，稍后再来看看。" variant="games">
                 <div className="catalog-grid home-game-grid">
                   {home.games.map((game, index) => (
                     <Reveal className="home-motion-card" delay={cappedStagger(index)} key={game.id}>
@@ -263,12 +263,12 @@ export default function HomePage() {
             <div className="home-guide-panel">
               <div className="home-subsection-heading">
                 <div>
-                  <span>最新教材</span>
-                  <strong>刚刚整理好的经验</strong>
+                  <span>新近点位</span>
+                  <strong>队友刚留下的路标</strong>
                 </div>
                 <Link to="/guides">查看全部</Link>
               </div>
-              <HomeState loading={home.guidesLoading} error={home.guidesError} empty={!home.guides.length} variant="guides">
+              <HomeState loading={home.guidesLoading} error={home.guidesError} empty={!home.guides.length} emptyText="还没有人落下第一枚路标。" variant="guides">
                 <div className="home-guide-list">
                   {home.guides.map((guide, index) => (
                     <Reveal className="home-motion-card" delay={cappedStagger(index)} key={guide.id}>
@@ -287,13 +287,13 @@ export default function HomePage() {
           <Reveal>
           <div className="home-final-entry__panel">
             <div>
-              <p className="eyebrow">继续探索</p>
-              <h2>从真实内容出发，而不是从静态展示开始。</h2>
-              <p>浏览社区最新内容，或登录后留下自己的生活记录与游戏经验。</p>
+              <p className="eyebrow">再往里走走</p>
+              <h2>看看别人留下的，也写下自己的那一笔。</h2>
+              <p>随意翻翻新近的日常与点位；若你愿意，也把某个值得记住的瞬间或走法留在这里。</p>
             </div>
             <div className="home-final-entry__actions">
-              <Link className="button button--primary" to="/discover">发现内容</Link>
-              <Link className="button" to="/publish">发布内容</Link>
+              <Link className="button button--primary" to="/discover">随意走走</Link>
+              <Link className="button" to="/publish">留下一笔</Link>
             </div>
           </div>
           </Reveal>

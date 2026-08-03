@@ -79,7 +79,7 @@ function ContentPage({ kind, hidden = false }) {
     }
   }
 
-  const title = hidden ? '已下架内容' : kind === 'life' ? '我的日常' : '我的教材'
+  const title = hidden ? '已下架内容' : kind === 'life' ? '我的日常' : '我的点位'
 
   return (
     <section>
@@ -165,7 +165,7 @@ export function HiddenContentPage() {
     <>
       <div className="account-tabs">
         <button aria-pressed={type === 'life'} onClick={() => setType('life')}>日常</button>
-        <button aria-pressed={type === 'guide'} onClick={() => setType('guide')}>教材</button>
+        <button aria-pressed={type === 'guide'} onClick={() => setType('guide')}>点位</button>
       </div>
       <ContentPage key={type} kind={type} hidden />
     </>

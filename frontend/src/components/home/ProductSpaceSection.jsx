@@ -20,9 +20,9 @@ export default function ProductSpaceSection({ latestPost, latestGame }) {
     <section className="home-module-section" id="home-spaces" aria-labelledby="home-spaces-title">
       <PageContainer>
         <Reveal className="home-module-section__heading">
-          <p className="eyebrow">两个独立内容空间</p>
-          <h2 id="home-spaces-title">选择你此刻想进入的地方</h2>
-          <p>生活区关注照片、时间与情绪；游戏区关注目录、对象关系与可复用经验。两者共享用户和互动能力，但不混淆内容结构。</p>
+          <p className="eyebrow">两个相邻的空间</p>
+          <h2 id="home-spaces-title">从此刻的心绪，或下一局的地图出发</h2>
+          <p>一边收留照片和文字，一边收好站位、路线与时机。它们各有自己的秩序，也都由真实的人一点点写成。</p>
         </Reveal>
 
         <div className="home-module-grid">
@@ -33,13 +33,13 @@ export default function ProductSpaceSection({ latestPost, latestGame }) {
               <div className="home-module-card__content">
                 <div>
                   <p className="eyebrow">Life records</p>
-                  <h3>让照片回到真实的时间和章节中</h3>
-                  <p>浏览生活动态、城市与主题章节，也可以发布自己的照片和实况记录。</p>
+                  <h3>把照片安放回那一天</h3>
+                  <p>沿着城市、旅途和共同主题翻看生活，也写下属于自己的片刻。</p>
                 </div>
                 <ModuleMedia source={latestPost?.cover_image} alt="最新生活记录预览" fallback="生" width={latestPost?.cover_width} height={latestPost?.cover_height} live={latestPost?.cover_media_type === 'live_video'} />
               </div>
               <div className="home-module-card__footer">
-                <span>生活动态</span><span>照片记录</span><span>主题章节</span><b aria-hidden="true">→</b>
+                <span>照片</span><span>时光</span><span>共同记忆</span><b aria-hidden="true">→</b>
               </div>
             </Link>
             </article>
@@ -52,13 +52,13 @@ export default function ProductSpaceSection({ latestPost, latestGame }) {
               <div className="home-module-card__content">
                 <div>
                   <p className="eyebrow">Game knowledge</p>
-                  <h3>从游戏目录进入英雄、地图与实战教材</h3>
-                  <p>按照明确的对象关系组织经验，降低查找成本，也方便持续维护。</p>
+                  <h3>地图已定，就从英雄开始</h3>
+                  <p>按地图寻找英雄点位，把站位、朝向和时机留给下一次实战。</p>
                 </div>
                 <ModuleMedia source={gameCover} alt="最新游戏目录预览" fallback="游" />
               </div>
               <div className="home-module-card__footer">
-                <span>游戏目录</span><span>英雄地图</span><span>步骤教材</span><b aria-hidden="true">→</b>
+                <span>地图</span><span>英雄</span><span>实战路标</span><b aria-hidden="true">→</b>
               </div>
             </Link>
             </article>

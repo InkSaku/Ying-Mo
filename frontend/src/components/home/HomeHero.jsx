@@ -17,7 +17,7 @@ function PostPreview({ post }) {
     return (
       <div className="home-live-card home-live-card--empty">
         <span className="home-live-card__placeholder" aria-hidden="true">生</span>
-        <div><strong>等待第一条生活记录</strong><p>真实发布后，最新内容会出现在这里。</p></div>
+        <div><strong>这里还空着一页</strong><p>第一段日常，会从一张照片或一句话开始。</p></div>
       </div>
     )
   }
@@ -50,7 +50,7 @@ function GamePreview({ game }) {
     return (
       <div className="home-game-preview home-game-preview--empty">
         <span className="home-game-preview__mark" aria-hidden="true">游</span>
-        <div><strong>游戏目录等待维护</strong><small>管理员录入后会同步展示。</small></div>
+        <div><strong>路标还在准备。</strong><small>地图与英雄齐备后，就从这里出发。</small></div>
       </div>
     )
   }
@@ -87,26 +87,26 @@ export default function HomeHero({ latestPost, latestGame, loading, visualData }
         <div className="home-portal-hero__copy">
           <m.div className="home-brand-line" variants={variants.item}>
             <span className="home-brand-line__mark">映墨</span>
-            <span>Yingmo community</span>
+            <span>Yingmo · Notes &amp; Waypoints</span>
           </m.div>
-          <m.h1 id="home-hero-title" variants={variants.item}>把生活留下，<br /><em>把经验讲清。</em></m.h1>
-          <m.p className="home-portal-hero__lead" variants={variants.item}>一个同时承载生活影像与游戏知识的轻量社区。首页连接真实内容、明确入口和持续更新，而不是展示一组固定素材。</m.p>
+          <m.h1 id="home-hero-title" variants={variants.item}>日常有光，<br /><em>地图有路。</em></m.h1>
+          <m.p className="home-portal-hero__lead" variants={variants.item}>一张照片有它的天气与去处；一个点位有清楚的地图、英雄与走法。慢慢记录，也让真正有用的经验被后来的人找到。</m.p>
           <m.div className="home-portal-hero__actions" variants={variants.item}>
-            <Link className="button button--primary" to="/life">进入生活区</Link>
-            <Link className="button" to="/games">浏览游戏区</Link>
+            <Link className="button button--primary" to="/life">翻看日常</Link>
+            <Link className="button" to="/games">寻找点位</Link>
           </m.div>
           <m.nav className="home-portal-hero__quick" aria-label="首页快捷入口" variants={variants.item}>
-            <a href="#home-spaces">双区入口</a>
-            <a href="#home-life-title">最新生活</a>
-            <a href="#home-game-title">游戏与教材</a>
+            <a href="#home-spaces">两处空间</a>
+            <a href="#home-life-title">新近日常</a>
+            <a href="#home-game-title">地图与点位</a>
           </m.nav>
         </div>
 
         <m.div className="home-content-window" aria-label="社区最新内容预览" variants={variants.item}>
           <div className="home-content-window__header">
             <div><span /><span /><span /></div>
-            <p>社区新近内容</p>
-            <small>实时读取</small>
+            <p>新近留下的</p>
+            <small>此刻更新</small>
           </div>
           <div className="home-content-window__body">
             <AnimatePresence initial={false} mode="popLayout">

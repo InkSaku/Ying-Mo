@@ -72,9 +72,8 @@ describe('GamesPage', () => {
     getGames.mockResolvedValue(result([]))
     renderGames()
 
-    expect(await screen.findByRole('heading', { name: '当前还没有开放的游戏目录' })).toBeInTheDocument()
-    expect(screen.getByText('地图、英雄和点位由管理员统一维护。')).toBeInTheDocument()
-    expect(screen.getByText('普通用户不能创建正式游戏。')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '地图册还没有展开' })).toBeInTheDocument()
+    expect(screen.getByText('等游戏、地图与英雄准备妥当，就能从这里寻找点位。')).toBeInTheDocument()
   })
 
   it('redirects one unfiltered game directly to its map directory', async () => {

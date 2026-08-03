@@ -65,9 +65,9 @@ function LifeChaptersContent({ searchParams, setSearchParams, query, type, sort,
 
   return (
     <section className="life-page page-container">
-      <p className="eyebrow">生活合集</p>
-      <h1>从一个地方开始</h1>
-      <p>城市、旅途和共同经历，都可以成为一段持续生长的生活记录。</p>
+      <p className="eyebrow">生活合集 · 城市与故事</p>
+      <h1>从一个名字，走进许多日子</h1>
+      <p>一座城、一段旅途，或一群人共有的时光。相近的片刻，会在同一处慢慢相遇。</p>
       <div className="life-toolbar life-toolbar--filters">
         <input value={input} placeholder="搜索合集" aria-label="搜索合集" onChange={(event) => setInput(event.target.value)} />
         <select value={type} aria-label="合集类型" onChange={(event) => update({ chapter_type: event.target.value })}>
@@ -78,11 +78,11 @@ function LifeChaptersContent({ searchParams, setSearchParams, query, type, sort,
           <option value="latest">最新创建</option>
           <option value="popular">热门合集</option>
         </select>
-        <Link className="button button--primary" to="/life/chapters/create">创建合集</Link>
+        <Link className="button button--primary" to="/life/chapters/create">为日子取个名字</Link>
       </div>
       {loading && <p className="state-message">正在寻找相关合集…</p>}
       {error && <div className="state-message state-message--error" role="alert"><p>{error.message}</p><button type="button" onClick={() => setRetry((value) => value + 1)}>重新加载</button></div>}
-      {!loading && !error && items.length === 0 && <p className="life-empty">还没有找到相符的合集，换个词试试，或创建一个新的生活合集。</p>}
+      {!loading && !error && items.length === 0 && <p className="life-empty">没有找到相符的合集。换个词再走走，或从这里写下新的开头。</p>}
       {!loading && !error && items.length > 0 && (
         <div className="chapter-list">
           {items.map((chapter) => (
@@ -91,7 +91,7 @@ function LifeChaptersContent({ searchParams, setSearchParams, query, type, sort,
               <div>
                 <p className="chapter-list__meta">{chapter.parent ? `${chapter.parent.name} · ` : ''}{types[chapter.chapter_type]}</p>
                 <div className="chapter-list__title"><strong>{chapter.name}</strong><span className="chapter-policy-badge">{chapter.contribution_policy === 'private' ? '仅创建者投稿' : '开放投稿'}</span></div>
-                <p>{chapter.description || '等待一段新的日常。'}</p>
+                <p>{chapter.description || '这里等着一些相近的日子。'}</p>
                 <small>{[chapter.country, chapter.province, chapter.city].filter(Boolean).join(' · ') || '未标注地区'} · {chapter.content_count} 条日常 · {chapter.contributor_count} 位参与者</small>
               </div>
             </Link>

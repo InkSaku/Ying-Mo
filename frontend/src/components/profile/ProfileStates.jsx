@@ -37,12 +37,12 @@ export function ProfileContentSkeleton({ tab }) {
 
 export function ProfileEmptyState({ tab, self }) {
   const isPosts = tab === 'posts'
-  const title = isPosts ? '这里还没有生活记录' : '这里还没有游戏教材'
+  const title = isPosts ? '这里还没有生活记录' : '这里还没有游戏点位'
   const description = self
     ? isPosts
       ? '把一张照片、一段心情，或普通的一天留在映墨。'
       : '用图文步骤把一次实战中的发现整理下来。'
-    : `这位用户暂时没有对你可见的${isPosts ? '日常' : '教材'}。`
+    : `这位用户暂时没有对你可见的${isPosts ? '日常' : '点位'}。`
 
   return (
     <div className="profile-empty-state">
@@ -53,7 +53,7 @@ export function ProfileEmptyState({ tab, self }) {
       </div>
       {self && (
         <Link className="button button--primary" to={isPosts ? '/life/create' : '/guide/create'}>
-          {isPosts ? '发布第一条日常' : '发布第一篇教材'}
+          {isPosts ? '写下第一段日常' : '留下第一处点位'}
         </Link>
       )}
     </div>

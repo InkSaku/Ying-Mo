@@ -17,19 +17,19 @@ function GamesList({ query, sort, page, search, setSearch }) {
   if (!loading && !error && data.length === 1 && !query && page === 1 && sort === 'name') return <Navigate to={`/game/${data[0].slug}/maps`} replace />
   return <section className="games-page games-directory page-container">
     <header className="games-directory__header">
-      <p className="eyebrow">游戏区</p>
-      <h1>从地图开始查点位</h1>
-      <p>游戏是最上层目录。进入一款游戏后，先选择当前地图，再选择英雄。</p>
+      <p className="eyebrow">游戏点位 · 从地图出发</p>
+      <h1>先认地图，再找英雄</h1>
+      <p>对局已经开始时，不必绕远路。选中地图，再看手中英雄有哪些站位、路线和投掷时机。</p>
     </header>
     <div className="catalog-toolbar">
       <label className="catalog-toolbar__search">搜索游戏<input aria-label="搜索游戏" value={input} placeholder="中文名、英文名或别名" onChange={(event) => setInput(event.target.value)} /></label>
       <label>目录排序<select aria-label="目录排序" value={sort} onChange={(event) => update({ sort: event.target.value === 'latest' ? 'latest' : '' })}><option value="name">按名称</option><option value="latest">最新创建</option></select></label>
     </div>
-    {loading && <p className="state-message">正在打开游戏目录…</p>}
+    {loading && <p className="state-message">正在展开地图册…</p>}
     {error && <div className="state-message state-message--error" role="alert"><h2>游戏目录加载失败</h2><p>{error.message}</p><button type="button" onClick={() => setRetry((item) => item + 1)}>重新加载</button></div>}
     {!loading && !error && !data.length && (query
-      ? <div className="games-directory__empty"><h2>没有找到匹配的游戏</h2><p>可以尝试中文名、英文名或管理员维护的常见别名。</p></div>
-      : <div className="games-directory__empty"><h2>当前还没有开放的游戏目录</h2><p>地图、英雄和点位由管理员统一维护。</p><p>普通用户不能创建正式游戏。</p></div>)}
+      ? <div className="games-directory__empty"><h2>没有找到这款游戏</h2><p>试试它的中文名、英文名或常用简称。</p></div>
+      : <div className="games-directory__empty"><h2>地图册还没有展开</h2><p>等游戏、地图与英雄准备妥当，就能从这里寻找点位。</p></div>)}
     {!loading && !error && data.length > 0 && <div className="games-directory-grid">{data.map((game) => <GameCard key={game.id} game={game} />)}</div>}
     <Pagination pagination={loading ? null : state.pagination} onPageChange={(next) => update({ page: String(next) })} />
   </section>

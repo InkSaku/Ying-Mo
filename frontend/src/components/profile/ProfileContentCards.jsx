@@ -85,13 +85,13 @@ export function ProfileGuideCard({ guide, index, reducedMotion }) {
 
         <span className="profile-guide-card__body">
           <span className="profile-guide-card__topline">
-            <span>{guide.game?.name_zh || '游戏教材'}</span>
+            <span>{guide.game?.name_zh || '游戏点位'}</span>
             <em data-status={guide.validity_status || 'unverified'}>
               {validityLabels[guide.validity_status] || '未验证'}
             </em>
           </span>
           <strong>{guide.title}</strong>
-          <span className="profile-guide-card__excerpt">{guide.excerpt || '这篇教材还没有补充摘要。'}</span>
+          <span className="profile-guide-card__excerpt">{guide.excerpt || '这处点位还没有补充摘要。'}</span>
           <span className="profile-guide-card__meta">
             <span>{categoryLabels[guide.category] || guide.category || '其他技巧'}</span>
             <span>{gameLine || guide.game_version || '范围未标注'}</span>

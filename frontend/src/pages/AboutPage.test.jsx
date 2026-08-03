@@ -9,14 +9,14 @@ describe('AboutPage', () => {
     render(<MemoryRouter><AboutPage /></MemoryRouter>)
 
     expect(screen.getByRole('heading', {
-      name: '把普通日子和有用经验，认真留在这里。',
+      name: '让日常有回声，让经验有去处。',
     })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: '日常生活区' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: '游戏点位区' })).toBeInTheDocument()
     expect(screen.getByRole('heading', {
-      name: '是否公开、公开到什么程度，应当由记录者决定。',
+      name: '有些坐标，适合分享；有些只需留给自己。',
     })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '看看真实日常' })).toHaveAttribute('href', '/life')
-    expect(screen.getByRole('link', { name: '进入游戏点位' })).toHaveAttribute('href', '/games')
+    expect(screen.getByRole('link', { name: '去日常里坐坐' })).toHaveAttribute('href', '/life')
+    expect(screen.getByRole('link', { name: '沿地图找点位' })).toHaveAttribute('href', '/games')
   })
 })

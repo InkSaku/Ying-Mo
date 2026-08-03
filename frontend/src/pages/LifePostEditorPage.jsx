@@ -149,9 +149,9 @@ export default function LifePostEditorPage({ edit = false }) {
     return (
       <section className="life-page life-create-flow page-container">
         <Link className="text-link" to="/life">返回生活区</Link>
-        <p className="eyebrow">发布内容 · 第一步</p>
-        <h1>先选择一个合集</h1>
-        <p>内容会归入所选合集。公开可见不代表允许投稿，这里只列出你确实有发布权限的合集。</p>
+        <p className="eyebrow">写日常 · 先找归处</p>
+        <h1>这段日子，收进哪里？</h1>
+        <p>选择一个合集，让相近的照片与故事在同一处相遇。这里只显示你可以投稿的合集。</p>
         <LifeCollectionPicker collections={collections} onSelect={changeCollection} />
         <div className="life-toolbar"><Link className="button" to="/life/chapters/create">创建新合集</Link></div>
       </section>
@@ -161,9 +161,9 @@ export default function LifePostEditorPage({ edit = false }) {
   return (
     <section className="life-page life-editor-page page-container">
       <Link className="text-link" to="/life">返回生活区</Link>
-      <p className="eyebrow">发布内容 · {edit ? '编辑' : '第二步'}</p>
-      <h1>{edit ? '编辑生活内容' : '记录这一刻'}</h1>
-      <p>{edit ? 'Markdown 正文、媒体和视频链接可以自由组合，保存时会再次检查合集权限。' : '用 Markdown 写下正文，再按需添加图片、Live Photo 或外部视频链接。'}</p>
+      <p className="eyebrow">写日常 · {edit ? '添改' : '落笔'}</p>
+      <h1>{edit ? '把这段日常再写一写' : '记录这一刻'}</h1>
+      <p>{edit ? '文字、照片、实况与外部视频都可以继续添改，保存后仍会回到原来的合集。' : '从一句话或一张照片开始；想写得很长也可以。地点、心情与时间，都不必勉强留下。'}</p>
       {draftNotice && <p className="form-feedback form-feedback--success">{draftNotice}</p>}
       <LifePostForm
         key={edit ? `edit-${id}` : initial ? `draft-${draftId}` : `new-${selectedCollection.id}`}

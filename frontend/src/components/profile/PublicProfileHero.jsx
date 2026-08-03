@@ -15,7 +15,7 @@ function joinedAt(value) {
 export default function PublicProfileHero({ profile, self, reducedMotion }) {
   const stats = [
     { label: '日常', value: profile.stats.life_post_count, hint: '生活记录' },
-    { label: '教材', value: profile.stats.guide_count, hint: '游戏经验' },
+    { label: '点位', value: profile.stats.guide_count, hint: '实战路标' },
     { label: '获赞', value: profile.stats.received_like_count, hint: '收到回应' },
   ]
 

@@ -37,6 +37,7 @@ function map(overrides = {}) {
     slug: 'kings-row',
     name_zh: '国王大道',
     name_en: "King's Row",
+    aliases: ['国王街', 'KR'],
     description: '经典混合地图。',
     map_type: 'hybrid',
     current_status: 'active',
@@ -88,6 +89,7 @@ describe('map-first public browsing', () => {
     getGameMaps.mockResolvedValue(result([
       map(),
       map({ id: 12, slug: 'gibraltar', name_zh: '监测站：直布罗陀', current_status: 'rotated_out', guide_count: 0, hero_with_guides_count: 0 }),
+      map({ id: 13, slug: 'hanamura', name_zh: '花村', current_status: 'retired', guide_count: 2, hero_with_guides_count: 1 }),
     ]))
 
     const { container } = renderRoute('/game/overwatch/maps', '/game/:gameSlug/maps', <GameMapsPage />)
@@ -97,9 +99,61 @@ describe('map-first public browsing', () => {
     expect(screen.getByText('2 张可用地图')).toBeInTheDocument()
     expect(screen.getByText('7 个公开点位')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /国王大道/ })).toHaveAttribute('href', '/game/overwatch/map/kings-row')
-    expect(screen.getByText(/hybrid · 暂时轮换外/)).toBeInTheDocument()
+    const rotatedMap = screen.getByRole('link', { name: /监测站：直布罗陀/ })
+    expect(within(rotatedMap).getByText('hybrid')).toBeInTheDocument()
+    expect(within(rotatedMap).getByText('暂时轮换外')).toBeInTheDocument()
+    expect(within(screen.getByRole('link', { name: /花村/ })).getByText('已退役')).toBeInTheDocument()
     expect(screen.getByText('4 个点位')).toBeInTheDocument()
     expect(container.querySelector('.catalog-grid--maps')).toBeInTheDocument()
+  })
+
+  it('filters loaded maps by names and aliases, then restores the complete directory when cleared', async () => {
+    const user = userEvent.setup()
+    getGame.mockResolvedValue(game)
+    getGameMaps.mockResolvedValue(result([
+      map(),
+      map({ id: 12, slug: 'gibraltar', name_zh: '监测站：直布罗陀', name_en: 'Watchpoint: Gibraltar', aliases: ['直布罗陀'] }),
+      map({ id: 13, slug: 'lijiang-tower', name_zh: '漓江塔', name_en: 'Lijiang Tower', aliases: ['漓江'] }),
+    ]))
+
+    renderRoute('/game/overwatch/maps', '/game/:gameSlug/maps', <GameMapsPage />)
+
+    const search = await screen.findByRole('searchbox', { name: '地图关键词' })
+    expect(screen.getAllByRole('link', { name: /个点位/ })).toHaveLength(3)
+
+    await user.type(search, '直布罗陀')
+    expect(screen.getByRole('link', { name: /监测站：直布罗陀/ })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /国王大道/ })).not.toBeInTheDocument()
+    expect(screen.getByText('找到 1 张地图')).toBeInTheDocument()
+
+    await user.clear(search)
+    await user.type(search, 'KR')
+    expect(screen.getByRole('link', { name: /国王大道/ })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /漓江塔/ })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '清空' }))
+    expect(search).toHaveValue('')
+    expect(screen.getAllByRole('link', { name: /个点位/ })).toHaveLength(3)
+    expect(screen.getByText('共 3 张地图')).toBeInTheDocument()
+  })
+
+  it('shows a restrained empty result and can clear the search', async () => {
+    const user = userEvent.setup()
+    getGame.mockResolvedValue(game)
+    getGameMaps.mockResolvedValue(result([map()]))
+
+    renderRoute('/game/overwatch/maps', '/game/:gameSlug/maps', <GameMapsPage />)
+
+    const search = await screen.findByRole('searchbox', { name: '地图关键词' })
+    await user.type(search, '不存在的地图')
+
+    expect(screen.getByText('没有找到匹配的地图')).toBeInTheDocument()
+    expect(screen.getByText('找到 0 张地图')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /国王大道/ })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '清空搜索' }))
+    expect(search).toHaveValue('')
+    expect(screen.getByRole('link', { name: /国王大道/ })).toHaveAttribute('href', '/game/overwatch/map/kings-row')
   })
 
   it('shows map facts and links every hero directly into the current map combination', async () => {

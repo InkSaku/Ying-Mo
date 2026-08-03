@@ -1,10 +1,10 @@
 /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { getGame, getGameHero, getGameHeroes, getGameMap, getGameMapHeroes, getGameMaps } from '../api/games.js'
 import { getGuides } from '../api/guides.js'
 import AdaptiveMedia from '../components/common/AdaptiveMedia.jsx'
-import { CatalogPlaceholder, HeroCard, MapCard, MapHeroCard } from '../components/games/CatalogCards.jsx'
+import { CatalogPlaceholder, HeroCard, MapDirectoryCard, MapHeroCard } from '../components/games/CatalogCards.jsx'
 import GuideCard from '../components/guides/GuideCard.jsx'
 import Pagination from '../components/life/Pagination.jsx'
 
@@ -13,6 +13,19 @@ const MAP_STATUS = {
   active: '当前可用',
   rotated_out: '暂时轮换外',
   retired: '已退役',
+}
+
+
+function normalizeMapSearch(value) {
+  return String(value || '').normalize('NFKC').trim().toLocaleLowerCase('zh-CN')
+}
+
+
+function mapMatchesQuery(map, query) {
+  const token = normalizeMapSearch(query)
+  if (!token) return true
+  const fields = [map.name_zh, map.name_en, map.slug, map.map_type, ...(Array.isArray(map.aliases) ? map.aliases : [])]
+  return fields.some((field) => normalizeMapSearch(field).includes(token))
 }
 
 
@@ -62,8 +75,18 @@ export function GameHeroesPage() {
 
 export function GameMapsPage() {
   const { gameSlug } = useParams()
+  const [query, setQuery] = useState('')
+  const searchRef = useRef(null)
   const gameState = useData(() => getGame(gameSlug), [gameSlug])
   const mapsState = useData(() => getGameMaps(gameSlug, { page_size: 100 }), [gameSlug])
+  const maps = mapsState.data?.data || []
+  const filteredMaps = maps.filter((map) => mapMatchesQuery(map, query))
+
+  function clearSearch() {
+    setQuery('')
+    window.requestAnimationFrame(() => searchRef.current?.focus())
+  }
+
   return <section className="games-page game-maps-page page-container">
     <Link className="text-link" to="/games">返回游戏目录</Link>
     <State state={gameState} resource="游戏">
@@ -75,7 +98,29 @@ export function GameMapsPage() {
           <div className="catalog-page-header__stats"><span>{gameState.data.usable_map_count ?? gameState.data.map_count ?? 0} 张可用地图</span><span>{gameState.data.guide_count || 0} 个公开点位</span></div>
         </header>
         <State state={mapsState} empty="地图册还是空的，稍后再来看看。" resource="地图目录">
-          {mapsState.data && <div className="catalog-grid catalog-grid--maps">{mapsState.data.data.map((map) => <MapCard key={map.id} map={map} />)}</div>}
+          {mapsState.data && <>
+            <form className="map-directory-search" role="search" onSubmit={(event) => event.preventDefault()}>
+              <label htmlFor="map-directory-query">地图关键词</label>
+              <div className="map-directory-search__field">
+                <input
+                  ref={searchRef}
+                  id="map-directory-query"
+                  type="search"
+                  autoComplete="off"
+                  value={query}
+                  placeholder="搜索中文名、英文名或别名"
+                  onChange={(event) => setQuery(event.target.value)}
+                />
+                {query && <button type="button" onClick={clearSearch}>清空</button>}
+              </div>
+              <p className="map-directory-search__result" aria-live="polite">
+                {query ? `找到 ${filteredMaps.length} 张地图` : `共 ${maps.length} 张地图`}
+              </p>
+            </form>
+            {filteredMaps.length > 0
+              ? <div className="catalog-grid catalog-grid--maps">{filteredMaps.map((map) => <MapDirectoryCard key={map.id} map={map} />)}</div>
+              : <div className="map-directory-empty" role="status"><strong>没有找到匹配的地图</strong><p>换一个地图名称或别名试试。</p><button type="button" onClick={clearSearch}>清空搜索</button></div>}
+          </>}
         </State>
       </>}
     </State>

@@ -525,62 +525,6 @@
   border-color: var(--color-primary);
 }
 
-.home-life-layout {
-  display: grid;
-  align-items: start;
-  grid-template-columns: minmax(0, 1.65fr) minmax(17rem, 0.72fr);
-  gap: 1rem;
-}
-
-.home-life-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-}
-
-.home-life-grid .life-card {
-  min-width: 0;
-}
-
-.home-life-grid .life-card:first-child {
-  grid-column: 1 / -1;
-}
-
-.home-life-grid .life-card:first-child .life-card__button {
-  grid-template-columns: minmax(15rem, 1.25fr) minmax(0, 0.75fr);
-}
-
-.home-life-grid .life-card:first-child .life-card__media {
-  height: auto;
-  min-height: 22rem;
-}
-
-.home-life-grid .life-card:first-child .life-card__body {
-  align-content: end;
-  padding: clamp(1.25rem, 3vw, 2rem);
-}
-
-.home-life-grid .life-card:first-child .life-card__body > strong {
-  font-size: clamp(1.4rem, 2.5vw, 2rem);
-  font-weight: 500;
-  line-height: 1.35;
-}
-
-.home-life-grid .life-card:first-child .life-card__body > span:not(.life-card__meta, .life-card__footer) {
-  white-space: normal;
-}
-
-.home-chapter-rail {
-  position: sticky;
-  top: 6.5rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  background: var(--color-surface);
-  padding: 1rem;
-  box-shadow: var(--shadow-card);
-}
-
-.home-chapter-rail__heading,
 .home-subsection-heading {
   display: flex;
   align-items: end;
@@ -588,84 +532,10 @@
   gap: 1rem;
 }
 
-.home-chapter-rail__heading {
-  margin-bottom: 0.8rem;
-  padding: 0.2rem 0.25rem 0.85rem;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.home-chapter-rail__heading h3 {
-  margin-top: 0.15rem;
-  font-size: 1.15rem;
-}
-
-.home-chapter-rail__heading > a,
 .home-subsection-heading > a {
   color: var(--color-primary-strong);
   font-size: 0.8rem;
   text-decoration: none;
-}
-
-.home-chapter-list {
-  display: grid;
-  gap: 0.3rem;
-}
-
-.home-chapter-item {
-  display: grid;
-  align-items: center;
-  grid-template-columns: 3.25rem minmax(0, 1fr) auto;
-  gap: 0.75rem;
-  border-radius: var(--radius);
-  color: inherit;
-  padding: 0.55rem;
-  text-decoration: none;
-  transition: background var(--motion-fast) ease;
-}
-
-.home-chapter-item:hover {
-  background: var(--color-surface-muted);
-}
-
-.home-chapter-item__cover {
-  display: grid;
-  width: 3.25rem;
-  height: 3.25rem;
-  place-items: center;
-  overflow: hidden;
-  border-radius: 0.7rem;
-  background: var(--color-primary-veil);
-  color: var(--color-primary-strong);
-}
-
-.home-chapter-item__cover img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.home-chapter-item__copy {
-  display: grid;
-  min-width: 0;
-}
-
-.home-chapter-item__copy strong {
-  overflow: hidden;
-  font-weight: 500;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.home-chapter-item__copy small {
-  overflow: hidden;
-  color: var(--color-text-subtle);
-  font-size: 0.72rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.home-chapter-item__arrow {
-  color: var(--color-text-subtle);
 }
 
 .home-game-layout {
@@ -862,7 +732,6 @@
 
 @media (max-width: 1020px) {
   .home-portal-hero__inner,
-  .home-life-layout,
   .home-game-layout {
     grid-template-columns: 1fr;
   }
@@ -871,14 +740,10 @@
     width: min(42rem, 100%);
   }
 
-  .home-chapter-rail {
-    position: static;
-  }
 }
 
 @media (max-width: 760px) {
   .home-module-grid,
-  .home-life-grid,
   .home-game-grid {
     grid-template-columns: 1fr;
   }
@@ -887,18 +752,6 @@
   .home-final-entry__panel {
     align-items: flex-start;
     flex-direction: column;
-  }
-
-  .home-life-grid .life-card:first-child {
-    grid-column: auto;
-  }
-
-  .home-life-grid .life-card:first-child .life-card__button {
-    grid-template-columns: 1fr;
-  }
-
-  .home-life-grid .life-card:first-child .life-card__media {
-    min-height: 16rem;
   }
 
   .home-module-card__content {

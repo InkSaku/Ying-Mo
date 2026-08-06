@@ -1,12 +1,14 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   createLifePost,
+  getLifePost,
   getPostableLifeChapters,
 } from '../api/life.js'
+import { createDraft, getDraft } from '../api/drafts.js'
 import { uploadImage } from '../api/uploads.js'
 import LifePostEditorPage from './LifePostEditorPage.jsx'
 
@@ -54,6 +56,7 @@ function renderEditor(entry = '/life/create') {
     <MemoryRouter initialEntries={[entry]}>
       <Routes>
         <Route path="/life/create" element={<LifePostEditorPage />} />
+        <Route path="/life/post/:id/edit" element={<LifePostEditorPage edit />} />
         <Route path="/life/post/:id" element={<p>发布完成</p>} />
       </Routes>
     </MemoryRouter>,
@@ -64,6 +67,29 @@ beforeEach(() => {
   vi.clearAllMocks()
   getPostableLifeChapters.mockResolvedValue(collections)
   createLifePost.mockResolvedValue({ id: 88 })
+  createDraft.mockResolvedValue({ id: 77 })
+  getDraft.mockResolvedValue({
+    id: 77,
+    draft_type: 'life_post',
+    payload: {
+      chapter_id: 11,
+      body: null,
+      content_format: 'markdown',
+      tags: [],
+      visibility: 'public',
+    },
+    media: [],
+  })
+  getLifePost.mockResolvedValue({
+    id: 9,
+    title: '已经写下的日常',
+    body: '原来的正文',
+    content_format: 'markdown',
+    chapter: collections.owned[0],
+    images: [],
+    tags: [],
+    visibility: 'public',
+  })
   uploadImage.mockResolvedValue({
     id: 31,
     public_id: '12345678-1234-1234-1234-123456789abc',
@@ -76,6 +102,16 @@ beforeEach(() => {
 })
 
 describe('life post create flow', () => {
+  it('keeps the primary actions and editor status together', async () => {
+    renderEditor('/life/create?chapter_id=11')
+
+    await screen.findByPlaceholderText('写下想留下的内容，支持 Markdown…')
+    const actions = screen.getByRole('region', { name: '发布操作' })
+    expect(within(actions).getByRole('button', { name: '保存草稿' })).toBeInTheDocument()
+    expect(within(actions).getByRole('button', { name: '发布内容' })).toBeInTheDocument()
+    expect(within(actions).getByRole('status')).toHaveTextContent('0/9 个媒体')
+  })
+
   it('groups postable collections and enters the fixed-collection editor', async () => {
     const user = userEvent.setup()
     renderEditor()
@@ -105,6 +141,25 @@ describe('life post create flow', () => {
       location: null,
       media_ids: [],
     })))
+    expect(await screen.findByText('发布完成')).toBeInTheDocument()
+  })
+
+  it('keeps publishing progress visible in the action region', async () => {
+    const user = userEvent.setup()
+    let finishPublish
+    createLifePost.mockReturnValue(new Promise((resolve) => { finishPublish = resolve }))
+    renderEditor('/life/create?chapter_id=11')
+    const body = await screen.findByPlaceholderText('写下想留下的内容，支持 Markdown…')
+    const actions = screen.getByRole('region', { name: '发布操作' })
+    await user.type(body, '正在发布的日常。')
+
+    await user.click(within(actions).getByRole('button', { name: '发布内容' }))
+
+    expect(await within(actions).findByText('正在发布内容…')).toBeInTheDocument()
+    expect(within(actions).getByRole('button', { name: '保存草稿' })).toBeDisabled()
+    expect(within(actions).getByRole('button', { name: '正在发布…' })).toBeDisabled()
+
+    finishPublish({ id: 88 })
     expect(await screen.findByText('发布完成')).toBeInTheDocument()
   })
 
@@ -192,6 +247,71 @@ describe('life post create flow', () => {
       cover_media_id: 31,
       media_ids: [31],
     })))
+  })
+
+  it('keeps upload progress visible beside the primary actions', async () => {
+    const user = userEvent.setup()
+    let finishUpload
+    uploadImage.mockReturnValue(new Promise((resolve) => { finishUpload = resolve }))
+    const view = renderEditor('/life/create?chapter_id=11')
+    await screen.findByPlaceholderText('写下想留下的内容，支持 Markdown…')
+    const actions = screen.getByRole('region', { name: '发布操作' })
+
+    await user.click(screen.getByRole('button', { name: '▧ 图片' }))
+    const imageInput = view.container.querySelector('input[type="file"][accept*="image/jpeg"]')
+    await user.upload(imageInput, new File(['image'], 'uploading.png', { type: 'image/png' }))
+
+    expect(await within(actions).findByText('正在上传 1 个媒体…')).toBeInTheDocument()
+    expect(within(actions).getByRole('button', { name: '保存草稿' })).toBeDisabled()
+    expect(within(actions).getByRole('button', { name: '发布内容' })).toBeDisabled()
+
+    finishUpload({
+      id: 31,
+      public_id: '12345678-1234-1234-1234-123456789abc',
+      media_type: 'image',
+      url: 'https://example.test/inline.webp',
+      thumbnail_url: 'https://example.test/inline-thumb.webp',
+      width: 1200,
+      height: 800,
+    })
+    await waitFor(() => expect(within(actions).getByRole('status')).toHaveTextContent('1/9 个媒体'))
+    expect(within(actions).getByRole('button', { name: '保存草稿' })).toBeEnabled()
+    expect(within(actions).getByRole('button', { name: '发布内容' })).toBeEnabled()
+  })
+
+  it('shows draft progress and completion without changing draft payload behavior', async () => {
+    const user = userEvent.setup()
+    let finishDraft
+    createDraft.mockReturnValue(new Promise((resolve) => { finishDraft = resolve }))
+    renderEditor('/life/create?chapter_id=11')
+    await screen.findByPlaceholderText('写下想留下的内容，支持 Markdown…')
+    const actions = screen.getByRole('region', { name: '发布操作' })
+
+    await user.click(within(actions).getByRole('button', { name: '保存草稿' }))
+
+    expect(await within(actions).findByText('正在保存草稿…')).toBeInTheDocument()
+    expect(createDraft).toHaveBeenCalledWith(expect.objectContaining({
+      draft_type: 'life_post',
+      media_ids: [],
+      payload: expect.objectContaining({ chapter_id: 11 }),
+    }))
+
+    finishDraft({ id: 77 })
+    await waitFor(() => expect(
+      within(screen.getByRole('region', { name: '发布操作' })).getByRole('status'),
+    ).toHaveTextContent('草稿已保存。'))
+    expect(
+      within(screen.getByRole('region', { name: '发布操作' })).getByRole('button', { name: '保存草稿' }),
+    ).toBeEnabled()
+  })
+
+  it('does not add draft behavior to the existing edit flow', async () => {
+    renderEditor('/life/post/9/edit')
+
+    expect(await screen.findByRole('heading', { name: '把这段日常再写一写' })).toBeInTheDocument()
+    const actions = screen.getByRole('region', { name: '发布操作' })
+    expect(within(actions).queryByRole('button', { name: '保存草稿' })).not.toBeInTheDocument()
+    expect(within(actions).getByRole('button', { name: '发布内容' })).toBeInTheDocument()
   })
 
   it('inserts dropped and pasted images at the current cursor', async () => {

@@ -34,6 +34,7 @@ export default function LifePostEditorPage({ edit = false }) {
   const [loadError, setLoadError] = useState(null)
   const [submitError, setSubmitError] = useState(null)
   const [pending, setPending] = useState(false)
+  const [pendingAction, setPendingAction] = useState(null)
   const [draftId, setDraftId] = useState(() => edit ? null : search.get('draft'))
   const [draftNotice, setDraftNotice] = useState(null)
   const [protectedMediaIds, setProtectedMediaIds] = useState([])
@@ -105,6 +106,7 @@ export default function LifePostEditorPage({ edit = false }) {
 
   async function submit(payload) {
     setPending(true)
+    setPendingAction('publish')
     setSubmitError(null)
     try {
       const post = edit
@@ -115,11 +117,13 @@ export default function LifePostEditorPage({ edit = false }) {
       setSubmitError(error)
     } finally {
       setPending(false)
+      setPendingAction(null)
     }
   }
 
   async function saveDraft(payload, mediaIds) {
     setPending(true)
+    setPendingAction('draft')
     setSubmitError(null)
     try {
       const draft = draftId
@@ -132,6 +136,7 @@ export default function LifePostEditorPage({ edit = false }) {
       setSubmitError(error)
     } finally {
       setPending(false)
+      setPendingAction(null)
     }
   }
 
@@ -175,6 +180,8 @@ export default function LifePostEditorPage({ edit = false }) {
         onSaveDraft={edit ? null : saveDraft}
         protectedMediaIds={protectedMediaIds}
         pending={pending}
+        pendingAction={pendingAction}
+        statusMessage={draftNotice}
         requestError={submitError}
       />
     </section>

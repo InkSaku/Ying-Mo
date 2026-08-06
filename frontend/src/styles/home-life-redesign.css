@@ -1,145 +1,158 @@
-/* Homepage life stream: image-first, low-interruption and theme-aware. */
-.home-life-showcase {
+/* Homepage life stream: editorial photo flow, without reusable card chrome. */
+.home-life-heading {
   display: grid;
-  min-width: 0;
-  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 1rem 2rem;
+  margin-bottom: clamp(2rem, 3.5vw, 3rem);
+}
+
+.home-life-heading > div {
+  display: grid;
+  max-width: 38rem;
+  gap: 0.45rem;
+}
+
+.home-life-heading h2 {
+  font-size: clamp(1.8rem, 4vw, 3.35rem);
+  font-weight: 500;
+  letter-spacing: -0.045em;
+  line-height: 1.08;
+}
+
+.home-life-heading p {
+  color: var(--color-text-muted);
+  line-height: 1.75;
+}
+
+.home-life-heading > a,
+.home-chapter-strip__heading > a {
+  position: relative;
+  z-index: 1;
+  border-bottom: 1px solid var(--color-border-strong);
+  color: var(--color-primary-strong);
+  font-size: 0.86rem;
+  text-decoration: none;
+}
+
+.home-life-heading > a:hover,
+.home-chapter-strip__heading > a:hover {
+  border-color: var(--color-primary);
 }
 
 .home-life-feed {
-  container-type: inline-size;
+  min-width: 0;
 }
 
-.home-life-showcase__secondary {
+.home-life-showcase {
   display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
   align-items: start;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
-  gap: 1rem;
+  gap: clamp(2.5rem, 5vw, 4.5rem) clamp(1rem, 2vw, 1.8rem);
+}
+
+.home-life-showcase__item {
+  min-width: 0;
+}
+
+.home-life-showcase__item--lead {
+  grid-column: 1 / span 7;
+}
+
+.home-life-showcase__item--side {
+  grid-column: 8 / -1;
+}
+
+.home-life-showcase__item--lower-left {
+  grid-column: 1 / span 5;
+}
+
+.home-life-showcase__item--lower-right {
+  grid-column: 6 / -1;
 }
 
 .home-life-card {
   min-width: 0;
-  overflow: hidden;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-card);
-  transition:
-    transform var(--motion-fast) ease,
-    border-color var(--motion-fast) ease,
-    box-shadow var(--motion-fast) ease;
-}
-
-.home-life-card:hover {
-  transform: translateY(-3px);
-  border-color: var(--color-border-strong);
-  box-shadow: var(--shadow-hover);
 }
 
 .home-life-card__link {
   display: grid;
-  height: auto;
-  max-width: 100%;
   min-width: 0;
+  gap: 0.9rem;
   color: inherit;
   text-decoration: none;
+}
+
+.home-life-card__link:focus-visible {
+  border-radius: 0.25rem;
+  outline: 3px solid var(--color-primary);
+  outline-offset: 5px;
 }
 
 .home-life-card__media {
   position: relative;
   display: grid;
   min-width: 0;
+  aspect-ratio: 4 / 3;
   place-items: center;
   overflow: hidden;
-  background:
-    radial-gradient(circle at 24% 18%, var(--color-primary-veil), transparent 38%),
-    var(--color-surface-muted);
+  border-radius: clamp(0.7rem, 1.5vw, 1.2rem);
+  background: var(--color-surface-muted);
 }
 
-.home-life-card__media::after {
-  position: absolute;
-  z-index: 2;
-  inset: 0;
-  background: linear-gradient(
-    180deg,
-    transparent 58%,
-    color-mix(in srgb, var(--color-text) 16%, transparent)
-  );
-  content: "";
-  pointer-events: none;
+.home-life-card--layout-lead .home-life-card__media {
+  aspect-ratio: 16 / 10;
 }
 
-.home-life-card__media .adaptive-media--natural,
-.home-life-card__media .adaptive-media--natural > .adaptive-media__image {
+.home-life-card--layout-side .home-life-card__media {
+  aspect-ratio: 4 / 5;
+}
+
+.home-life-card--layout-lower-left .home-life-card__media {
+  aspect-ratio: 5 / 4;
+}
+
+.home-life-card--layout-side.home-life-card--portrait .home-life-card__media {
+  aspect-ratio: 4 / 5;
+}
+
+.home-life-card__media .adaptive-media,
+.home-life-card__media .adaptive-media__image {
   width: 100%;
-  height: auto;
-  max-height: none;
-  aspect-ratio: auto;
+  height: 100%;
 }
 
-.home-life-card__media .adaptive-media--natural {
-  background: transparent;
-}
-
-.home-life-card__media .adaptive-media--natural > .adaptive-media__image {
-  object-fit: initial;
-  object-position: initial;
+.home-life-card__media .adaptive-media__image {
+  object-fit: cover;
+  transition: transform 260ms ease;
 }
 
 .home-life-card__placeholder {
   display: grid;
   width: 100%;
   height: 100%;
-  min-height: 13rem;
+  min-height: 12rem;
   place-items: center;
   background:
-    radial-gradient(circle at 32% 30%, var(--color-primary-veil), transparent 34%),
-    linear-gradient(145deg, var(--color-surface-soft), var(--color-surface-muted));
+    radial-gradient(circle at 28% 24%, var(--color-primary-veil), transparent 36%),
+    var(--color-surface-muted);
   color: var(--color-text-muted);
   padding: 1.5rem;
   text-align: center;
 }
 
-.home-life-card__image-count {
-  position: absolute;
-  z-index: 3;
-  right: 0.85rem;
-  bottom: 0.85rem;
-  border: 1px solid color-mix(in srgb, var(--color-border) 68%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
-  color: var(--color-text-muted);
-  font-size: 0.72rem;
-  line-height: 1;
-  padding: 0.42rem 0.62rem;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 8px 22px color-mix(in srgb, var(--color-text) 8%, transparent);
-}
-
 .home-life-card__body {
   display: grid;
-  width: 100%;
-  max-width: 100%;
   min-width: 0;
-  align-content: start;
-  gap: 0.75rem;
-  overflow: hidden;
-  padding: 1.15rem 1.2rem 1.25rem;
-}
-
-.home-life-card__body > *,
-.home-life-card__meta,
-.home-life-card__author,
-.home-life-card__footer,
-.home-life-card__open {
-  max-width: 100%;
-  min-width: 0;
+  gap: 0.65rem;
 }
 
 .home-life-card__meta,
 .home-life-card__author,
-.home-life-card__footer,
-.home-life-card__open {
+.home-life-card__footer {
   display: flex;
+  min-width: 0;
   align-items: center;
 }
 
@@ -147,24 +160,23 @@
   justify-content: space-between;
   gap: 0.75rem;
   color: var(--color-text-subtle);
-  font-size: 0.76rem;
+  font-size: 0.75rem;
 }
 
 .home-life-card__author {
   flex: 1 1 auto;
-  gap: 0.55rem;
+  gap: 0.5rem;
   overflow: hidden;
 }
 
 .home-life-card__author > img,
 .home-life-card__author > span {
   display: grid;
-  width: 2rem;
-  height: 2rem;
+  width: 1.8rem;
+  height: 1.8rem;
   flex: 0 0 auto;
   place-items: center;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--color-primary) 16%, var(--color-border));
   border-radius: 50%;
   background: var(--color-primary-veil);
   color: var(--color-primary-strong);
@@ -172,7 +184,6 @@
 }
 
 .home-life-card__author b {
-  max-width: 100%;
   min-width: 0;
   overflow: hidden;
   color: var(--color-text-muted);
@@ -188,42 +199,46 @@
 
 .home-life-card__title {
   display: -webkit-box;
-  width: 100%;
   overflow: hidden;
   color: var(--color-text);
+  font-size: clamp(1.12rem, 2vw, 1.45rem);
   font-weight: 500;
-  line-height: 1.35;
+  letter-spacing: -0.018em;
+  line-height: 1.4;
   overflow-wrap: anywhere;
-  white-space: normal;
-  word-break: break-word;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
 
+.home-life-card--layout-lead .home-life-card__title {
+  font-size: clamp(1.35rem, 2.7vw, 2rem);
+}
+
 .home-life-card__excerpt {
   display: -webkit-box;
-  width: 100%;
   overflow: hidden;
   color: var(--color-text-muted);
-  line-height: 1.8;
+  line-height: 1.72;
   overflow-wrap: anywhere;
-  white-space: normal;
-  word-break: break-word;
   -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.home-life-card--layout-lead .home-life-card__excerpt {
   -webkit-line-clamp: 3;
 }
 
 .home-life-card__footer {
   justify-content: space-between;
   gap: 0.75rem;
-  margin-top: auto;
   border-top: 1px solid var(--color-border);
-  padding-top: 0.85rem;
   color: var(--color-text-subtle);
-  font-size: 0.76rem;
+  font-size: 0.75rem;
+  padding-top: 0.65rem;
 }
 
 .home-life-card__footer em {
+  min-width: 0;
   overflow: hidden;
   color: var(--color-primary-strong);
   font-style: normal;
@@ -231,81 +246,12 @@
   white-space: nowrap;
 }
 
-.home-life-card__open {
-  flex: 0 0 auto;
-  gap: 0.35rem;
-  transition: color var(--motion-fast) ease;
-}
-
-.home-life-card:hover .home-life-card__open {
-  color: var(--color-primary-strong);
-}
-
-.home-life-card--featured .home-life-card__link {
-  align-items: stretch;
-  grid-template-rows: auto;
-}
-
-.home-life-card--featured.home-life-card--landscape .home-life-card__link {
-  grid-template-columns: minmax(0, 3fr) minmax(22rem, 2fr);
-}
-
-.home-life-card--featured:not(.home-life-card--landscape) .home-life-card__link {
-  grid-template-columns: 1fr;
-  grid-template-rows: auto auto;
-}
-
-.home-life-card--featured .home-life-card__media {
-  min-height: 0;
-}
-
-.home-life-card--featured .home-life-card__body {
-  align-content: start;
-  background: var(--color-surface);
-  padding: clamp(1.4rem, 3vw, 2.15rem);
-}
-
-.home-life-card--featured.home-life-card--landscape .home-life-card__body {
-  align-content: center;
-  background:
-    radial-gradient(circle at 88% 12%, var(--color-primary-veil), transparent 28%),
-    var(--color-surface);
-}
-
-.home-life-card--featured .home-life-card__title {
-  font-size: clamp(1.65rem, 2.4vw, 2.2rem);
-  letter-spacing: -0.025em;
-}
-
-.home-life-card--featured .home-life-card__excerpt {
-  display: block;
-  overflow: visible;
-  font-size: 1.02rem;
-  -webkit-line-clamp: unset;
-}
-
-.home-life-card--compact .home-life-card__link {
-  grid-template-rows: auto auto;
-}
-
-.home-life-card--compact .home-life-card__media {
-  min-height: 0;
-  aspect-ratio: auto;
-}
-
-.home-life-card--compact .home-life-card__title {
-  font-size: 1.18rem;
-}
-
 .home-life-card--text .home-life-card__link {
-  display: block;
-  background:
-    radial-gradient(circle at 100% 0, var(--color-primary-veil), transparent 42%),
-    var(--color-surface);
-}
-
-.home-life-card--text .home-life-card__body {
-  min-height: 13rem;
+  min-height: 16rem;
+  align-content: end;
+  border-top: 1px solid var(--color-border-strong);
+  background: linear-gradient(150deg, transparent 55%, var(--color-primary-veil));
+  padding: 1.2rem 0.25rem 0.25rem;
 }
 
 .home-life-card--text .home-life-card__excerpt {
@@ -314,107 +260,223 @@
   -webkit-line-clamp: 6;
 }
 
-.home-life-showcase__secondary
-  > .home-motion-card:only-child
-  > .home-life-card--landscape
-  .home-life-card__link {
-  align-items: start;
-  grid-template-columns: minmax(0, 1.16fr) minmax(16rem, 0.84fr);
-  grid-template-rows: auto;
+.home-chapter-strip {
+  margin-top: clamp(2.8rem, 7vw, 5.8rem);
+  border-top: 1px solid var(--color-border-strong);
+  padding-top: 1rem;
 }
 
-.home-life-showcase__secondary
-  > .home-motion-card:only-child
-  > .home-life-card--landscape
-  .home-life-card__media {
-  min-height: 0;
-  aspect-ratio: auto;
+.home-chapter-strip__heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
 }
 
-.home-life-showcase__secondary
-  > .home-motion-card:only-child
-  > .home-life-card--landscape
-  .home-life-card__body {
-  align-content: center;
-  padding: clamp(1.25rem, 3vw, 1.8rem);
+.home-chapter-strip__heading h3 {
+  font-size: 1rem;
+  font-weight: 500;
 }
 
-:root[data-theme="dark"] .home-life-card__media::after {
-  background: linear-gradient(
-    180deg,
-    transparent 52%,
-    color-mix(in srgb, var(--color-bg) 46%, transparent)
-  );
+.home-chapter-list {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.65rem;
 }
 
-@container (max-width: 58rem) {
-  .home-life-card--featured.home-life-card--landscape .home-life-card__link {
+.home-chapter-item {
+  display: grid;
+  min-width: 0;
+  align-items: center;
+  grid-template-columns: 3.25rem minmax(0, 1fr) auto;
+  gap: 0.7rem;
+  color: inherit;
+  padding: 0.45rem 0;
+  text-decoration: none;
+}
+
+.home-chapter-item:focus-visible {
+  border-radius: 0.25rem;
+  outline: 3px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+.home-chapter-item__cover {
+  display: grid;
+  width: 3.25rem;
+  aspect-ratio: 1;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 0.65rem;
+  background: var(--color-primary-veil);
+  color: var(--color-primary-strong);
+}
+
+.home-chapter-item__cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.home-chapter-item__copy {
+  display: grid;
+  min-width: 0;
+}
+
+.home-chapter-item__copy strong,
+.home-chapter-item__copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-chapter-item__copy strong {
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+.home-chapter-item__copy small {
+  color: var(--color-text-subtle);
+  font-size: 0.72rem;
+}
+
+.home-chapter-item__arrow {
+  color: var(--color-text-subtle);
+}
+
+.home-skeleton--life {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 2rem 1.5rem;
+}
+
+.home-skeleton__life-item {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.home-skeleton__life-item > i {
+  min-height: 14rem;
+  aspect-ratio: 4 / 3;
+  border-radius: 1rem;
+}
+
+.home-skeleton__life-item > b {
+  display: grid;
+  gap: 0.5rem;
+  background: transparent;
+}
+
+.home-skeleton__life-item em {
+  height: 0.75rem;
+}
+
+.home-skeleton__life-item em:first-child {
+  width: 42%;
+}
+
+.home-skeleton__life-item em:last-child {
+  width: 76%;
+}
+
+.home-skeleton__life-item--lead {
+  grid-column: 1 / span 7;
+}
+
+.home-skeleton__life-item--lead > i {
+  aspect-ratio: 16 / 10;
+}
+
+.home-skeleton__life-item--side {
+  grid-column: 8 / -1;
+}
+
+.home-skeleton__life-item--side > i {
+  aspect-ratio: 4 / 5;
+}
+
+.home-skeleton__life-item--lower-left {
+  grid-column: 1 / span 5;
+}
+
+.home-skeleton__life-item--lower-right {
+  grid-column: 6 / -1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .home-life-card__link:hover .home-life-card__media .adaptive-media__image {
+    transform: scale(1.018);
+  }
+
+  .home-life-card__link:hover .home-life-card__title,
+  .home-chapter-item:hover .home-chapter-item__copy strong {
+    color: var(--color-primary-strong);
+  }
+}
+
+@media (max-width: 960px) {
+  .home-chapter-list {
+    grid-auto-columns: minmax(12rem, 40vw);
+    grid-auto-flow: column;
+    grid-template-columns: none;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    padding-bottom: 0.5rem;
+    scroll-snap-type: x proximity;
+    scrollbar-width: thin;
+  }
+
+  .home-chapter-item {
+    scroll-snap-align: start;
+  }
+}
+
+@media (max-width: 760px) {
+  .home-life-heading {
     grid-template-columns: 1fr;
-    grid-template-rows: auto auto;
   }
 
-  .home-life-card--featured.home-life-card--landscape .home-life-card__media {
-    min-height: 0;
-    aspect-ratio: auto;
+  .home-life-heading > a {
+    width: max-content;
   }
 
-  .home-life-card--featured.home-life-card--landscape .home-life-card__body {
-    align-content: start;
-  }
-}
-
-@media (max-width: 880px) {
-  .home-life-card--featured.home-life-card--landscape .home-life-card__link,
-  .home-life-showcase__secondary
-    > .home-motion-card:only-child
-    > .home-life-card--landscape
-    .home-life-card__link {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto;
+  .home-life-showcase,
+  .home-skeleton--life {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2rem;
   }
 
-  .home-life-card--featured.home-life-card--landscape .home-life-card__media,
-  .home-life-showcase__secondary
-    > .home-motion-card:only-child
-    > .home-life-card--landscape
-    .home-life-card__media {
-    min-height: 0;
-    aspect-ratio: auto;
+  .home-life-showcase__item,
+  .home-skeleton__life-item {
+    grid-column: 1;
   }
 
-  .home-life-card--featured .home-life-card__body {
-    align-content: start;
-  }
-}
-
-@media (max-width: 580px) {
-  .home-life-showcase__secondary {
-    grid-template-columns: 1fr;
+  .home-life-card__media,
+  .home-life-card--layout-lead .home-life-card__media,
+  .home-life-card--layout-lower-left .home-life-card__media {
+    aspect-ratio: 4 / 3;
   }
 
-  .home-life-card {
-    border-radius: var(--radius-lg);
+  .home-life-card--portrait .home-life-card__media,
+  .home-life-card--layout-side .home-life-card__media {
+    aspect-ratio: 4 / 5;
   }
 
-  .home-life-card--compact .home-life-card__media,
-  .home-life-card--featured .home-life-card__media {
-    aspect-ratio: auto;
+  .home-life-card--layout-lead .home-life-card__title {
+    font-size: 1.35rem;
   }
 
-  .home-life-card__body,
-  .home-life-card--featured .home-life-card__body {
-    padding: 1rem;
+  .home-chapter-strip {
+    margin-top: 3.2rem;
   }
 
-  .home-life-card__footer {
-    align-items: flex-start;
-    flex-direction: column;
+  .home-chapter-list {
+    grid-auto-columns: minmax(11.5rem, 78vw);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .home-life-card,
-  .home-life-card__open {
+  .home-life-card__media .adaptive-media__image {
     transition: none;
   }
 }

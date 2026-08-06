@@ -63,6 +63,27 @@ function hero(overrides = {}) {
   }
 }
 
+function guide(overrides = {}) {
+  return {
+    id: 90,
+    title: '拐角睡眠针',
+    category: 'skill_throw',
+    validity_status: 'valid',
+    map: map(),
+    hero: hero(),
+    map_area: 'A 区',
+    side: 'attack',
+    timing: '开门后 2 秒',
+    excerpt: '站在拐角处瞄准招牌。',
+    author: { nickname: '墨友' },
+    like_count: 8,
+    favorite_count: 5,
+    cover_image: null,
+    updated_at: '2026-07-20T08:00:00Z',
+    ...overrides,
+  }
+}
+
 function result(data) {
   return { data, meta: { pagination: { page: 1, page_size: 100, total: data.length, total_pages: 1 } } }
 }
@@ -266,26 +287,117 @@ describe('map-first public browsing', () => {
     expect(within(publish).queryByText('选择英雄')).not.toBeInTheDocument()
   })
 
+  it('shows compact primary filters, result count, sparse results, and the original point target', async () => {
+    getGameMap.mockResolvedValue(map())
+    getGameHero.mockResolvedValue(hero())
+    getGuides.mockResolvedValue(result([guide(), guide({ id: 91, title: '高台睡眠针' })]))
+
+    const { container } = renderRoute(
+      '/game/overwatch/map/kings-row/hero/ana',
+      '/game/:gameSlug/map/:mapSlug/hero/:heroSlug',
+      <GamePointListPage />,
+    )
+
+    expect(await screen.findByRole('heading', { name: '国王大道 · 安娜' })).toBeInTheDocument()
+    expect(screen.getByText('守望先锋')).toBeInTheDocument()
+    expect(screen.getByRole('searchbox', { name: '搜索当前组合点位' })).toBeVisible()
+    expect(screen.getByLabelText('点位分类筛选')).toBeVisible()
+    expect(screen.getByLabelText('攻防方筛选')).toBeVisible()
+    expect(screen.getByText('共 2 个点位')).toBeInTheDocument()
+    expect(screen.getByText('已启用 0 项筛选')).toBeInTheDocument()
+    expect(container.querySelector('.guide-combination-filters__more')).not.toHaveAttribute('open')
+    expect(container.querySelector('.guide-results')).toHaveClass('guide-results--sparse')
+    expect(screen.getByRole('link', { name: /拐角睡眠针/ })).toHaveAttribute('href', '/guide/90')
+    expect(screen.getByRole('link', { name: /高台睡眠针/ })).toHaveAttribute('href', '/guide/91')
+  })
+
+  it('applies keyword and common filters through the existing request, shows no matches, and clears all', async () => {
+    const user = userEvent.setup()
+    getGameMap.mockResolvedValue(map())
+    getGameHero.mockResolvedValue(hero())
+    getGuides.mockImplementation(async (filters) => result(filters.query === '不存在' ? [] : [guide()]))
+
+    renderRoute(
+      '/game/overwatch/map/kings-row/hero/ana',
+      '/game/:gameSlug/map/:mapSlug/hero/:heroSlug',
+      <GamePointListPage />,
+    )
+
+    const searchbox = await screen.findByRole('searchbox', { name: '搜索当前组合点位' })
+    await user.selectOptions(screen.getByLabelText('点位分类筛选'), 'skill_throw')
+    await user.selectOptions(screen.getByLabelText('攻防方筛选'), 'attack')
+    await waitFor(() => expect(getGuides).toHaveBeenLastCalledWith(expect.objectContaining({
+      category: 'skill_throw',
+      side: 'attack',
+    })))
+    expect(screen.getByText('已启用 2 项筛选')).toBeInTheDocument()
+
+    await user.type(searchbox, '不存在')
+    await user.click(screen.getByRole('button', { name: '搜索点位' }))
+    await waitFor(() => expect(getGuides).toHaveBeenLastCalledWith(expect.objectContaining({
+      query: '不存在',
+      category: 'skill_throw',
+      side: 'attack',
+    })))
+    expect(await screen.findByText('没有符合当前筛选条件的点位。清除筛选后再试。')).toBeInTheDocument()
+    expect(screen.getByText('0 个匹配结果')).toBeInTheDocument()
+    expect(screen.getByText('已启用 3 项筛选')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '清除全部' }))
+    await waitFor(() => expect(getGuides).toHaveBeenLastCalledWith(expect.objectContaining({
+      query: '',
+      category: '',
+      side: '',
+      map_area: '',
+      validity_status: '',
+      sort: 'updated',
+    })))
+    expect(searchbox).toHaveValue('')
+    expect(screen.getByLabelText('点位分类筛选')).toHaveValue('')
+    expect(screen.getByLabelText('攻防方筛选')).toHaveValue('')
+    expect(screen.getByText('共 1 个点位')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '拐角睡眠针' })).toBeInTheDocument()
+  })
+
+  it('keeps advanced filter values when the more section is collapsed and counts them accurately', async () => {
+    const user = userEvent.setup()
+    getGameMap.mockResolvedValue(map())
+    getGameHero.mockResolvedValue(hero())
+    getGuides.mockResolvedValue(result([guide()]))
+
+    const { container } = renderRoute(
+      '/game/overwatch/map/kings-row/hero/ana',
+      '/game/:gameSlug/map/:mapSlug/hero/:heroSlug',
+      <GamePointListPage />,
+    )
+
+    await screen.findByRole('heading', { name: '拐角睡眠针' })
+    const more = container.querySelector('.guide-combination-filters__more')
+    await user.click(screen.getByText('更多筛选'))
+    expect(more).toHaveAttribute('open')
+
+    await user.type(screen.getByLabelText('地图区域筛选'), 'A 区')
+    await user.selectOptions(screen.getByLabelText('有效状态筛选'), 'valid')
+    await user.selectOptions(screen.getByLabelText('点位排序'), 'popular')
+    await waitFor(() => expect(getGuides).toHaveBeenLastCalledWith(expect.objectContaining({
+      map_area: 'A 区',
+      validity_status: 'valid',
+      sort: 'popular',
+    })))
+    expect(screen.getByText('已启用 3 项筛选')).toBeInTheDocument()
+    expect(screen.getByText('3 项已启用')).toBeInTheDocument()
+
+    await user.click(screen.getByText('更多筛选'))
+    expect(more).not.toHaveAttribute('open')
+    expect(screen.getByLabelText('地图区域筛选')).toHaveValue('A 区')
+    expect(screen.getByLabelText('有效状态筛选')).toHaveValue('valid')
+    expect(screen.getByLabelText('点位排序')).toHaveValue('popular')
+  })
+
   it('restores combination filters from the URL and renders complete point card facts', async () => {
     getGameMap.mockResolvedValue(map())
     getGameHero.mockResolvedValue(hero())
-    getGuides.mockResolvedValue(result([{
-      id: 90,
-      title: '拐角睡眠针',
-      category: 'skill_throw',
-      validity_status: 'valid',
-      map: map(),
-      hero: hero(),
-      map_area: 'A 区',
-      side: 'attack',
-      timing: '开门后 2 秒',
-      excerpt: '站在拐角处瞄准招牌。',
-      author: { nickname: '墨友' },
-      like_count: 8,
-      favorite_count: 5,
-      cover_image: null,
-      updated_at: '2026-07-20T08:00:00Z',
-    }]))
+    getGuides.mockResolvedValue(result([guide()]))
 
     renderRoute(
       '/game/overwatch/map/kings-row/hero/ana?query=睡眠&category=skill_throw&side=attack&map_area=A+区&validity_status=valid&sort=popular',

@@ -27,10 +27,8 @@
 
 .home-content-window,
 .home-module-card,
-.home-life-card,
 .home-game-grid .game-card,
 .home-guide-list .guide-card,
-.home-chapter-rail,
 .home-final-entry__panel {
   will-change: transform;
 }
@@ -39,7 +37,6 @@
 .home-module-card__footer b,
 .home-chapter-item__arrow,
 .home-game-preview > span:last-child,
-.home-life-card__open > span,
 .home-subsection-heading > a {
   transition: transform var(--motion-fast) var(--home-ease), color var(--motion-fast) ease;
 }
@@ -139,48 +136,8 @@
   animation: home-skeleton-shift 1.45s ease-in-out infinite;
 }
 
-.home-skeleton__featured {
-  display: grid;
-  min-height: 29rem;
-  overflow: hidden;
-  grid-template-columns: minmax(0, 1.42fr) minmax(18rem, 0.72fr);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  background: var(--color-surface);
-}
-
-.home-skeleton__featured > i {
-  border-radius: 0;
-}
-
-.home-skeleton__featured > b {
-  display: grid;
-  align-content: end;
-  gap: 0.8rem;
-  border-radius: 0;
-  background: var(--color-surface);
-  padding: 2rem;
-}
-
-.home-skeleton__featured em,
 .home-skeleton__row em {
   height: 0.8rem;
-}
-
-.home-skeleton__featured em:nth-child(1) { width: 34%; }
-.home-skeleton__featured em:nth-child(2) { width: 82%; height: 1.5rem; }
-.home-skeleton__featured em:nth-child(3) { width: 64%; }
-
-.home-skeleton__cards {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1rem;
-}
-
-.home-skeleton__cards > i {
-  min-height: 15rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
 }
 
 .home-skeleton__row {
@@ -262,8 +219,7 @@
 @media (hover: hover) and (pointer: fine) {
   .home-section-heading__action:hover span,
   .home-module-card:hover .home-module-card__footer b,
-  .home-game-preview:hover > span:last-child,
-  .home-life-card:hover .home-life-card__open > span {
+  .home-game-preview:hover > span:last-child {
     transform: translateX(3px);
   }
 
@@ -315,21 +271,6 @@
 }
 
 @media (max-width: 760px) {
-  .home-skeleton__featured {
-    min-height: 0;
-    grid-template-columns: 1fr;
-  }
-
-  .home-skeleton__featured > i {
-    min-height: 16rem;
-  }
-
-  .home-skeleton__featured > b {
-    min-height: 11rem;
-    padding: 1.2rem;
-  }
-
-  .home-skeleton__cards,
   .home-skeleton--games {
     grid-template-columns: 1fr;
   }
@@ -382,9 +323,6 @@
     font-size: clamp(1.8rem, 9vw, 2.35rem);
   }
 
-  .home-skeleton__cards {
-    grid-template-columns: 1fr;
-  }
 }
 
 :root[data-theme="dark"] .home-content-window {
@@ -407,10 +345,8 @@
 
   .home-content-window,
   .home-module-card,
-  .home-life-card,
   .home-game-grid .game-card,
   .home-guide-list .guide-card,
-  .home-chapter-rail,
   .home-final-entry__panel {
     will-change: auto;
   }
@@ -466,4 +402,3 @@
     opacity: 0.72;
   }
 }
-

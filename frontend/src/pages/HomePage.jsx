@@ -56,8 +56,12 @@ function HomeSkeleton({ variant }) {
   if (variant === 'life') {
     return (
       <div className="home-skeleton home-skeleton--life" role="status" aria-label="正在读取生活记录">
-        <span className="home-skeleton__featured"><i /><b><em /><em /><em /></b></span>
-        <span className="home-skeleton__cards"><i /><i /><i /></span>
+        {['lead', 'side', 'lower-left', 'lower-right'].map((layout) => (
+          <span className={`home-skeleton__life-item home-skeleton__life-item--${layout}`} key={layout}>
+            <i />
+            <b><em /><em /></b>
+          </span>
+        ))}
       </div>
     )
   }
@@ -76,8 +80,8 @@ function HomeState({ loading, error, empty, emptyText = '这一页还在等第�
   let content = children
 
   if (loading) content = <HomeSkeleton variant={variant} />
-  if (error) content = <div className="home-state home-state--error" role="alert">{error}</div>
-  if (empty) content = <div className="home-state">{emptyText}</div>
+  else if (error) content = <div className="home-state home-state--error" role="alert">{error}</div>
+  else if (empty) content = <div className="home-state">{emptyText}</div>
 
   return (
     <div className="home-state-stage">
@@ -102,7 +106,7 @@ function ChapterPreview({ chapter }) {
     <Link className="home-chapter-item" to={`/life/chapter/${chapter.slug}`}>
       <span className="home-chapter-item__cover">
         {chapter.cover_thumbnail_url
-          ? <AdaptiveMedia src={chapter.cover_thumbnail_url} alt="" fit="contain" />
+          ? <AdaptiveMedia src={chapter.cover_thumbnail_url} alt="" fit="cover" />
           : <span aria-hidden="true">章</span>}
       </span>
       <span className="home-chapter-item__copy">
@@ -148,7 +152,7 @@ export default function HomePage() {
     return () => { cancelled = true }
   }, [])
 
-  const [featuredPost, ...secondaryPosts] = home.posts
+  const lifeLayouts = ['lead', 'side', 'lower-left', 'lower-right']
 
   return (
     <LazyMotion features={domAnimation} strict>
@@ -171,46 +175,39 @@ export default function HomePage() {
       <section className="home-domain-section home-domain-section--life" aria-labelledby="home-life-title">
         <PageContainer>
           <Reveal>
-            <HomeSectionHeading
-            eyebrow="日常 · 新近留下"
-            title="一些日子，正被轻轻留下"
-            description="照片记得光线，文字记得当时。这里是大家最近写下的生活。"
-            actionLabel="翻看更多日常"
-            to="/life"
-            titleId="home-life-title"
-            />
+            <header className="home-life-heading">
+              <div>
+                <h2 id="home-life-title">最近的生活</h2>
+                <p>照片、时间和几句话，记下最近发生的事。</p>
+              </div>
+              <Link to="/life">查看全部日常 <span aria-hidden="true">→</span></Link>
+            </header>
           </Reveal>
 
-          <div className="home-life-layout">
-            <div className="home-life-feed">
-              <HomeState loading={home.postsLoading} error={home.postsError} empty={!home.posts.length} emptyText="这里还空着，等一张照片或一句当时的话。" variant="life">
-                <div className="home-life-showcase">
-                  {featuredPost && (
-                    <Reveal className="home-motion-card">
-                      <HomeLifePostCard post={featuredPost} featured />
+          <div className="home-life-feed">
+            <HomeState loading={home.postsLoading} error={home.postsError} empty={!home.posts.length} emptyText="这里还空着，等一张照片或一句当时的话。" variant="life">
+              <div className="home-life-showcase">
+                {home.posts.map((post, index) => {
+                  const layout = lifeLayouts[index] || 'lower-right'
+                  return (
+                    <Reveal
+                      className={`home-motion-card home-life-showcase__item home-life-showcase__item--${layout}`}
+                      delay={cappedStagger(index)}
+                      key={post.id}
+                    >
+                      <HomeLifePostCard post={post} featured={index === 0} layout={layout} />
                     </Reveal>
-                  )}
-                  {secondaryPosts.length > 0 && (
-                    <div className="home-life-showcase__secondary">
-                      {secondaryPosts.map((post, index) => (
-                        <Reveal className="home-motion-card" delay={cappedStagger(index + 1)} key={post.id}>
-                          <HomeLifePostCard post={post} />
-                        </Reveal>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </HomeState>
-            </div>
+                  )
+                })}
+              </div>
+            </HomeState>
+          </div>
 
-            <Reveal className="home-motion-rail">
-            <aside className="home-chapter-rail" aria-labelledby="home-chapter-title">
-              <div className="home-chapter-rail__heading">
-                <div>
-                  <p className="eyebrow">城市与故事</p>
-                  <h3 id="home-chapter-title">沿着地名与记忆翻页</h3>
-                </div>
-                <Link to="/life/chapters" aria-label="查看全部生活章节">全部</Link>
+          <Reveal>
+            <aside className="home-chapter-strip" aria-labelledby="home-chapter-title">
+              <div className="home-chapter-strip__heading">
+                <h3 id="home-chapter-title">按合集继续翻看</h3>
+                <Link to="/life/chapters" aria-label="查看全部生活章节">全部合集 <span aria-hidden="true">→</span></Link>
               </div>
               <HomeState loading={home.chaptersLoading} error={home.chaptersError} empty={!home.chapters.length} emptyText="还没有合集，等一些相近的日子在这里相遇。" variant="chapters">
                 <div className="home-chapter-list">
@@ -222,8 +219,7 @@ export default function HomePage() {
                 </div>
               </HomeState>
             </aside>
-            </Reveal>
-          </div>
+          </Reveal>
         </PageContainer>
       </section>
 

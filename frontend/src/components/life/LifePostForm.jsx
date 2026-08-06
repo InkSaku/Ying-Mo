@@ -47,6 +47,8 @@ export default function LifePostForm({
   onSaveDraft,
   protectedMediaIds = [],
   pending,
+  pendingAction,
+  statusMessage,
   requestError,
 }) {
   const initialForm = {
@@ -279,9 +281,40 @@ export default function LifePostForm({
       .filter((part) => part.type === 'media')
       .map((part) => [part.publicId.toLowerCase(), part.alt]),
   )
+  const uploadingMedia = images.filter((item) => item.uploading)
+  const processingMedia = images.filter((item) => item.processing)
+  const failedMedia = images.filter((item) => item.error)
+  const knownProgress = uploadingMedia
+    .map((item) => item.upload_progress)
+    .filter(Number.isInteger)
+  const uploadProgress = knownProgress.length
+    ? Math.round(knownProgress.reduce((total, value) => total + value, 0) / knownProgress.length)
+    : null
+  const mediaBusy = uploadingMedia.length > 0 || processingMedia.length > 0
+  const actionError = localError
+    || requestError?.details?.[0]?.message
+    || requestError?.message
+  const actionStatus = failedMedia.length
+    ? `${failedMedia.length} 个媒体上传失败，请处理后再试。`
+    : processingMedia.length
+      ? `正在处理 ${processingMedia.length} 个实况…`
+      : uploadingMedia.length
+        ? `正在上传 ${uploadingMedia.length} 个媒体${uploadProgress === null ? '…' : `，${uploadProgress}%`}`
+        : pendingAction === 'draft'
+          ? '正在保存草稿…'
+          : pendingAction === 'publish'
+            ? '正在发布内容…'
+            : actionError || statusMessage || `${images.length}/9 个媒体`
+  const actionStatusTone = failedMedia.length || actionError
+    ? 'error'
+    : mediaBusy || pending
+      ? 'busy'
+      : statusMessage
+        ? 'success'
+        : 'idle'
 
   return (
-    <form className="life-form life-editor" onSubmit={submit} noValidate>
+    <form className="life-form life-editor" onSubmit={submit} aria-busy={pending || mediaBusy} noValidate>
       <section className="life-editor__destination" aria-label="当前发布合集">
         <span>发布到</span>
         <div>
@@ -332,13 +365,13 @@ export default function LifePostForm({
           {!preview && (
             <div className="markdown-toolbar" role="toolbar" aria-label="Markdown 语法快捷工具">
               <span>插入语法</span>
-              <button type="button" title="插入二级标题" onClick={() => insertMarkdown('heading')}>H2 标题</button>
-              <button type="button" title="加粗选中文字" onClick={() => insertMarkdown('bold')}><strong>B</strong> 粗体</button>
-              <button type="button" title="插入链接" onClick={() => insertMarkdown('link')}>↗ 链接</button>
-              <button type="button" title="插入引用" onClick={() => insertMarkdown('quote')}>❯ 引用</button>
-              <button type="button" title="插入行内代码或代码块" onClick={() => insertMarkdown('code')}><code>&lt;/&gt;</code> 代码</button>
-              <button type="button" title="上传图片并插入正文当前位置" disabled={pending || images.length >= 9} onClick={() => mediaManagerRef.current?.chooseImages('inline')}>▧ 图片</button>
-              <button type="button" title="上传 Live Photo 并插入正文当前位置" disabled={pending || images.length >= 9} onClick={() => mediaManagerRef.current?.chooseLivePhoto()}>◉ 实况</button>
+              <button type="button" aria-label="H2 标题" title="插入二级标题" onClick={() => insertMarkdown('heading')}><span className="markdown-toolbar__desktop">H2 标题</span><span className="markdown-toolbar__mobile" aria-hidden="true">H2</span></button>
+              <button type="button" aria-label="B 粗体" title="加粗选中文字" onClick={() => insertMarkdown('bold')}><strong>B</strong><span className="markdown-toolbar__desktop"> 粗体</span></button>
+              <button type="button" aria-label="↗ 链接" title="插入链接" onClick={() => insertMarkdown('link')}><span aria-hidden="true">↗</span><span className="markdown-toolbar__desktop"> 链接</span></button>
+              <button type="button" aria-label="❯ 引用" title="插入引用" onClick={() => insertMarkdown('quote')}><span aria-hidden="true">❯</span><span className="markdown-toolbar__desktop"> 引用</span></button>
+              <button type="button" aria-label="</> 代码" title="插入行内代码或代码块" onClick={() => insertMarkdown('code')}><code>&lt;/&gt;</code><span className="markdown-toolbar__desktop"> 代码</span></button>
+              <button type="button" aria-label="▧ 图片" title="上传图片并插入正文当前位置" disabled={pending || images.length >= 9} onClick={() => mediaManagerRef.current?.chooseImages('inline')}><span aria-hidden="true">▧</span><span className="markdown-toolbar__desktop"> 图片</span></button>
+              <button type="button" aria-label="◉ 实况" title="上传 Live Photo 并插入正文当前位置" disabled={pending || images.length >= 9} onClick={() => mediaManagerRef.current?.chooseLivePhoto()}><span aria-hidden="true">◉</span><span className="markdown-toolbar__desktop"> 实况</span></button>
             </div>
           )}
           {preview
@@ -474,9 +507,12 @@ export default function LifePostForm({
 
       {(localError || fieldErrors.content || fieldErrors.media_ids || fieldErrors.chapter_id) && <p className="form-feedback form-feedback--error" role="alert">{localError || fieldErrors.content || fieldErrors.media_ids || fieldErrors.chapter_id}</p>}
       {requestError && !requestError.details?.length && <p className="form-feedback form-feedback--error" role="alert">{requestError.message}</p>}
-      <div className="life-form__actions">
-        {onSaveDraft && <button type="button" disabled={pending} onClick={saveDraft}>{pending ? '正在保存…' : '保存草稿'}</button>}
-        <button className="button button--primary" disabled={pending}>{pending ? '正在保存…' : '发布内容'}</button>
+      <div className="life-form__actions life-editor__actions" role="region" aria-label="发布操作">
+        <p className={`life-editor__action-status life-editor__action-status--${actionStatusTone}`} role="status" aria-live="polite">{actionStatus}</p>
+        <div className="life-editor__action-buttons">
+          {onSaveDraft && <button type="button" disabled={pending || mediaBusy} onClick={saveDraft}>{pendingAction === 'draft' || (pending && !pendingAction) ? '正在保存…' : '保存草稿'}</button>}
+          <button className="button button--primary" disabled={pending || mediaBusy}>{pendingAction === 'publish' ? '正在发布…' : pending && !pendingAction ? '正在保存…' : '发布内容'}</button>
+        </div>
       </div>
     </form>
   )

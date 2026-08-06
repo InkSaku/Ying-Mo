@@ -32,7 +32,7 @@ function coverOrientation(post) {
   return 'square'
 }
 
-export default function HomeLifePostCard({ post, featured = false }) {
+export default function HomeLifePostCard({ post, featured = false, layout = 'standard' }) {
   const name = authorName(post)
   const title = post.title || post.excerpt || '生活内容'
   const excerpt = post.excerpt || ''
@@ -44,6 +44,7 @@ export default function HomeLifePostCard({ post, featured = false }) {
     featured ? 'home-life-card--featured' : 'home-life-card--compact',
     post.cover_image ? '' : 'home-life-card--text',
     `home-life-card--${orientation}`,
+    `home-life-card--layout-${layout}`,
   ].join(' ')
 
   return (
@@ -58,19 +59,13 @@ export default function HomeLifePostCard({ post, featured = false }) {
             <AdaptiveMedia
               src={post.cover_image}
               alt={`生活照片：${title}`}
-              fit="natural"
+              fit="cover"
               width={post.cover_width}
               height={post.cover_height}
               loading={featured ? 'eager' : 'lazy'}
             />
           )}
-
           {post.cover_media_type === 'live_video' && <span className="live-photo-badge">实况</span>}
-          {mediaCount > 0 && (
-            <span className="home-life-card__image-count">
-              {post.live_video_count ? `${mediaCount} 个媒体` : `${mediaCount} 张照片`}
-            </span>
-          )}
         </span>}
 
         <span className="home-life-card__body">
@@ -91,9 +86,7 @@ export default function HomeLifePostCard({ post, featured = false }) {
 
           <span className="home-life-card__footer">
             <em>{context}</em>
-            <span className="home-life-card__open">
-              打开记录 <span aria-hidden="true">→</span>
-            </span>
+            {mediaCount > 0 && <span>{post.live_video_count ? `${mediaCount} 个媒体` : `${mediaCount} 张照片`}</span>}
           </span>
         </span>
       </Link>

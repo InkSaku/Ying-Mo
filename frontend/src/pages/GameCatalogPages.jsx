@@ -210,6 +210,10 @@ export function GamePointListPage() {
   const { gameSlug, mapSlug, heroSlug } = useParams()
   const [search, setSearch] = useSearchParams()
   const [query, setQuery] = useState(search.get('query') || '')
+  const [moreFiltersOpen, setMoreFiltersOpen] = useState(() => Boolean(
+    search.get('map_area') || search.get('validity_status') || (search.get('sort') && search.get('sort') !== 'updated'),
+  ))
+  const searchRef = useRef(null)
   useEffect(() => setQuery(search.get('query') || ''), [search])
   const mapState = useData(() => getGameMap(gameSlug, mapSlug), [gameSlug, mapSlug])
   const heroState = useData(() => getGameHero(gameSlug, heroSlug), [gameSlug, heroSlug])
@@ -229,6 +233,16 @@ export function GamePointListPage() {
   }), [gameSlug, mapSlug, heroSlug, search.toString()])
   const contextReady = mapState.data && heroState.data
   const canPublish = contextReady && mapState.data.is_available !== false && heroState.data.is_available !== false
+  const appliedQuery = search.get('query') || ''
+  const category = search.get('category') || ''
+  const side = search.get('side') || ''
+  const mapArea = search.get('map_area') || ''
+  const validityStatus = search.get('validity_status') || ''
+  const sort = search.get('sort') || 'updated'
+  const advancedFilterCount = [mapArea, validityStatus, sort === 'updated' ? '' : sort].filter(Boolean).length
+  const activeFilterCount = [appliedQuery, category, side, mapArea, validityStatus, sort === 'updated' ? '' : sort].filter(Boolean).length
+  const resultTotal = state.data?.meta?.pagination?.total ?? state.data?.data?.length ?? 0
+  const guides = state.data?.data || []
 
   function update(values) {
     const next = new URLSearchParams(search)
@@ -237,30 +251,53 @@ export function GamePointListPage() {
     setSearch(next)
   }
 
-  return <section className="guides-page page-container">
+  function clearFilters() {
+    setQuery('')
+    setSearch(new URLSearchParams())
+    window.requestAnimationFrame(() => searchRef.current?.focus())
+  }
+
+  return <section className="guides-page guide-combination-page page-container">
     <Link className="text-link" to={`/game/${gameSlug}/map/${mapSlug}`}>返回地图英雄选择</Link>
     <State state={mapState} resource="地图">
       <State state={heroState} resource="英雄">
         {contextReady && <>
           <header className="guide-combination-header">
-            <p className="eyebrow">{mapState.data.game.name_zh} · 路标已就位</p>
-            <h1>{mapState.data.name_zh} · {heroState.data.name_zh}</h1>
-            <p>地图和英雄已经替你选好。现在，只看这一组真正用得上的点位。</p>
+            <div>
+              <p className="guide-combination-header__game">{mapState.data.game.name_zh}</p>
+              <h1>{mapState.data.name_zh} · {heroState.data.name_zh}</h1>
+              <p className="guide-combination-header__summary">当前地图与英雄已确定，直接查找可用点位。</p>
+            </div>
             {canPublish
               ? <Link className="button button--primary" to={`/guide/create?game=${gameSlug}&map=${mapSlug}&hero=${heroSlug}`}>在这里留个路标</Link>
               : <p className="catalog-warning">当前游戏、地图或英雄已停用；历史点位仍可查看，但不能为这个组合发布新点位。</p>}
           </header>
-          <form className="guide-filters guide-combination-filters" onSubmit={(event) => { event.preventDefault(); update({ query, map_area: search.get('map_area') || '' }) }}>
-            <label>关键词<input aria-label="搜索当前组合点位" value={query} placeholder="标题、说明、技能或标签" onChange={(event) => setQuery(event.target.value)} /></label>
-            <label>分类<select aria-label="点位分类筛选" value={search.get('category') || ''} onChange={(event) => update({ category: event.target.value })}><option value="">全部分类</option><option value="deployment_position">炮台与部署点位</option><option value="skill_throw">技能投掷</option><option value="timed_throw">开局定时投掷</option><option value="hold_position">架枪与站位</option><option value="movement_route">位移与路线</option><option value="map_interaction">地图机制与交互</option><option value="other">其他点位</option></select></label>
-            <label>攻防方<select aria-label="攻防方筛选" value={search.get('side') || ''} onChange={(event) => update({ side: event.target.value })}><option value="">全部</option><option value="attack">进攻方</option><option value="defense">防守方</option><option value="both">攻防皆可</option></select></label>
-            <label>地图区域<input aria-label="地图区域筛选" value={search.get('map_area') || ''} onChange={(event) => update({ map_area: event.target.value })} placeholder="例如：A 区" /></label>
-            <label>有效状态<select aria-label="有效状态筛选" value={search.get('validity_status') || ''} onChange={(event) => update({ validity_status: event.target.value })}><option value="">全部状态</option><option value="unverified">未验证</option><option value="valid">当前有效</option><option value="possibly_invalid">可能失效</option><option value="invalid">已失效</option></select></label>
-            <label>排序<select aria-label="点位排序" value={search.get('sort') || 'updated'} onChange={(event) => update({ sort: event.target.value === 'updated' ? '' : event.target.value })}><option value="updated">最近更新</option><option value="latest">最新发布</option><option value="popular">热门</option></select></label>
-            <button type="submit">搜索</button>
+          <form className="guide-combination-filters" role="search" aria-label="筛选当前地图与英雄的点位" onSubmit={(event) => { event.preventDefault(); update({ query }) }}>
+            <div className="guide-combination-filters__primary">
+              <label className="guide-filter-field guide-filter-field--query">关键词<input ref={searchRef} type="search" aria-label="搜索当前组合点位" value={query} placeholder="搜索标题、说明、技能或标签" onChange={(event) => setQuery(event.target.value)} /></label>
+              <label className="guide-filter-field">分类<select aria-label="点位分类筛选" value={category} onChange={(event) => update({ category: event.target.value })}><option value="">全部分类</option><option value="deployment_position">炮台与部署点位</option><option value="skill_throw">技能投掷</option><option value="timed_throw">开局定时投掷</option><option value="hold_position">架枪与站位</option><option value="movement_route">位移与路线</option><option value="map_interaction">地图机制与交互</option><option value="other">其他点位</option></select></label>
+              <label className="guide-filter-field">攻防方<select aria-label="攻防方筛选" value={side} onChange={(event) => update({ side: event.target.value })}><option value="">全部</option><option value="attack">进攻方</option><option value="defense">防守方</option><option value="both">攻防皆可</option></select></label>
+              <button className="button--primary guide-combination-filters__submit" type="submit">搜索点位</button>
+            </div>
+            <div className="guide-combination-filters__feedback">
+              <p aria-live="polite">{state.loading ? '正在更新点位…' : activeFilterCount ? `${resultTotal} 个匹配结果` : `共 ${resultTotal} 个点位`}</p>
+              <span aria-live="polite">已启用 {activeFilterCount} 项筛选</span>
+              <button type="button" disabled={!activeFilterCount} onClick={clearFilters}>清除全部</button>
+            </div>
+            <details className="guide-combination-filters__more" open={moreFiltersOpen} onToggle={(event) => setMoreFiltersOpen(event.currentTarget.open)}>
+              <summary>
+                <span>更多筛选</span>
+                <small>{advancedFilterCount ? `${advancedFilterCount} 项已启用` : '地图区域、有效状态与排序'}</small>
+              </summary>
+              <div className="guide-combination-filters__advanced">
+                <label className="guide-filter-field">地图区域<input aria-label="地图区域筛选" value={mapArea} onChange={(event) => update({ map_area: event.target.value })} placeholder="例如：A 区" /></label>
+                <label className="guide-filter-field">有效状态<select aria-label="有效状态筛选" value={validityStatus} onChange={(event) => update({ validity_status: event.target.value })}><option value="">全部状态</option><option value="unverified">未验证</option><option value="valid">当前有效</option><option value="possibly_invalid">可能失效</option><option value="invalid">已失效</option></select></label>
+                <label className="guide-filter-field">排序<select aria-label="点位排序" value={sort} onChange={(event) => update({ sort: event.target.value === 'updated' ? '' : event.target.value })}><option value="updated">最近更新</option><option value="latest">最新发布</option><option value="popular">热门</option></select></label>
+              </div>
+            </details>
           </form>
-          <State state={state} empty="这位英雄在这张地图上还没有路标。若你走通过一条路，不妨把它留下。" resource="点位">
-            {state.data && <div className="masonry-feed">{state.data.data.map((guide) => <GuideCard key={guide.id} guide={guide} className="masonry-feed__item" />)}</div>}
+          <State state={state} empty={activeFilterCount ? '没有符合当前筛选条件的点位。清除筛选后再试。' : '这位英雄在这张地图上还没有路标。若你走通过一条路，不妨把它留下。'} resource="点位">
+            {state.data && <div className={`guide-results${guides.length <= 2 ? ' guide-results--sparse' : ''}`}>{guides.map((guide) => <GuideCard key={guide.id} guide={guide} variant="lookup" />)}</div>}
           </State>
           <Pagination pagination={state.loading ? null : state.data?.meta?.pagination} onPageChange={(next) => update({ page: String(next) })} />
         </>}

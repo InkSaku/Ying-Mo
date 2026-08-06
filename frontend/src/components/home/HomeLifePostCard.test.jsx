@@ -11,6 +11,7 @@ describe('HomeLifePostCard', () => {
       <MemoryRouter>
         <HomeLifePostCard
           featured
+          layout="lead"
           post={{
             id: 8,
             title: 'markdown格式',
@@ -28,6 +29,34 @@ describe('HomeLifePostCard', () => {
     expect(screen.getByText('markdown格式')).toBeInTheDocument()
     expect(screen.getByText(excerpt)).toBeInTheDocument()
     expect(screen.getByText('Sunmingyuanhahahahahahahaha')).toBeInTheDocument()
-    expect(container.querySelector('.home-life-card--featured.home-life-card--landscape')).toBeInTheDocument()
+    expect(container.querySelector('.home-life-card--featured.home-life-card--landscape.home-life-card--layout-lead'))
+      .toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /查看Sunmingyuan.*的生活记录/ }))
+      .toHaveAttribute('href', '/life/post/8')
+    expect(screen.getByRole('img', { name: '生活照片：markdown格式' }))
+      .toHaveAttribute('src', '/media/forest.webp')
+    expect(screen.queryByText('打开记录')).not.toBeInTheDocument()
+  })
+
+  it('shows media quantity as quiet metadata instead of an image overlay pill', () => {
+    const { container } = render(
+      <MemoryRouter>
+        <HomeLifePostCard
+          post={{
+            id: 9,
+            title: '四月散步',
+            excerpt: '天黑之前走过河边。',
+            cover_image: '/media/walk.webp',
+            media_count: 3,
+            chapter: { name: '散步' },
+            author: { nickname: '映墨' },
+            created_at: '2026-04-20T05:00:00Z',
+          }}
+        />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText('3 张照片')).toBeInTheDocument()
+    expect(container.querySelector('.home-life-card__image-count')).not.toBeInTheDocument()
   })
 })
